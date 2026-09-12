@@ -1,0 +1,442 @@
+:root {
+            /* Paleta base */
+            --olive-900: #2c3319;
+            --olive-800: #34401f;
+            --olive-700: #4f5f34;
+            --olive-600: #63763f;
+            --olive-500: #7c8f57;
+            --olive-tint: #eef1e6;
+            --gray-50:  #f6f6f4;
+            --gray-100: #ececE7;
+            --gray-200: #dedcd4;
+            --gray-400: #a9a79c;
+            --gray-600: #6f6d64;
+            --gray-800: #3a3934;
+            --white: #ffffff;
+            --danger-muted: #8c3f3f;
+            --warning-muted: #96752c;
+            --info-muted: #55676b;
+
+            /* Variables propias usadas por los componentes del sistema */
+            --primary-color: var(--olive-800);
+            --secondary-color: var(--olive-700);
+            --success-color: var(--olive-700);
+            --danger-color: var(--danger-muted);
+            --warning-color: var(--warning-muted);
+            --light-bg: var(--gray-50);
+
+            /* Overrides de Bootstrap: así btn-primary, bg-danger, badge, etc.
+               heredan la paleta institucional sin tocar cada clase */
+            --bs-primary: #4f5f34;
+            --bs-primary-rgb: 79, 95, 52;
+            --bs-secondary: #6f6d64;
+            --bs-secondary-rgb: 111, 109, 100;
+            --bs-success: #4f5f34;
+            --bs-success-rgb: 79, 95, 52;
+            --bs-danger: #8c3f3f;
+            --bs-danger-rgb: 140, 63, 63;
+            --bs-warning: #96752c;
+            --bs-warning-rgb: 150, 117, 44;
+            --bs-info: #55676b;
+            --bs-info-rgb: 85, 103, 107;
+            --bs-link-color: #4f5f34;
+            --bs-link-color-rgb: 79, 95, 52;
+            --bs-link-hover-color: #34401f;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--gray-100);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            color: var(--gray-800);
+        }
+
+        .main-container {
+            background: var(--white);
+            border-radius: 10px;
+            border: 1px solid var(--gray-200);
+            border-top: 5px solid var(--olive-700);
+            box-shadow: 0 10px 30px rgba(44, 51, 25, 0.08);
+            width: 100%;
+            max-width: 1400px;
+            min-height: 90vh;
+            padding: 30px;
+            position: relative;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px 0;
+            border-bottom: 2px solid var(--gray-200);
+        }
+        .login-header .institution-logo {
+            height: 130px;
+            width: auto;
+            margin-bottom: 12px;
+            filter: drop-shadow(0 4px 10px rgba(44, 51, 25, 0.22));
+        }
+        .login-header h1 { color: var(--olive-800); font-weight: 700; font-size: 2.2rem; letter-spacing: 0.3px; }
+        .login-header h1 i { color: var(--olive-700); }
+        .login-header p { color: var(--gray-600); font-size: 1.05rem; margin-top: 4px; }
+
+        .login-form {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 30px;
+            background: var(--white);
+            border: 1px solid var(--gray-200);
+            border-radius: 10px;
+            box-shadow: 0 4px 16px rgba(44, 51, 25, 0.06);
+        }
+        .login-form .form-group { margin-bottom: 20px; }
+        .login-form label { font-weight: 600; color: var(--olive-800); }
+        .login-form .form-control:focus { border-color: var(--olive-600); box-shadow: 0 0 0 0.2rem rgba(79,95,52,0.15); }
+        .login-form .btn-primary {
+            border: none;
+            padding: 12px;
+            font-weight: 600;
+            width: 100%;
+        }
+        .login-error { color: var(--danger-color); text-align: center; margin-top: 10px; display: none; }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 2px solid var(--gray-200);
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        .dashboard-header h2 { color: var(--olive-800); font-weight: 700; margin: 0; }
+
+        .btn-logout {
+            background: var(--danger-color);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .btn-logout:hover { background: #712f2f; color: white; }
+
+        .camera-container {
+            background: #1c1e19;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            max-width: 640px;
+            margin: 0 auto;
+            border: 1px solid var(--gray-200);
+        }
+        .camera-container video { width: 100%; height: auto; display: block; }
+        .camera-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+
+        .camera-controls {
+            text-align: center;
+            padding: 20px;
+            background: var(--gray-50);
+            border-radius: 0 0 10px 10px;
+        }
+
+        .btn-capture, .btn-entry, .btn-exit, .btn-early-exit {
+            border: none;
+            color: white;
+            padding: 12px 28px;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            margin: 6px 6px;
+        }
+        .btn-capture { background: var(--olive-700); }
+        .btn-capture:hover { background: var(--olive-800); }
+        .btn-entry { background: var(--olive-600); }
+        .btn-entry:hover { background: var(--olive-800); }
+        .btn-exit { background: var(--danger-color); }
+        .btn-exit:hover { background: #712f2f; }
+        .btn-early-exit { background: var(--warning-color); }
+        .btn-early-exit:hover { background: #7a5e22; }
+        .btn-entry:disabled, .btn-exit:disabled, .btn-early-exit:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* ===== Cámara del docente: más chica y con los botones al costado
+           en vez de abajo, para que entren todos sin scroll. ===== */
+        .teacher-camera-layout { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+        .teacher-camera-layout .camera-container { max-width: 260px; flex: 0 0 auto; }
+        .teacher-camera-layout .camera-controls {
+            flex: 1 1 220px; min-width: 220px; border-radius: 10px; text-align: left; padding: 15px;
+        }
+        .teacher-camera-layout .camera-controls .btn-capture,
+        .teacher-camera-layout .camera-controls .btn-entry,
+        .teacher-camera-layout .camera-controls .btn-exit,
+        .teacher-camera-layout .camera-controls .btn-early-exit,
+        .teacher-camera-layout .camera-controls .btn-secondary {
+            display: block; width: 100%; margin: 0 0 8px 0; padding: 10px 14px;
+        }
+        @media (max-width: 767px) {
+            .teacher-camera-layout .camera-container { max-width: 100%; }
+        }
+
+        .admin-panel { padding: 20px 0; }
+
+        .admin-table {
+            background: var(--white);
+            border: 1px solid var(--gray-200);
+            border-radius: 10px;
+            overflow: hidden;
+            padding: 20px;
+        }
+        .admin-table thead { background: var(--olive-800); color: white; }
+        .admin-table tbody tr:hover { background: var(--olive-tint); }
+
+        .alert-card {
+            background: var(--white);
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            padding: 18px;
+            margin-bottom: 14px;
+            border-left: 5px solid var(--danger-color);
+        }
+        .alert-card.justified { border-left-color: var(--success-color); }
+
+        .badge-justified { background: var(--success-color); color: white; padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; }
+        .badge-unjustified { background: var(--danger-color); color: white; padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; }
+
+        .form-section {
+            background: var(--white);
+            padding: 28px;
+            border: 1px solid var(--gray-200);
+            border-radius: 10px;
+            margin-bottom: 28px;
+        }
+        .form-section h4 { color: var(--olive-800); margin-bottom: 20px; font-weight: 700; }
+        .form-section h4 i { color: var(--olive-700); }
+
+        .camera-preview {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 3px solid var(--olive-600);
+            margin: 0 auto 14px;
+            background: var(--gray-100);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .camera-preview img { width: 100%; height: 100%; object-fit: cover; }
+        .camera-preview .placeholder { color: var(--gray-400); font-size: 0.9rem; text-align: center; }
+
+        .capture-status { text-align: center; font-size: 0.85rem; color: var(--gray-600); margin-top: 6px; font-weight: 600; }
+        .capture-status.ready { color: var(--olive-700); }
+
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
+        .toast-custom {
+            background: var(--white);
+            padding: 14px 22px;
+            border-radius: 8px;
+            box-shadow: 0 6px 20px rgba(44,51,25,0.15);
+            margin-bottom: 10px;
+            animation: slideInRight 0.4s ease;
+            border-left: 5px solid var(--success-color);
+            min-width: 260px;
+        }
+        .toast-custom.error { border-left-color: var(--danger-color); }
+        .toast-custom.warning { border-left-color: var(--warning-color); }
+
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .hidden { display: none !important; }
+
+        .stat-card {
+            background: var(--white);
+            border: 1px solid var(--gray-200);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+        .stat-card .number { font-size: 2.3rem; font-weight: 700; color: var(--olive-800); }
+        .stat-card .label { color: var(--gray-600); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }
+
+        .required-field::after { content: " *"; color: var(--danger-color); font-weight: bold; }
+
+        /* ===== BUSCADOR (lupa) ===== */
+        .search-box { position: relative; max-width: 420px; }
+        .search-box i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--gray-400); }
+        .search-box .form-control { padding-left: 38px; }
+
+        /* ===== CALENDARIO ===== */
+        .schedule-container { overflow-x: auto; background: var(--gray-50); border-radius: 8px; padding: 15px; }
+        .schedule-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; min-width: 500px; }
+        .schedule-header {
+            font-weight: 700; text-align: center; padding: 10px 5px;
+            background: var(--olive-800); color: white; border-radius: 5px;
+            font-size: 0.8rem; display: flex; align-items: center; justify-content: center;
+        }
+        .schedule-slot {
+            background: var(--white); border: 1px solid var(--gray-200); border-radius: 4px;
+            padding: 6px 4px; text-align: center; cursor: pointer; transition: all 0.15s ease;
+            min-height: 48px; display: flex; flex-direction: column; align-items: center;
+            justify-content: center; font-size: 0.65rem; position: relative;
+        }
+        .schedule-slot:hover { background: var(--olive-tint); z-index: 1; }
+        .schedule-slot.selected { background: var(--olive-700); color: white; border-color: var(--olive-700); }
+        .schedule-slot .slot-time {
+            font-weight: 600; font-size: 0.55rem; color: var(--gray-600); cursor: pointer;
+            padding: 2px 6px; border-radius: 3px; background: rgba(0,0,0,0.03);
+            border: 1px dashed transparent; width: 100%; text-align: center;
+        }
+        .schedule-slot .slot-time:hover { background: rgba(79,95,52,0.15); border-color: var(--olive-600); color: var(--olive-800); }
+        .schedule-slot.selected .slot-time { color: rgba(255,255,255,0.9); border-color: rgba(255,255,255,0.3); }
+        .schedule-slot .slot-content { font-size: 0.7rem; font-weight: 600; margin-top: 2px; }
+        .schedule-slot.selected .slot-content { color: white; }
+
+        .schedule-legend { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 10px; padding: 10px; background: var(--gray-50); border-radius: 8px; }
+        .schedule-legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.8rem; color: var(--gray-800); }
+        .schedule-legend-color { width: 20px; height: 20px; border-radius: 4px; border: 1px solid var(--gray-200); }
+        .schedule-legend-color.selected { background: var(--olive-700); }
+        .schedule-legend-color.unselected { background: white; }
+
+        .password-info {
+            background: var(--olive-tint);
+            border-left: 4px solid var(--olive-700);
+            padding: 10px 15px; border-radius: 5px; margin-top: 10px;
+        }
+        .password-info strong { color: var(--olive-800); }
+
+        .schedule-stats { font-size: 0.85rem; color: var(--gray-600); margin-top: 10px; padding: 8px; background: var(--gray-100); border-radius: 5px; }
+
+        .horario-chip {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: var(--olive-tint); color: var(--olive-800);
+            border: 1px solid var(--olive-600);
+            border-radius: 20px; padding: 6px 8px 6px 14px; font-size: 0.85rem; font-weight: 600;
+        }
+        .horario-chip-remove {
+            background: none; border: none; color: var(--olive-800); font-size: 1.1rem; line-height: 1;
+            cursor: pointer; padding: 0 4px; font-weight: 700;
+        }
+        .horario-chip-remove:hover { color: var(--danger-color); }
+
+        /* ===== CALENDARIO ANUAL (por docente) ===== */
+        .mini-calendar-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+        .mini-calendar { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 8px; padding: 10px; }
+        .mini-calendar-title { font-weight: 700; color: var(--olive-800); text-align: center; margin-bottom: 6px; font-size: 0.9rem; }
+        .mini-calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+        .mini-calendar-dow { font-size: 0.6rem; text-align: center; color: var(--gray-600); font-weight: 600; }
+        .mini-calendar-day {
+            font-size: 0.65rem; text-align: center; padding: 3px 0; border-radius: 3px;
+            background: var(--white); border: 1px solid var(--gray-200); cursor: default;
+        }
+        .mini-calendar-day.empty { background: transparent; border: none; }
+        .mini-calendar-day.day-present { background: var(--olive-700); color: white; border-color: var(--olive-700); }
+        .mini-calendar-day.day-falta { background: var(--danger-muted); color: white; border-color: var(--danger-muted); }
+        .mini-calendar-day.day-licencia { background: var(--info-muted); color: white; border-color: var(--info-muted); }
+        .mini-calendar-day.day-scheduled { background: var(--olive-tint); border-color: var(--olive-600); }
+
+        /* ===== CALENDARIO ANUAL DEL ESTABLECIMIENTO (con nombres de docentes) ===== */
+        .annual-calendar-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+        .annual-month { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 8px; padding: 10px; }
+        .annual-month-title { font-weight: 700; color: var(--olive-800); text-align: center; margin-bottom: 6px; }
+        .annual-month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+        .annual-month-dow { font-size: 0.6rem; text-align: center; color: var(--gray-600); font-weight: 600; }
+        .annual-day-cell {
+            background: var(--white); border: 1px solid var(--gray-200); border-radius: 4px;
+            min-height: 46px; padding: 2px; font-size: 0.6rem; overflow: hidden;
+        }
+        .annual-day-cell.empty { background: transparent; border: none; }
+        .annual-day-num { font-weight: 700; font-size: 0.6rem; color: var(--gray-600); }
+        .annual-teacher-chip {
+            display: block; font-size: 0.5rem; line-height: 1.3; padding: 0 2px; border-radius: 2px;
+            margin-top: 1px; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .annual-teacher-chip.status-present { background: var(--olive-700); }
+        .annual-teacher-chip.status-falta { background: var(--danger-muted); }
+        .annual-teacher-chip.status-licencia { background: var(--info-muted); }
+        .annual-teacher-chip.status-scheduled { background: var(--warning-muted); }
+        .annual-day-cell.has-entries { cursor: pointer; }
+        .annual-day-cell.has-entries:hover { box-shadow: 0 0 0 2px var(--olive-600) inset; background: var(--olive-tint); }
+
+        /* ===== Detalle de un día (nombres en grande, al hacer clic en el día) ===== */
+        .day-detail-teacher {
+            display: flex; justify-content: space-between; align-items: center; gap: 10px;
+            padding: 14px 16px; border-radius: 8px; margin-bottom: 10px; cursor: pointer;
+            font-size: 1.15rem; font-weight: 700; color: white; transition: filter 0.15s ease;
+        }
+        .day-detail-teacher:hover { filter: brightness(1.08); }
+        .day-detail-teacher .day-detail-status {
+            font-size: 0.8rem; font-weight: 600; background: rgba(255,255,255,0.25);
+            padding: 4px 12px; border-radius: 12px; white-space: nowrap;
+        }
+        .day-detail-teacher.status-present { background: var(--olive-700); }
+        .day-detail-teacher.status-falta { background: var(--danger-muted); }
+        .day-detail-teacher.status-licencia { background: var(--info-muted); }
+        .day-detail-teacher.status-scheduled { background: var(--warning-muted); }
+
+        .face-recognition-status { margin: 10px 0; padding: 10px; border-radius: 6px; font-weight: 600; }
+        .face-recognition-status.success { background: var(--olive-tint); color: var(--olive-800); border: 1px solid #c9d6b5; }
+        .face-recognition-status.error   { background: #f5e9e9; color: #5c2f2f; border: 1px solid #e2c8c8; }
+        .face-recognition-status.waiting { background: var(--gray-100); color: var(--gray-800); border: 1px solid var(--gray-200); }
+        .face-recognition-status.processing { background: #f4eedd; color: #6b5420; border: 1px solid #e6d8ab; }
+        .face-recognition-status.warning { background: #f4eedd; color: #6b5420; border: 1px solid #e6d8ab; }
+
+        .accordion-button:not(.collapsed) { background: var(--olive-tint); color: var(--olive-800); }
+        .accordion-button:focus { box-shadow: none; }
+        .accordion-body { max-height: 400px; overflow-y: auto; }
+        /* La grilla semanal y el listado de docentes ya traen su propio
+           scroll interno (weekly-grid-container / table-responsive), así
+           que no conviene recortarlos a 400px como al buzón de alertas. */
+        #teachersAccordionBody { max-height: none; overflow: visible; }
+        /* Chart.js necesita un contenedor de altura fija: con
+           maintainAspectRatio:false el canvas llena este alto y ancho,
+           en vez de calcular una altura enorme a partir del ancho. */
+        .chart-container { position: relative; height: 300px; width: 100%; }
+
+        /* Bootstrap 5.3's compiled .btn-* classes bake in fixed colors and
+           do NOT read --bs-primary/--bs-success/etc at runtime (only the
+           bg-*/text-* utility classes do), so the CSS variable overrides
+           above never reached actual buttons. Force the same palette here. */
+        #app .btn-primary { background-color: var(--olive-700) !important; border-color: var(--olive-700) !important; }
+        #app .btn-primary:hover, #app .btn-primary:focus { background-color: var(--olive-800) !important; border-color: var(--olive-800) !important; }
+        #app .btn-success { background-color: var(--olive-700) !important; border-color: var(--olive-700) !important; }
+        #app .btn-success:hover, #app .btn-success:focus { background-color: var(--olive-800) !important; border-color: var(--olive-800) !important; }
+        #app .btn-danger { background-color: var(--danger-muted) !important; border-color: var(--danger-muted) !important; }
+        #app .btn-danger:hover, #app .btn-danger:focus { background-color: #712f2f !important; border-color: #712f2f !important; }
+        #app .btn-warning { background-color: var(--warning-muted) !important; border-color: var(--warning-muted) !important; color: #fff !important; }
+        #app .btn-warning:hover, #app .btn-warning:focus { background-color: #7a5e22 !important; border-color: #7a5e22 !important; color: #fff !important; }
+        #app .btn-info { background-color: var(--info-muted) !important; border-color: var(--info-muted) !important; color: #fff !important; }
+        #app .btn-secondary { background-color: var(--gray-600) !important; border-color: var(--gray-600) !important; }
+        #app .btn-secondary:hover, #app .btn-secondary:focus { background-color: var(--gray-800) !important; border-color: var(--gray-800) !important; }
+
+        .progress { height: 18px; margin-top: 10px; background-color: var(--gray-200); }
+        .progress-bar { transition: width 0.3s ease; background-color: var(--olive-700) !important; }
+
+        /* ===== ESTADO DE MODELOS DE RECONOCIMIENTO FACIAL ===== */
+        .models-banner {
+            background: var(--gray-100); border: 1px solid var(--gray-200); border-radius: 8px;
+            padding: 8px 14px; font-size: 0.8rem; color: var(--gray-800); display: flex;
+            align-items: center; gap: 8px; margin-bottom: 16px;
+        }
+        .models-banner.ok { background: var(--olive-tint); color: var(--olive-800); border-color: #c9d6b5; }
+        .models-banner.error { background: #f5e9e9; color: #5c2f2f; border-color: #e2c8c8; }
+        .models-banner .spinner-border { width: 0.9rem; height: 0.9rem; }
+
+        @media (max-width: 768px) {
+            .main-container { padding: 15px; min-height: 95vh; }
+            .dashboard-header { flex-direction: column; text-align: center; }
+            .dashboard-header h2 { margin-bottom: 15px; }
+            .camera-controls .btn { margin: 5px; }
+            .schedule-grid { grid-template-columns: repeat(6, 1fr); min-width: 350px; }
+            .schedule-slot { min-height: 50px; font-size: 0.55rem; }
+            .schedule-slot .slot-time { font-size: 0.5rem; }
+        }

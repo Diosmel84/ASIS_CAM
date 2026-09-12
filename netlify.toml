@@ -1,0 +1,8 @@
+[build]
+  # No hay paso de build: el sitio ya es HTML/CSS/JS estático servido tal cual.
+  publish = "."
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
