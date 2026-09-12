@@ -3767,6 +3767,28 @@
 
             const payload = { titulo, descripcion: descripcion || null, fecha, hora_entrada: horaEntrada, hora_salida: horaSalida, lugar: lugar || null };
 
+            // Anti-duplicado: si ya existe un evento con el mismo título +
+            // fecha + hora de entrada (p. ej. por un doble clic en
+            // "Guardar"), se avisa y no se inserta uno nuevo. Al editar, se
+            // excluye el propio evento de la búsqueda (si no, siempre
+            // "chocaría" contra sí mismo). Esto es la validación de UX; el
+            // freno real contra la condición de carrera (dos clics casi
+            // simultáneos) es la constraint UNIQUE en Supabase — ver el
+            // catch de abajo y el comentario con el SQL más arriba en el
+            // archivo (buscar "unique_evento_dia_horario").
+            let dupQuery = sb.from('evento_especial').select('id_evento').eq('titulo', titulo).eq('fecha', fecha).eq('hora_entrada', horaEntrada).limit(1);
+            if (editingEventoId) dupQuery = dupQuery.neq('id_evento', editingEventoId);
+            const { data: existente, error: dupError } = await dupQuery.maybeSingle();
+            if (dupError) {
+                console.error('No se pudo verificar duplicados de evento:', dupError);
+            } else if (existente) {
+                showToast('⚠️ Ya existe un evento con ese título y horario para esa fecha', 'error');
+                return;
+            }
+
+            const saveBtn = document.querySelector('#eventoModal .modal-footer .btn-primary');
+            if (saveBtn) saveBtn.disabled = true;
+
             try {
                 let idEvento = editingEventoId;
                 if (idEvento) {
@@ -3801,7 +3823,17 @@
                 loadEventoConvocatoriasPorDocente().then(() => { checkFaltas(); checkFaltasEvento(); });
             } catch (error) {
                 console.error('Error guardando evento especial:', error);
-                showToast('No se pudo guardar el evento (' + describeSupabaseError(error) + ')', 'error');
+                // 23505 = unique_violation: la constraint UNIQUE de Supabase
+                // frenó una condición de carrera (dos clics casi
+                // simultáneos) que la verificación de arriba no llegó a
+                // atajar. Mismo mensaje claro en vez del error crudo de Postgres.
+                if (error && error.code === '23505') {
+                    showToast('⚠️ Ya existe un evento con ese título y horario para esa fecha', 'error');
+                } else {
+                    showToast('No se pudo guardar el evento (' + describeSupabaseError(error) + ')', 'error');
+                }
+            } finally {
+                if (saveBtn) saveBtn.disabled = false;
             }
         }
 
