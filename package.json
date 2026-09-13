@@ -5,7 +5,8 @@
   "description": "Sistema de Control de Asistencia Docente (sitio estático, sin build).",
   "scripts": {
     "deploy:firebase": "firebase deploy --only hosting",
-    "deploy:netlify": "netlify deploy --prod --dir=."
+    "deploy:netlify": "netlify deploy --prod --dir=.",
+    "test": "node tests/test_offline_sync.js"
   },
   "devDependencies": {
     "docx": "^9.7.1"
