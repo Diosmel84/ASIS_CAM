@@ -5,36 +5,35 @@
  * Objetivo: que el fichaje por reconocimiento facial (y la app en general)
  * sigan funcionando sin conexión a internet (modo avión) después de la
  * primera visita con señal. Para eso, en la instalación se precachea:
- *   - el "app shell" (index.html, style.css),
- *   - las librerías de terceros que la app necesita en tiempo de ejecución
- *     (face-api.js, Bootstrap, Chart.js, jsPDF, supabase-js), y
+ *   - el "app shell" (index.html, style.css, script.js),
+ *   - las librerías de terceros que la app necesita en tiempo de ejecución,
+ *     autohospedadas en /libs (Bootstrap, Bootstrap Icons + sus fuentes,
+ *     face-api.js, Chart.js, jsPDF, supabase-js), y
  *   - los 7 archivos de pesos del modelo de reconocimiento facial en /models
- *     (tiny_face_detector, face_landmark_68 y face_recognition), que están
- *     copiados dentro del propio repo en vez de servirse desde el CDN de
- *     face-api.js, justamente para que este precacheo no dependa de un CDN
- *     externo.
+ *     (tiny_face_detector, face_landmark_68 y face_recognition).
+ * Tanto /libs como /models están copiados dentro del propio repo en vez de
+ * servirse desde un CDN externo, para que ni el arranque de la app ni el
+ * reconocimiento facial dependan de que un tercero esté disponible.
  *
  * Lo que NO cachea nunca: las llamadas a la API de Supabase (app_data,
  * evento_especial, etc.). Esas siguen yendo directo a la red; sin conexión,
- * es la propia app (dataStore + localStorage + sb_pending_sync, ver el
- * <script> inline de index.html) la que sigue funcionando con la última
- * copia local y sincroniza sola al reconectar.
+ * es la propia app (dataStore + localStorage + sb_pending_sync, ver
+ * script.js) la que sigue funcionando con la última copia local y
+ * sincroniza sola al reconectar.
  */
 
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const CACHE_NAME = "asiscam-cache-" + CACHE_VERSION;
 
 // App shell: mismo origen que este service worker.
-// Nota: toda la lógica de la app vive INLINE dentro de index.html (no hay
-// un <script src="script.js">, así que no hace falta -ni tiene sentido-
-// precachear ese archivo por separado).
 const APP_SHELL_URLS = [
   "./",
   "./index.html",
   "./style.css",
+  "./script.js",
 ];
 
-// Pesos del reconocimiento facial (copiados en /models, ver CONFIG.FACE_MODELS_URL en index.html).
+// Pesos del reconocimiento facial (copiados en /models, ver CONFIG.FACE_MODELS_URL en script.js).
 const MODEL_URLS = [
   "./models/tiny_face_detector_model-weights_manifest.json",
   "./models/tiny_face_detector_model-shard1",
@@ -45,19 +44,23 @@ const MODEL_URLS = [
   "./models/face_recognition_model-shard2",
 ];
 
-// Librerías de terceros: sin ellas la app ni siquiera arranca offline,
-// aunque los modelos estén cacheados (face-api.js necesita su propia
-// librería cargada, no solo los pesos).
-const VENDOR_URLS = [
-  "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css",
-  "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js",
-  "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js",
-  "https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js",
-  "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js",
-  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+// Librerías de terceros autohospedadas en /libs (ya no se cargan desde un
+// CDN): sin ellas la app ni siquiera arranca offline, aunque los modelos
+// estén cacheados (face-api.js necesita su propia librería cargada, no
+// solo los pesos; Bootstrap Icons necesita además sus archivos de fuente).
+const LIB_URLS = [
+  "./libs/bootstrap.min.css",
+  "./libs/bootstrap.bundle.min.js",
+  "./libs/bootstrap-icons.css",
+  "./libs/fonts/bootstrap-icons.woff2",
+  "./libs/fonts/bootstrap-icons.woff",
+  "./libs/face-api.min.js",
+  "./libs/chart.umd.min.js",
+  "./libs/jspdf.umd.min.js",
+  "./libs/supabase.min.js",
 ];
 
-const PRECACHE_URLS = [...APP_SHELL_URLS, ...MODEL_URLS, ...VENDOR_URLS];
+const PRECACHE_URLS = [...APP_SHELL_URLS, ...MODEL_URLS, ...LIB_URLS];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -94,8 +97,8 @@ function isModelRequest(url) {
   return url.pathname.includes("/models/");
 }
 
-function isVendorRequest(url) {
-  return VENDOR_URLS.some((v) => v === url.href || v.endsWith(url.pathname));
+function isLibRequest(url) {
+  return url.pathname.includes("/libs/");
 }
 
 function isAppShellRequest(url) {
@@ -103,14 +106,16 @@ function isAppShellRequest(url) {
   return (
     url.pathname === "/" ||
     url.pathname.endsWith("/index.html") ||
-    url.pathname.endsWith("/style.css")
+    url.pathname.endsWith("/style.css") ||
+    url.pathname.endsWith("/script.js")
   );
 }
 
 // Cache-first: para recursos inmutables (pesos del modelo, librerías de
-// terceros con versión fija en la URL). Si ya están en caché, ni siquiera
-// se sale a la red a confirmarlos; si no están, se buscan y se guardan
-// para la próxima vez que falte la conexión ("precache on first online load").
+// terceros autohospedadas en /libs). Solo cambian cuando se actualiza el
+// propio repositorio, así que si ya están en caché ni siquiera se sale a
+// la red a confirmarlos; si no están, se buscan y se guardan para la
+// próxima vez que falte la conexión ("precache on first online load").
 async function cacheFirst(request) {
   const cached = await caches.match(request);
   if (cached) return cached;
@@ -154,7 +159,7 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
 
-  if (isModelRequest(url) || isVendorRequest(url)) {
+  if (isModelRequest(url) || isLibRequest(url)) {
     event.respondWith(cacheFirst(request));
     return;
   }

@@ -1,15 +1,14 @@
 "use strict";
 /**
- * Harness de prueba: ejecuta la lógica de la app REAL dentro de un sandbox
- * de Node (vm) con localStorage y un cliente Supabase falsos, para
+ * Harness de prueba: ejecuta el script.js REAL del proyecto dentro de un
+ * sandbox de Node (vm) con localStorage y un cliente Supabase falsos, para
  * verificar el flujo de sincronización diferida (offline-first) sin
  * necesidad de un navegador real ni de reconocimiento facial.
  *
- * IMPORTANTE: index.html no carga script.js (no hay ningún <script
- * src="script.js"> en el archivo) — toda la lógica real de la app vive en
- * el <script> inline de index.html. Por eso este harness extrae y ejecuta
- * ESE bloque inline, no script.js (que quedó como archivo huérfano, sin
- * usarse en producción).
+ * script.js es un archivo aparte cargado por index.html con
+ * <script src="script.js"></script> (no inline, no ES module: las
+ * funciones quedan expuestas en window porque buena parte del HTML las
+ * dispara con atributos onclick=/onchange=).
  *
  * Uso: node tests/test_offline_sync.js
  */
@@ -17,18 +16,8 @@ const vm = require("vm");
 const fs = require("fs");
 const path = require("path");
 
-const INDEX_PATH = path.join(__dirname, "..", "index.html");
-const html = fs.readFileSync(INDEX_PATH, "utf8");
-
-function extractInlineScript(htmlSrc) {
-  // Toma el ÚLTIMO <script> sin atributo src (los <script src="..."> son
-  // las librerías de CDN cargadas antes; el inline de la app va después).
-  const blocks = [...htmlSrc.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)];
-  if (blocks.length === 0) throw new Error("No se encontró ningún <script> inline en index.html");
-  return blocks[blocks.length - 1][1];
-}
-
-const src = extractInlineScript(html);
+const SCRIPT_PATH = path.join(__dirname, "..", "script.js");
+const src = fs.readFileSync(SCRIPT_PATH, "utf8");
 
 class FakeStorage {
   constructor() { this.store = {}; }

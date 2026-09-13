@@ -132,9 +132,9 @@ async function main() {
   console.log("== Paso 1: instalación (install) con red disponible ==");
   let env = makeSandbox({ networkOnline: true });
   await env.dispatch("install");
-  const cache = env.caches.get("asiscam-cache-v1");
-  check("se creó la cache asiscam-cache-v1", !!cache);
-  check("precacheó el app shell (index.html)", !!(await cache.match("./index.html")));
+  const cache = env.caches.get("asiscam-cache-v2");
+  check("se creó la cache asiscam-cache-v2", !!cache);
+  check("precacheó el app shell (index.html, style.css, script.js)", !!(await cache.match("./index.html")) && !!(await cache.match("./style.css")) && !!(await cache.match("./script.js")));
   check("precacheó los 7 archivos de /models", [
     "./models/tiny_face_detector_model-weights_manifest.json",
     "./models/tiny_face_detector_model-shard1",
@@ -144,22 +144,25 @@ async function main() {
     "./models/face_recognition_model-shard1",
     "./models/face_recognition_model-shard2",
   ].every((u) => cache.store.has(toAbsolute(u))));
-  check("precacheó las 6 librerías de terceros (vendor)", [
-    "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css",
-    "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js",
-    "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js",
-    "https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js",
-    "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js",
-    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+  check("precacheó las 9 librerías autohospedadas en /libs (incluidas las 2 fuentes de íconos)", [
+    "./libs/bootstrap.min.css",
+    "./libs/bootstrap.bundle.min.js",
+    "./libs/bootstrap-icons.css",
+    "./libs/fonts/bootstrap-icons.woff2",
+    "./libs/fonts/bootstrap-icons.woff",
+    "./libs/face-api.min.js",
+    "./libs/chart.umd.min.js",
+    "./libs/jspdf.umd.min.js",
+    "./libs/supabase.min.js",
   ].every((u) => cache.store.has(toAbsolute(u))));
-  check("total precacheado = 16 recursos (3 app shell + 7 modelos + 6 vendor)", cache.store.size === 16);
+  check("total precacheado = 20 recursos (4 app shell + 7 modelos + 9 libs)", cache.store.size === 20);
   check("llamó a self.skipWaiting()", env.self._skippedWaiting === true);
 
   console.log("\n== Paso 2: activación (activate) limpia caches viejas ==");
-  env.caches.set("asiscam-cache-v0", new FakeCache(async () => ({ ok: true })));
+  env.caches.set("asiscam-cache-v1", new FakeCache(async () => ({ ok: true })));
   await env.dispatch("activate");
-  check("borró la cache vieja asiscam-cache-v0", !env.caches.has("asiscam-cache-v0"));
-  check("conservó la cache actual asiscam-cache-v1", env.caches.has("asiscam-cache-v1"));
+  check("borró la cache vieja asiscam-cache-v1", !env.caches.has("asiscam-cache-v1"));
+  check("conservó la cache actual asiscam-cache-v2", env.caches.has("asiscam-cache-v2"));
   check("llamó a self.clients.claim()", env.self._claimed === true);
 
   console.log("\n== Paso 3: fetch de un modelo -> cache-first (ya cacheado, no debe volver a pedirlo a la red) ==");

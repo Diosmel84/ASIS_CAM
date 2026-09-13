@@ -26,7 +26,7 @@ function build() {
   const resumen = [
     h1("Resumen"),
     p(
-      "El presente informe documenta el proceso de diseño, desarrollo e implementación de ASIS_CAM, una aplicación web para el control de asistencia del personal docente de una institución educativa mediante reconocimiento facial. El sistema permite a un administrador registrar docentes, definir su horario laboral, convocarlos a eventos institucionales especiales y supervisar su asistencia, mientras que cada docente utiliza su propio rostro como credencial para marcar entrada, salida y retiro anticipado desde cualquier dispositivo con cámara y navegador, dentro de una geocerca obligatoria que exige estar físicamente cerca del establecimiento. La plataforma se construyó como un sitio estático de un único archivo autocontenido (HTML, CSS y JavaScript embebidos en index.html, sin transpilación ni empaquetado) que persiste su información en Supabase (PostgreSQL con API REST autogenerada) y se publica de forma continua en Netlify a partir del repositorio de GitHub. Se describen las decisiones de arquitectura tomadas, el modelo de datos, el flujo de identificación biométrica basado en face-api.js, el mecanismo de detección automática de tardanzas y faltas, un caso real de corrección de datos —la aparición de eventos especiales duplicados por doble clic y su solución mediante una restricción de unicidad a nivel de base de datos combinada con validación en el cliente—, el mecanismo de sincronización diferida automática (offline-first) que permite seguir operando sin conexión a internet y subir los cambios pendientes en cuanto la señal se restablece, y la incorporación de un service worker que autohospeda los modelos de reconocimiento facial para que el fichaje siga funcionando en modo avión. El informe cierra con los resultados de las pruebas realizadas, un hallazgo relevante sobre la organización del código fuente detectado durante esta misma documentación, las limitaciones de seguridad detectadas y las líneas de trabajo futuro recomendadas."
+      "El presente informe documenta el proceso de diseño, desarrollo e implementación de ASIS_CAM, una aplicación web para el control de asistencia del personal docente de una institución educativa mediante reconocimiento facial. El sistema permite a un administrador registrar docentes, definir su horario laboral, convocarlos a eventos institucionales especiales y supervisar su asistencia, mientras que cada docente utiliza su propio rostro como credencial para marcar entrada, salida y retiro anticipado desde cualquier dispositivo con cámara y navegador, dentro de una geocerca obligatoria que exige estar físicamente cerca del establecimiento. La plataforma se construyó como un sitio estático de 3 archivos (index.html, style.css y script.js, sin transpilación ni empaquetado, con las librerías de terceros autohospedadas) que persiste su información en Supabase (PostgreSQL con API REST autogenerada) y se publica de forma continua en Netlify a partir del repositorio de GitHub. Se describen las decisiones de arquitectura tomadas, el modelo de datos, el flujo de identificación biométrica basado en face-api.js, el mecanismo de detección automática de tardanzas y faltas, un caso real de corrección de datos —la aparición de eventos especiales duplicados por doble clic y su solución mediante una restricción de unicidad a nivel de base de datos combinada con validación en el cliente—, el mecanismo de sincronización diferida automática (offline-first) que permite seguir operando sin conexión a internet y subir los cambios pendientes en cuanto la señal se restablece, y la incorporación de un service worker que autohospeda los modelos de reconocimiento facial para que el fichaje siga funcionando en modo avión. El informe cierra con los resultados de las pruebas realizadas, un hallazgo relevante sobre la organización del código fuente detectado durante esta misma documentación, las limitaciones de seguridad detectadas y las líneas de trabajo futuro recomendadas."
     ),
     h2("Palabras clave"),
     p("Control de asistencia, reconocimiento facial, geocerca, Supabase, PostgreSQL, JavaScript, Netlify, service worker, integridad de datos, sincronización offline-first, sistemas de información educativa.", { firstLine: false }),
@@ -35,7 +35,7 @@ function build() {
   const abstract = [
     h1("Abstract"),
     p(
-      "This report documents the design, development, and implementation of ASIS_CAM, a web application for controlling teaching staff attendance at an educational institution through facial recognition. The system allows an administrator to register teachers, define their work schedules, summon them to special institutional events, and monitor their attendance, while each teacher uses their own face as credential to record clock-in, clock-out, and early departure from any device with a camera and a browser, within a mandatory geofence that requires being physically near the school. The platform was built as a single self-contained static file (HTML, CSS, and JavaScript embedded in index.html, with no transpilation or bundling step) that persists its data in Supabase (PostgreSQL with an auto-generated REST API) and is continuously deployed to Netlify from a GitHub repository. The report describes the architectural decisions made, the data model, the biometric identification flow based on face-api.js, the automatic detection of tardiness and absences, a real data-correction case —duplicate special events caused by double-clicking, solved through a database-level uniqueness constraint combined with client-side validation—, the automatic deferred synchronization mechanism (offline-first) that keeps the application usable without internet access and uploads pending changes as soon as connectivity is restored, and the addition of a service worker that self-hosts the facial-recognition models so that clock-in keeps working in airplane mode. The report closes with the results of the tests performed, a relevant finding about the source code's organization uncovered while producing this very documentation, the security limitations found, and recommended lines of future work."
+      "This report documents the design, development, and implementation of ASIS_CAM, a web application for controlling teaching staff attendance at an educational institution through facial recognition. The system allows an administrator to register teachers, define their work schedules, summon them to special institutional events, and monitor their attendance, while each teacher uses their own face as credential to record clock-in, clock-out, and early departure from any device with a camera and a browser, within a mandatory geofence that requires being physically near the school. The platform was built as a 3-file static site (index.html, style.css, and script.js, with no transpilation or bundling step, and third-party libraries self-hosted) that persists its data in Supabase (PostgreSQL with an auto-generated REST API) and is continuously deployed to Netlify from a GitHub repository. The report describes the architectural decisions made, the data model, the biometric identification flow based on face-api.js, the automatic detection of tardiness and absences, a real data-correction case —duplicate special events caused by double-clicking, solved through a database-level uniqueness constraint combined with client-side validation—, the automatic deferred synchronization mechanism (offline-first) that keeps the application usable without internet access and uploads pending changes as soon as connectivity is restored, and the addition of a service worker that self-hosts the facial-recognition models so that clock-in keeps working in airplane mode. The report closes with the results of the tests performed, a relevant finding about the source code's organization uncovered while producing this very documentation, the security limitations found, and recommended lines of future work."
     ),
     h2("Keywords"),
     p("Attendance control, facial recognition, geofencing, Supabase, PostgreSQL, JavaScript, Netlify, service worker, data integrity, offline-first synchronization, educational information systems.", { firstLine: false }),
@@ -87,14 +87,18 @@ function build() {
     p("El repositorio se organiza como un sitio estático sin herramienta de build, con la siguiente estructura principal:", { firstLine: false }),
     codeBlock([
       "con_supabase/",
-      "├── index.html          # Marcado + TODA la lógica de la app en un",
-      "│                       #   único <script> inline (~3400 líneas) +",
-      "│                       #   estilos y modales embebidos",
-      "├── style.css           # Hoja de estilos (tema institucional)",
+      "├── index.html          # Marcado semántico + modales; sin CSS ni JS",
+      "│                       #   embebidos",
+      "├── style.css           # Hoja de estilos propia (tema institucional)",
+      "├── script.js           # Lógica de la aplicación, script clásico",
+      "│                       #   (no ES module; ver Desarrollo, punto 1)",
+      "├── libs/                # Librerías de terceros autohospedadas",
+      "│   └── fonts/           #   (Bootstrap, Bootstrap Icons + fuentes,",
+      "│                       #    face-api.js, Chart.js, jsPDF, supabase-js)",
       "├── models/             # 7 archivos de pesos de face-api.js",
       "│                       #   autohospedados (ver Desarrollo, punto 12)",
       "├── sw.js               # Service worker: caché offline-first del",
-      "│                       #   app shell, librerías y modelos",
+      "│                       #   app shell, /libs y /models",
       "├── supabase_schema.sql # Creación de la tabla app_data + políticas RLS",
       "├── fix_rls_eventos.sql # Políticas RLS de evento_docente y docente",
       "├── fix_unique_evento.sql # Constraint unique_evento_dia_horario",
@@ -102,11 +106,12 @@ function build() {
       "├── firebase.json / .firebaserc # Configuración alternativa (Firebase Hosting)",
       "├── _redirects          # Redirección SPA de respaldo",
       "├── tests/",
-      "│   └── test_offline_sync.js # Arnés de pruebas de sincronización diferida",
+      "│   ├── test_offline_sync.js    # Arnés de sincronización diferida",
+      "│   └── test_service_worker.js  # Arnés del service worker (sw.js)",
       "└── package.json        # Metadatos del proyecto, scripts de despliegue y \"npm test\"",
     ]),
     p(
-      "La ausencia de un paso de build (no hay Webpack, Vite ni similar) es una decisión deliberada: al tratarse de una única página con navegación por paneles (mostrar/ocultar secciones del DOM), el costo de incorporar un framework de componentes no se justificaba frente a la simplicidad de mantener HTML, CSS y JavaScript planos, lo cual además simplifica el despliegue (no hay artefactos de build que puedan quedar desactualizados respecto del código fuente). No existe, pese a lo que podría suponerse, un archivo script.js separado que index.html cargue: toda la lógica vive dentro de un único <script> inline en el propio index.html, punto que se retoma como hallazgo relevante en la sección de Resultados y Pruebas."
+      "La ausencia de un paso de build (no hay Webpack, Vite ni similar) es una decisión deliberada: al tratarse de una única página con navegación por paneles (mostrar/ocultar secciones del DOM), el costo de incorporar un framework de componentes no se justificaba frente a la simplicidad de mantener HTML, CSS y JavaScript planos, lo cual además simplifica el despliegue (no hay artefactos de build que puedan quedar desactualizados respecto del código fuente). Esta estructura de 3 archivos separados (index.html, style.css, script.js) es, de hecho, el resultado de una corrección posterior descrita en detalle en la sección \"Evolución de la estructura de archivos\", más abajo: en una etapa intermedia del proyecto, tanto el CSS como el JavaScript llegaron a vivir embebidos dentro del propio index.html."
     ),
   ];
 
@@ -115,7 +120,11 @@ function build() {
 
     h2("1. Configuración inicial del proyecto"),
     p(
-      "El proyecto se inicializó como un sitio estático puro: un único documento index.html que actúa como cascarón de la aplicación (contiene todos los paneles y modales, mostrados u ocultados mediante JavaScript) y una hoja style.css con el tema visual institucional. Toda la lógica de negocio del lado del cliente —persistencia, reconocimiento facial, geocerca, eventos, alertas— se escribió dentro de un único <script> inline al final de ese mismo index.html, en lugar de en un archivo .js aparte. Las dependencias externas (Bootstrap 5.3.0 para la maquetación y los modales, Bootstrap Icons 1.10.0, Chart.js 4.4.4 para los gráficos estadísticos, jsPDF 2.5.1 para exportar reportes, face-api.js 0.22.2 para el reconocimiento facial y el cliente @supabase/supabase-js 2) se incorporan directamente desde la red de distribución de contenido (CDN) jsDelivr mediante etiquetas <script> y <link>, sin gestor de paquetes ni paso de instalación para el navegador."
+      "El proyecto se inicializó como un sitio estático puro y se organiza en la estructura clásica de 3 archivos: index.html (marcado semántico y modales, sin CSS ni JavaScript embebidos), style.css (el tema visual institucional) y script.js (toda la lógica de negocio del lado del cliente —persistencia, reconocimiento facial, geocerca, eventos, alertas—, cargado como script clásico con <script src=\"script.js\"></script>, no como ES module). Las dependencias externas (Bootstrap 5.3.0 para la maquetación y los modales, Bootstrap Icons 1.10.0, Chart.js 4.4.4 para los gráficos estadísticos, jsPDF 2.5.1 para exportar reportes, face-api.js 0.22.2 para el reconocimiento facial y el cliente @supabase/supabase-js 2) están autohospedadas en la carpeta /libs del propio repositorio en lugar de cargarse desde una red de distribución de contenido (CDN) externa, por las mismas razones de disponibilidad offline que motivaron autohospedar los modelos de reconocimiento facial (ver Desarrollo, punto 12)."
+    ),
+    p(
+      "Se optó deliberadamente por un script clásico (<script src=\"script.js\">) y no por un ES module (<script type=\"module\">) porque gran parte del marcado de index.html dispara acciones mediante atributos onclick=/onchange= inline (69 en total), que solo pueden resolver una función si esta está expuesta como propiedad del objeto global window. Un script clásico declarado en el nivel superior del archivo cumple esa condición automáticamente; un ES module, en cambio, tiene su propio ámbito y no expone sus declaraciones en window salvo que se haga explícitamente, por lo que adoptarlo sin más habría roto los 69 manejadores de eventos existentes.",
+      { firstLine: false }
     ),
     p("Se optó por esta configuración inicial —en lugar de un andamiaje con Vite, Webpack o un framework de componentes— por las razones que se detallan en la sección de Justificación de Decisiones Técnicas.", { firstLine: false }),
 
@@ -156,7 +165,7 @@ function build() {
 
     h2("3. Autenticación y control de acceso"),
     p(
-      "A diferencia de lo que suele recomendarse como mejor práctica, ASIS_CAM no utiliza Supabase Auth. El inicio de sesión del administrador compara el usuario y la contraseña ingresados contra credenciales fijas definidas en el objeto CONFIG del <script> inline de index.html, y el inicio de sesión de cada docente compara su DNI y contraseña contra el registro correspondiente dentro de la colección teachers de app_data (con una contraseña por defecto asignada al crear al docente, que este puede cambiar desde su panel). El rol resultante (admin o teacher) se guarda únicamente en la variable de JavaScript currentUser durante la sesión del navegador, y es esa variable —no una política de base de datos— la que decide qué paneles y botones se muestran."
+      "A diferencia de lo que suele recomendarse como mejor práctica, ASIS_CAM no utiliza Supabase Auth. El inicio de sesión del administrador compara el usuario y la contraseña ingresados contra credenciales fijas definidas en el objeto CONFIG de script.js, y el inicio de sesión de cada docente compara su DNI y contraseña contra el registro correspondiente dentro de la colección teachers de app_data (con una contraseña por defecto asignada al crear al docente, que este puede cambiar desde su panel). El rol resultante (admin o teacher) se guarda únicamente en la variable de JavaScript currentUser durante la sesión del navegador, y es esa variable —no una política de base de datos— la que decide qué paneles y botones se muestran."
     ),
     p(
       "Como consecuencia directa de no usar Supabase Auth, las políticas de Row Level Security de las tablas app_data, evento_especial, evento_docente y docente están definidas de forma abierta para el rol anon (permiten select, insert y update sin restricción alguna), tal como se documenta en supabase_schema.sql y fix_rls_eventos.sql. Esto significa que, en el estado actual del sistema, RLS no diferencia entre administrador y docente a nivel de base de datos: toda la autorización por rol ocurre exclusivamente en el cliente. Este punto se retoma con mayor detalle en la sección de Resultados y Pruebas y en Limitaciones y Trabajo Futuro, por ser la observación de seguridad más relevante detectada durante la elaboración de este informe."
@@ -251,6 +260,34 @@ function build() {
     ),
   ];
 
+  const evolucionEstructura = [
+    h1("Evolución de la Estructura de Archivos: Retorno al Modelo Clásico de 3 Archivos"),
+    p(
+      "La arquitectura de archivos de ASIS_CAM pasó por tres etapas distintas a lo largo del proyecto, y las tres quedan documentadas acá porque cada una dejó un aprendizaje concreto sobre organización de código, no solo sobre la aplicación en sí."
+    ),
+    h2("Etapa 1: HTML, CSS y JavaScript embebidos en un único index.html"),
+    p(
+      "Durante buena parte del desarrollo, tanto los estilos como la lógica de la aplicación vivieron embebidos dentro del propio index.html: un bloque <style> de más de 450 líneas en el <head> y un bloque <script> de más de 3300 líneas al final del <body>. En esta etapa existían, además, dos archivos sueltos en el repositorio —script.js y style.css— que parecían ser esas mismas piezas separadas, pero que en realidad habían quedado desactualizados y sin ninguna referencia real desde index.html: eran copias huérfanas de una extracción anterior, no la fuente que efectivamente corría en el navegador. El hallazgo de script.js como archivo huérfano ya se documentó en la sección de Resultados y Pruebas; al preparar la migración descrita en esta sección se confirmó que style.css tenía exactamente el mismo problema, con el agravante de estar además desactualizado (441 líneas contra las 462 que tenía en ese momento el bloque <style> realmente activo dentro de index.html)."
+    ),
+    h2("Etapa 2: consolidación temporal dentro de index.html"),
+    p(
+      "Al detectar que script.js estaba huérfano, la corrección más rápida y de menor riesgo para no interrumpir el servicio fue portar la lógica nueva (la sincronización diferida y, después, el registro del service worker) directamente al bloque <script> que sí estaba activo dentro de index.html, y eliminar el archivo script.js suelto para no dejar una segunda copia divergente. Esta decisión se documenta en detalle en la sección de Resultados y Pruebas y prioriza la corrección inmediata del sistema en producción por sobre la prolijidad de la organización de archivos, que quedó pendiente."
+    ),
+    h2("Etapa 3: separación definitiva en 3 archivos (estado actual)"),
+    p(
+      "Por exigencia de buenas prácticas de la cátedra, se realizó la separación definitiva: el bloque <style> se extrajo completo a style.css (reemplazando el archivo huérfano y desactualizado por el contenido real, con sangría normalizada y un comentario de cabecera) y el bloque <script> se extrajo completo a un nuevo script.js (mismo tratamiento), quedando index.html reducido a HTML semántico, los modales de Bootstrap y las etiquetas <link>/<script> que referencian los otros archivos. Se verificó, contando etiquetas <div> abiertas y cerradas y la cantidad de modales antes y después del recorte (11 en ambos casos), que la extracción no dañó el marcado."
+    ),
+    p(
+      "Se evaluó declarar script.js como ES module (<script type=\"module\" src=\"script.js\">), la forma más moderna de separar código en JavaScript, pero se descartó: el marcado de index.html dispara acciones mediante 69 atributos onclick=/onchange= inline, que dependen de que las funciones correspondientes estén expuestas en el objeto global window. Un script clásico las expone ahí automáticamente por ser código de nivel superior de un archivo cargado sin type=\"module\"; un ES module tiene su propio ámbito aislado y no lo hace salvo asignación explícita. Adoptar type=\"module\" sin además reescribir esos 69 manejadores a addEventListener habría roto silenciosamente cada botón y control de la interfaz. Se optó entonces por script.js como script clásico, que cumple igual el objetivo de \"buenas costumbres\" perseguido —separar HTML, CSS y JavaScript en tres archivos con responsabilidades claras— sin el riesgo de esa reescritura adicional sobre una aplicación en uso real."
+    ),
+    p(
+      "Como parte de la misma tarea se autohospedaron en una carpeta /libs las seis librerías de terceros que antes se cargaban desde el CDN de jsDelivr (Bootstrap, Bootstrap Icons —incluidas sus dos fuentes de íconos, woff y woff2—, face-api.js, Chart.js, jsPDF y supabase-js), extendiendo a la interfaz completa de la aplicación el mismo principio de independencia de terceros ya aplicado a los modelos de reconocimiento facial en /models (ver punto 12 del Desarrollo): con esto, ni un solo recurso necesario para que la aplicación arranque y funcione depende de que un servicio externo esté disponible en el momento de la visita."
+    ),
+    p(
+      "sw.js se actualizó en consecuencia: el app shell precacheado pasó a incluir script.js además de index.html y style.css, la lista de librerías de terceros dejó de apuntar a URLs del CDN y pasó a apuntar a las 9 rutas locales bajo /libs, y la versión de caché se incrementó de v1 a v2 para que los navegadores que ya tenían instalada la versión anterior del service worker descarten esa caché vieja (mediante la limpieza que ya ocurre en el evento activate) y precacheen el nuevo conjunto de archivos. Los dos arneses de prueba automatizados (tests/test_offline_sync.js y tests/test_service_worker.js) se actualizaron para apuntar a los archivos reales —el primero vuelve a leer script.js directamente, ya sin necesidad de extraerlo de dentro de index.html— y las 36 verificaciones (16 más 20) siguieron aprobando después del cambio."
+    ),
+  ];
+
   const justificacion = [
     h1("Justificación de las Decisiones Técnicas"),
     h3("¿Por qué HTML, CSS y JavaScript planos, sin un framework de componentes?"),
@@ -302,7 +339,7 @@ function build() {
     ),
     h2("Pruebas automatizadas de la sincronización diferida (tests/test_offline_sync.js)"),
     p(
-      "Para verificar el mecanismo de sincronización diferida descrito en el punto 11 del Desarrollo sin depender de un navegador real ni del hardware de cámara necesario para el reconocimiento facial, se construyó un arnés de pruebas automatizado (tests/test_offline_sync.js) que extrae el <script> inline real de index.html —sin modificarlo ni reescribirlo— y lo ejecuta dentro de un contexto aislado de Node.js (módulo vm). Ese contexto provee implementaciones simuladas de localStorage, de window/document y de un cliente de Supabase falso cuyo comportamiento se puede alternar entre \"conectado\" y \"desconectado\" a voluntad, registrando además cada intento de escritura para poder inspeccionarlo. De esta forma, el arnés ejercita el código de producción tal cual corre en el navegador, reemplazando únicamente el entorno externo (red, almacenamiento, DOM) por versiones controlables desde la prueba."
+      "Para verificar el mecanismo de sincronización diferida descrito en el punto 11 del Desarrollo sin depender de un navegador real ni del hardware de cámara necesario para el reconocimiento facial, se construyó un arnés de pruebas automatizado (tests/test_offline_sync.js) que ejecuta el archivo script.js real del proyecto —sin modificarlo ni reescribirlo— dentro de un contexto aislado de Node.js (módulo vm). Ese contexto provee implementaciones simuladas de localStorage, de window/document y de un cliente de Supabase falso cuyo comportamiento se puede alternar entre \"conectado\" y \"desconectado\" a voluntad, registrando además cada intento de escritura para poder inspeccionarlo. De esta forma, el arnés ejercita el código de producción tal cual corre en el navegador, reemplazando únicamente el entorno externo (red, almacenamiento, DOM) por versiones controlables desde la prueba."
     ),
     p(
       "El arnés recorre seis escenarios encadenados: (1) una carga inicial de la aplicación con conexión disponible; (2) la pérdida de conectividad seguida del registro de una asistencia, verificando el guardado local inmediato y el encolado de la clave en sb_pending_sync; (3) un segundo guardado sin conexión (una alerta) para confirmar que el mecanismo admite varias colecciones pendientes a la vez; (4) el restablecimiento de la conexión, disparando el evento online y verificando que ambas colecciones se suban solas con su valor más reciente y que la cola quede vacía; (5) un nuevo guardado offline seguido de la simulación de una recarga de página (un contexto nuevo que reutiliza el mismo localStorage), para confirmar que la cola de pendientes sobrevive; y (6) la reapertura de la aplicación ya con señal, confirmando que el intento de sincronización del arranque sube en solitario lo que había quedado pendiente de la sesión anterior. Cada escenario se corrobora con aserciones puntuales sobre el estado de localStorage, la cola de pendientes, los avisos mostrados al usuario y el contenido exacto enviado a Supabase."
@@ -336,7 +373,10 @@ function build() {
     ),
     h2("Prueba del service worker y los modelos autohospedados"),
     p(
-      "Antes de publicar el cambio, se sirvió el repositorio con un servidor estático local (equivalente a cómo Netlify sirve archivos ya existentes en el repositorio) y se solicitaron uno por uno index.html, sw.js, style.css y los 7 archivos de /models: todos respondieron con código 200 y el tamaño exacto esperado, mientras que una ruta inexistente bajo /models sirvió como control y devolvió 404, confirmando que el servidor no enmascaraba errores reales. Se verificó además la sintaxis del <script> inline extraído de index.html y la de sw.js con node --check, y se corrió nuevamente el arnés de pruebas de sincronización diferida contra el código ya portado, con el mismo resultado de 16 sobre 16 verificaciones aprobadas."
+      "Antes de publicar el cambio, se sirvió el repositorio con un servidor estático local (equivalente a cómo Netlify sirve archivos ya existentes en el repositorio) y se solicitaron uno por uno index.html, style.css, script.js, sw.js, los 7 archivos de /models y los 9 archivos de /libs: todos respondieron con código 200 y el tamaño exacto esperado, mientras que una ruta inexistente bajo /models sirvió como control y devolvió 404, confirmando que el servidor no enmascaraba errores reales. Se verificó además la sintaxis de script.js y de sw.js con node --check."
+    ),
+    p(
+      "Sobre esa base se construyó un segundo arnés de pruebas automatizado (tests/test_service_worker.js) que simula el entorno de un Service Worker (self, caches, fetch) en Node.js y ejecuta sw.js real dentro de ese contexto. Cubre: que la instalación precachea exactamente los 20 recursos esperados (4 de app shell, 7 de /models y 9 de /libs) y llama a self.skipWaiting(); que la activación borra las cachés de versiones anteriores y llama a self.clients.claim(); que un modelo o una librería ya cacheados se sirven sin volver a pedirlos a la red (cache-first), mientras que uno no cacheado se busca en la red y queda cacheado para la próxima vez (\"precache on first online load\"); que el app shell usa network-first con reserva en caché (va a la red si puede, pero cae a la copia cacheada sin conexión); y que las llamadas a la API de Supabase y cualquier método distinto de GET quedan completamente fuera del alcance del service worker. Sumado a las 16 verificaciones de tests/test_offline_sync.js, el resultado combinado (npm test) es de 36 sobre 36 verificaciones aprobadas."
     ),
     h2("Prueba del despliegue continuo"),
     p(
@@ -420,7 +460,7 @@ function build() {
       "  to = \"/index.html\"",
       "  status = 200",
     ]),
-    h2("Anexo D. Parámetros de configuración del reconocimiento facial (index.html)"),
+    h2("Anexo D. Parámetros de configuración del reconocimiento facial (script.js)"),
     codeBlock([
       "LATE_LIMIT: 15,                 // minutos de tolerancia para tardanza",
       "EXIT_TOLERANCE_MINUTES: 15,     // ventana previa a la salida",
@@ -429,7 +469,7 @@ function build() {
       "IDENTIFY_SAMPLES: 3,            // muestras promediadas al identificar",
       "IDENTIFY_SAMPLE_INTERVAL_MS: 250",
     ]),
-    h2("Anexo E. Sincronización diferida automática (index.html)"),
+    h2("Anexo E. Sincronización diferida automática (script.js)"),
     p("Cola de pendientes y reintento automático al recuperar conexión, agregados sobre persistToSupabase:", { firstLine: false }),
     codeBlock([
       "function markPendingSync(key) {",
@@ -472,9 +512,9 @@ function build() {
       "}, 20000);",
     ]),
     h2("Anexo F. Service worker: precacheo offline-first (sw.js)"),
-    p("Listas de recursos precacheados en la instalación del service worker:", { firstLine: false }),
+    p("Listas de recursos precacheados en la instalación del service worker (versión de caché v2, tras la separación en 3 archivos y el autohospedaje de /libs):", { firstLine: false }),
     codeBlock([
-      "const APP_SHELL_URLS = ['./', './index.html', './style.css'];",
+      "const APP_SHELL_URLS = ['./', './index.html', './style.css', './script.js'];",
       "",
       "const MODEL_URLS = [",
       "    './models/tiny_face_detector_model-weights_manifest.json',",
@@ -486,13 +526,16 @@ function build() {
       "    './models/face_recognition_model-shard2',",
       "];",
       "",
-      "const VENDOR_URLS = [",
-      "    'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',",
-      "    'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js',",
-      "    'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js',",
-      "    'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js',",
-      "    'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',",
-      "    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js',",
+      "const LIB_URLS = [",
+      "    './libs/bootstrap.min.css',",
+      "    './libs/bootstrap.bundle.min.js',",
+      "    './libs/bootstrap-icons.css',",
+      "    './libs/fonts/bootstrap-icons.woff2',",
+      "    './libs/fonts/bootstrap-icons.woff',",
+      "    './libs/face-api.min.js',",
+      "    './libs/chart.umd.min.js',",
+      "    './libs/jspdf.umd.min.js',",
+      "    './libs/supabase.min.js',",
       "];",
     ]),
     h2("Anexo G. Tabla resumen de módulos y tecnologías"),
@@ -523,6 +566,7 @@ function build() {
     ...marco,
     ...metodologia,
     ...desarrollo,
+    ...evolucionEstructura,
     ...justificacion,
     ...resultados,
     ...conclusiones,
