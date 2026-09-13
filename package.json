@@ -6,7 +6,7 @@
   "scripts": {
     "deploy:firebase": "firebase deploy --only hosting",
     "deploy:netlify": "netlify deploy --prod --dir=.",
-    "test": "node tests/test_offline_sync.js"
+    "test": "node tests/test_offline_sync.js && node tests/test_service_worker.js"
   },
   "devDependencies": {
     "docx": "^9.7.1"

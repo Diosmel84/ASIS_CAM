@@ -5,7 +5,7 @@
  * Objetivo: que el fichaje por reconocimiento facial (y la app en general)
  * sigan funcionando sin conexión a internet (modo avión) después de la
  * primera visita con señal. Para eso, en la instalación se precachea:
- *   - el "app shell" (index.html, script.js, style.css),
+ *   - el "app shell" (index.html, style.css),
  *   - las librerías de terceros que la app necesita en tiempo de ejecución
  *     (face-api.js, Bootstrap, Chart.js, jsPDF, supabase-js), y
  *   - los 7 archivos de pesos del modelo de reconocimiento facial en /models
@@ -16,9 +16,9 @@
  *
  * Lo que NO cachea nunca: las llamadas a la API de Supabase (app_data,
  * evento_especial, etc.). Esas siguen yendo directo a la red; sin conexión,
- * es la propia app (dataStore + localStorage + sb_pending_sync, ver
- * script.js) la que sigue funcionando con la última copia local y
- * sincroniza sola al reconectar.
+ * es la propia app (dataStore + localStorage + sb_pending_sync, ver el
+ * <script> inline de index.html) la que sigue funcionando con la última
+ * copia local y sincroniza sola al reconectar.
  */
 
 const CACHE_VERSION = "v1";
@@ -34,7 +34,7 @@ const APP_SHELL_URLS = [
   "./style.css",
 ];
 
-// Pesos del reconocimiento facial (copiados en /models, ver CONFIG.FACE_MODELS_URL en script.js).
+// Pesos del reconocimiento facial (copiados en /models, ver CONFIG.FACE_MODELS_URL en index.html).
 const MODEL_URLS = [
   "./models/tiny_face_detector_model-weights_manifest.json",
   "./models/tiny_face_detector_model-shard1",
