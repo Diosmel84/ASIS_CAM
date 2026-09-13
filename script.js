@@ -22,7 +22,12 @@ const CONFIG = {
     // para no depender de un único frame que puede salir borroso.
     IDENTIFY_SAMPLES: 3,
     IDENTIFY_SAMPLE_INTERVAL_MS: 250,
-    FACE_MODELS_URL: 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights'
+    // Antes apuntaba al CDN de face-api.js (jsdelivr). Se copiaron los 7
+    // archivos de pesos a /models dentro del propio repo para que el
+    // service worker (sw.js) pueda precachearlos en la instalación y el
+    // reconocimiento facial funcione sin conexión (modo avión) después de
+    // la primera visita, sin depender de que el CDN esté disponible.
+    FACE_MODELS_URL: 'models'
 };
 
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -2400,3 +2405,18 @@ document.addEventListener('DOMContentLoaded', async function() {
     flushPendingSync(); // por si quedaron cambios sin subir de una sesión offline anterior
     showToast('Sistema iniciado', 'info');
 });
+
+// ============================================================
+// SERVICE WORKER (funcionamiento sin conexión / modo avión)
+// Precachea la app (index.html, script.js, style.css), las librerías de
+// terceros y los pesos del reconocimiento facial (/models) en la primera
+// visita, para que el fichaje por rostro siga funcionando sin internet en
+// visitas posteriores. Ver sw.js para el detalle de las estrategias de caché.
+// ============================================================
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+            .then(reg => console.log('Service worker registrado', reg.scope))
+            .catch(err => console.error('No se pudo registrar el service worker', err));
+    });
+}
