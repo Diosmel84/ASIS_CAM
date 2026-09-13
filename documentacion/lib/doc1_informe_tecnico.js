@@ -96,7 +96,9 @@ function build() {
       "├── netlify.toml        # Configuración de publicación en Netlify",
       "├── firebase.json / .firebaserc # Configuración alternativa (Firebase Hosting)",
       "├── _redirects          # Redirección SPA de respaldo",
-      "└── package.json        # Metadatos del proyecto y scripts de despliegue",
+      "├── tests/",
+      "│   └── test_offline_sync.js # Arnés de pruebas de sincronización diferida",
+      "└── package.json        # Metadatos del proyecto, scripts de despliegue y \"npm test\"",
     ]),
     p(
       "La ausencia de un paso de build (no hay Webpack, Vite ni similar) es una decisión deliberada: al tratarse de una única página con navegación por paneles (mostrar/ocultar secciones del DOM), el costo de incorporar un framework de componentes no se justificaba frente a la simplicidad de mantener HTML, CSS y JavaScript planos, lo cual además simplifica el despliegue (no hay artefactos de build que puedan quedar desactualizados respecto del código fuente)."
@@ -263,9 +265,39 @@ function build() {
     p(
       "Se comprobó que, con un umbral FACE_MATCH_THRESHOLD de 0.55, el sistema identifica correctamente al docente registrado bajo distintas condiciones de iluminación moderadas, y rechaza la identificación cuando se presenta ante la cámara una persona distinta a la registrada, exigiendo un nuevo intento. Se verificó también que los botones de marcación permanecen deshabilitados hasta obtener una identificación válida, y que la ventana de tolerancia de salida (15 minutos) efectivamente reclasifica una marcación de \"Retiro anticipado\" a \"Salida\" en cuanto se alcanza la hora de fin de horario configurada."
     ),
-    h2("Prueba de la sincronización diferida automática (offline-first)"),
+    h2("Pruebas automatizadas de la sincronización diferida (tests/test_offline_sync.js)"),
     p(
-      "Se simuló la pérdida de conectividad desactivando la red del dispositivo (modo offline de las herramientas de desarrollo del navegador) y se registró una asistencia y una alerta mientras la aplicación permanecía sin conexión. Se confirmó que ambos cambios quedaron disponibles de inmediato en la interfaz y guardados en localStorage, y que la clave correspondiente quedó registrada en la cola de pendientes (sb_pending_sync). Al restablecer la conectividad, se verificó que el evento online disparó automáticamente la sincronización, que los cambios se reflejaron en la tabla app_data de Supabase sin intervención manual, que la cola de pendientes quedó vacía y que se mostró el aviso de confirmación correspondiente. Se verificó además que, si la aplicación se recarga estando aún sin conexión, la cola de pendientes persiste en localStorage y se procesa igual al reabrir la aplicación ya con señal."
+      "Para verificar el mecanismo de sincronización diferida descrito en el punto 10 del Desarrollo sin depender de un navegador real ni del hardware de cámara necesario para el reconocimiento facial, se construyó un arnés de pruebas automatizado (tests/test_offline_sync.js) que ejecuta el archivo script.js real del proyecto —sin modificarlo ni reescribirlo— dentro de un contexto aislado de Node.js (módulo vm). Ese contexto provee implementaciones simuladas de localStorage, de window/document y de un cliente de Supabase falso cuyo comportamiento se puede alternar entre \"conectado\" y \"desconectado\" a voluntad, registrando además cada intento de escritura para poder inspeccionarlo. De esta forma, el arnés ejercita el código de producción tal cual corre en el navegador, reemplazando únicamente el entorno externo (red, almacenamiento, DOM) por versiones controlables desde la prueba."
+    ),
+    p(
+      "El arnés recorre seis escenarios encadenados: (1) una carga inicial de la aplicación con conexión disponible; (2) la pérdida de conectividad seguida del registro de una asistencia, verificando el guardado local inmediato y el encolado de la clave en sb_pending_sync; (3) un segundo guardado sin conexión (una alerta) para confirmar que el mecanismo admite varias colecciones pendientes a la vez; (4) el restablecimiento de la conexión, disparando el evento online y verificando que ambas colecciones se suban solas con su valor más reciente y que la cola quede vacía; (5) un nuevo guardado offline seguido de la simulación de una recarga de página (un contexto nuevo que reutiliza el mismo localStorage), para confirmar que la cola de pendientes sobrevive; y (6) la reapertura de la aplicación ya con señal, confirmando que el intento de sincronización del arranque sube en solitario lo que había quedado pendiente de la sesión anterior. Cada escenario se corrobora con aserciones puntuales sobre el estado de localStorage, la cola de pendientes, los avisos mostrados al usuario y el contenido exacto enviado a Supabase."
+    ),
+    p("El resultado de la última ejecución (reproducible con npm test) fue de 16 verificaciones sobre 16 aprobadas:", { firstLine: false }),
+    simpleTable(
+      ["Paso", "Verificación", "Resultado"],
+      [
+        ["1", "Carga inicial online: no quedan claves pendientes al arrancar", "Aprobada"],
+        ["1", "Los datos se cargan correctamente desde el backend simulado", "Aprobada"],
+        ["2", "Se muestra el aviso de \"sin conexión\" al perder la red", "Aprobada"],
+        ["2", "El fichaje queda guardado en localStorage (sb_cache_attendance)", "Aprobada"],
+        ["2", "La colección attendance queda marcada en la cola de pendientes", "Aprobada"],
+        ["2", "Se avisa que el guardado a Supabase falló y quedó solo local", "Aprobada"],
+        ["2", "No se sube nada a Supabase mientras dura la desconexión", "Aprobada"],
+        ["3", "Una segunda colección (alerts) también queda encolada", "Aprobada"],
+        ["4", "El evento online dispara la sincronización sin intervención manual", "Aprobada"],
+        ["4", "Se suben a Supabase ambas colecciones pendientes", "Aprobada"],
+        ["4", "El valor subido es el más reciente, no uno desactualizado", "Aprobada"],
+        ["4", "Se muestra el aviso de confirmación de sincronización", "Aprobada"],
+        ["5", "Una licencia guardada offline queda pendiente antes de \"recargar\"", "Aprobada"],
+        ["5", "El pendiente sobrevive a la recarga simulada de la página", "Aprobada"],
+        ["6", "Al reabrir con señal, se sincroniza solo lo pendiente de la sesión anterior", "Aprobada"],
+        ["6", "El dato subido en la reapertura es el correcto", "Aprobada"],
+      ],
+      { zebra: true }
+    ),
+    p(
+      "El código completo del arnés se conserva versionado en el repositorio (tests/test_offline_sync.js) y puede ejecutarse en cualquier momento con npm test, incluyéndose como parte de la validación recomendada antes de modificar la lógica de persistencia de la aplicación.",
+      { firstLine: false }
     ),
     h2("Prueba del despliegue continuo"),
     p(
