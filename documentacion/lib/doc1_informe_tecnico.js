@@ -26,19 +26,19 @@ function build() {
   const resumen = [
     h1("Resumen"),
     p(
-      "El presente informe documenta el proceso de diseño, desarrollo e implementación de ASIS_CAM, una aplicación web para el control de asistencia del personal docente de una institución educativa mediante reconocimiento facial. El sistema permite a un administrador registrar docentes, definir su horario laboral, convocarlos a eventos institucionales especiales y supervisar su asistencia, mientras que cada docente utiliza su propio rostro como credencial para marcar entrada, salida y retiro anticipado desde cualquier dispositivo con cámara y navegador. La plataforma se construyó como un sitio estático (HTML, CSS y JavaScript sin transpilación ni empaquetado) que persiste su información en Supabase (PostgreSQL con API REST autogenerada) y se publica de forma continua en Netlify a partir del repositorio de GitHub. Se describen las decisiones de arquitectura tomadas, el modelo de datos, el flujo de identificación biométrica basado en face-api.js, el mecanismo de detección automática de tardanzas y faltas, un caso real de corrección de datos —la aparición de eventos especiales duplicados por doble clic y su solución mediante una restricción de unicidad a nivel de base de datos combinada con validación en el cliente— y el mecanismo de sincronización diferida automática (offline-first) que permite seguir operando sin conexión a internet y subir los cambios pendientes en cuanto la señal se restablece. El informe cierra con los resultados de las pruebas realizadas, las limitaciones de seguridad detectadas y las líneas de trabajo futuro recomendadas."
+      "El presente informe documenta el proceso de diseño, desarrollo e implementación de ASIS_CAM, una aplicación web para el control de asistencia del personal docente de una institución educativa mediante reconocimiento facial. El sistema permite a un administrador registrar docentes, definir su horario laboral, convocarlos a eventos institucionales especiales y supervisar su asistencia, mientras que cada docente utiliza su propio rostro como credencial para marcar entrada, salida y retiro anticipado desde cualquier dispositivo con cámara y navegador, dentro de una geocerca obligatoria que exige estar físicamente cerca del establecimiento. La plataforma se construyó como un sitio estático de un único archivo autocontenido (HTML, CSS y JavaScript embebidos en index.html, sin transpilación ni empaquetado) que persiste su información en Supabase (PostgreSQL con API REST autogenerada) y se publica de forma continua en Netlify a partir del repositorio de GitHub. Se describen las decisiones de arquitectura tomadas, el modelo de datos, el flujo de identificación biométrica basado en face-api.js, el mecanismo de detección automática de tardanzas y faltas, un caso real de corrección de datos —la aparición de eventos especiales duplicados por doble clic y su solución mediante una restricción de unicidad a nivel de base de datos combinada con validación en el cliente—, el mecanismo de sincronización diferida automática (offline-first) que permite seguir operando sin conexión a internet y subir los cambios pendientes en cuanto la señal se restablece, y la incorporación de un service worker que autohospeda los modelos de reconocimiento facial para que el fichaje siga funcionando en modo avión. El informe cierra con los resultados de las pruebas realizadas, un hallazgo relevante sobre la organización del código fuente detectado durante esta misma documentación, las limitaciones de seguridad detectadas y las líneas de trabajo futuro recomendadas."
     ),
     h2("Palabras clave"),
-    p("Control de asistencia, reconocimiento facial, Supabase, PostgreSQL, JavaScript, Netlify, integridad de datos, sincronización offline-first, sistemas de información educativa.", { firstLine: false }),
+    p("Control de asistencia, reconocimiento facial, geocerca, Supabase, PostgreSQL, JavaScript, Netlify, service worker, integridad de datos, sincronización offline-first, sistemas de información educativa.", { firstLine: false }),
   ];
 
   const abstract = [
     h1("Abstract"),
     p(
-      "This report documents the design, development, and implementation of ASIS_CAM, a web application for controlling teaching staff attendance at an educational institution through facial recognition. The system allows an administrator to register teachers, define their work schedules, summon them to special institutional events, and monitor their attendance, while each teacher uses their own face as credential to record clock-in, clock-out, and early departure from any device with a camera and a browser. The platform was built as a static site (HTML, CSS, and JavaScript with no transpilation or bundling step) that persists its data in Supabase (PostgreSQL with an auto-generated REST API) and is continuously deployed to Netlify from a GitHub repository. The report describes the architectural decisions made, the data model, the biometric identification flow based on face-api.js, the automatic detection of tardiness and absences, a real data-correction case —duplicate special events caused by double-clicking, solved through a database-level uniqueness constraint combined with client-side validation— and the automatic deferred synchronization mechanism (offline-first) that keeps the application usable without internet access and uploads pending changes as soon as connectivity is restored. The report closes with the results of the tests performed, the security limitations found, and recommended lines of future work."
+      "This report documents the design, development, and implementation of ASIS_CAM, a web application for controlling teaching staff attendance at an educational institution through facial recognition. The system allows an administrator to register teachers, define their work schedules, summon them to special institutional events, and monitor their attendance, while each teacher uses their own face as credential to record clock-in, clock-out, and early departure from any device with a camera and a browser, within a mandatory geofence that requires being physically near the school. The platform was built as a single self-contained static file (HTML, CSS, and JavaScript embedded in index.html, with no transpilation or bundling step) that persists its data in Supabase (PostgreSQL with an auto-generated REST API) and is continuously deployed to Netlify from a GitHub repository. The report describes the architectural decisions made, the data model, the biometric identification flow based on face-api.js, the automatic detection of tardiness and absences, a real data-correction case —duplicate special events caused by double-clicking, solved through a database-level uniqueness constraint combined with client-side validation—, the automatic deferred synchronization mechanism (offline-first) that keeps the application usable without internet access and uploads pending changes as soon as connectivity is restored, and the addition of a service worker that self-hosts the facial-recognition models so that clock-in keeps working in airplane mode. The report closes with the results of the tests performed, a relevant finding about the source code's organization uncovered while producing this very documentation, the security limitations found, and recommended lines of future work."
     ),
     h2("Keywords"),
-    p("Attendance control, facial recognition, Supabase, PostgreSQL, JavaScript, Netlify, data integrity, offline-first synchronization, educational information systems.", { firstLine: false }),
+    p("Attendance control, facial recognition, geofencing, Supabase, PostgreSQL, JavaScript, Netlify, service worker, data integrity, offline-first synchronization, educational information systems.", { firstLine: false }),
   ];
 
   const intro = [
@@ -87,9 +87,14 @@ function build() {
     p("El repositorio se organiza como un sitio estático sin herramienta de build, con la siguiente estructura principal:", { firstLine: false }),
     codeBlock([
       "con_supabase/",
-      "├── index.html          # Marcado, estilos embebidos y modales de la SPA",
-      "├── script.js           # Toda la lógica de la aplicación (~2300 líneas)",
+      "├── index.html          # Marcado + TODA la lógica de la app en un",
+      "│                       #   único <script> inline (~3400 líneas) +",
+      "│                       #   estilos y modales embebidos",
       "├── style.css           # Hoja de estilos (tema institucional)",
+      "├── models/             # 7 archivos de pesos de face-api.js",
+      "│                       #   autohospedados (ver Desarrollo, punto 12)",
+      "├── sw.js               # Service worker: caché offline-first del",
+      "│                       #   app shell, librerías y modelos",
       "├── supabase_schema.sql # Creación de la tabla app_data + políticas RLS",
       "├── fix_rls_eventos.sql # Políticas RLS de evento_docente y docente",
       "├── fix_unique_evento.sql # Constraint unique_evento_dia_horario",
@@ -101,7 +106,7 @@ function build() {
       "└── package.json        # Metadatos del proyecto, scripts de despliegue y \"npm test\"",
     ]),
     p(
-      "La ausencia de un paso de build (no hay Webpack, Vite ni similar) es una decisión deliberada: al tratarse de una única página con navegación por paneles (mostrar/ocultar secciones del DOM), el costo de incorporar un framework de componentes no se justificaba frente a la simplicidad de mantener HTML, CSS y JavaScript planos, lo cual además simplifica el despliegue (no hay artefactos de build que puedan quedar desactualizados respecto del código fuente)."
+      "La ausencia de un paso de build (no hay Webpack, Vite ni similar) es una decisión deliberada: al tratarse de una única página con navegación por paneles (mostrar/ocultar secciones del DOM), el costo de incorporar un framework de componentes no se justificaba frente a la simplicidad de mantener HTML, CSS y JavaScript planos, lo cual además simplifica el despliegue (no hay artefactos de build que puedan quedar desactualizados respecto del código fuente). No existe, pese a lo que podría suponerse, un archivo script.js separado que index.html cargue: toda la lógica vive dentro de un único <script> inline en el propio index.html, punto que se retoma como hallazgo relevante en la sección de Resultados y Pruebas."
     ),
   ];
 
@@ -110,7 +115,7 @@ function build() {
 
     h2("1. Configuración inicial del proyecto"),
     p(
-      "El proyecto se inicializó como un sitio estático puro: un único documento index.html que actúa como cascarón de la aplicación (contiene todos los paneles y modales, mostrados u ocultados mediante JavaScript), una hoja style.css con el tema visual institucional y un único archivo script.js que concentra toda la lógica de negocio del lado del cliente. Las dependencias externas (Bootstrap 5.3.0 para la maquetación y los modales, Bootstrap Icons 1.10.0, Chart.js 4.4.4 para los gráficos estadísticos, jsPDF 2.5.1 para exportar reportes, face-api.js 0.22.2 para el reconocimiento facial y el cliente @supabase/supabase-js 2) se incorporan directamente desde la red de distribución de contenido (CDN) jsDelivr mediante etiquetas <script> y <link>, sin gestor de paquetes ni paso de instalación para el navegador."
+      "El proyecto se inicializó como un sitio estático puro: un único documento index.html que actúa como cascarón de la aplicación (contiene todos los paneles y modales, mostrados u ocultados mediante JavaScript) y una hoja style.css con el tema visual institucional. Toda la lógica de negocio del lado del cliente —persistencia, reconocimiento facial, geocerca, eventos, alertas— se escribió dentro de un único <script> inline al final de ese mismo index.html, en lugar de en un archivo .js aparte. Las dependencias externas (Bootstrap 5.3.0 para la maquetación y los modales, Bootstrap Icons 1.10.0, Chart.js 4.4.4 para los gráficos estadísticos, jsPDF 2.5.1 para exportar reportes, face-api.js 0.22.2 para el reconocimiento facial y el cliente @supabase/supabase-js 2) se incorporan directamente desde la red de distribución de contenido (CDN) jsDelivr mediante etiquetas <script> y <link>, sin gestor de paquetes ni paso de instalación para el navegador."
     ),
     p("Se optó por esta configuración inicial —en lugar de un andamiaje con Vite, Webpack o un framework de componentes— por las razones que se detallan en la sección de Justificación de Decisiones Técnicas.", { firstLine: false }),
 
@@ -118,7 +123,7 @@ function build() {
     p(
       "El modelo de datos combina dos estrategias de persistencia dentro de la misma base PostgreSQL provista por Supabase:"
     ),
-    bullet("Un almacén clave-valor genérico, la tabla app_data, que guarda como documentos JSON (jsonb) las colecciones que originalmente vivían en localStorage: teachers (docentes), attendance (fichajes de entrada/salida/retiro), alerts (alertas locales de tardanza, falta y salida anticipada), licencias (permisos autorizados) y criteria (criterios de evaluación de asistencia)."),
+    bullet("Un almacén clave-valor genérico, la tabla app_data, que guarda como documentos JSON (jsonb) las colecciones que originalmente vivían en localStorage: teachers (docentes), attendance (fichajes de entrada/salida/retiro), alerts (alertas locales de tardanza, falta y salida anticipada), licencias (permisos autorizados), criteria (criterios de evaluación de asistencia), geofence (configuración de la geocerca obligatoria: coordenadas, radio y nombre del establecimiento), modoPrueba (activa/desactiva la exigencia de geocerca para pruebas), kioskPrincipal (la PC exenta de geocerca autorizada como kiosco de fichaje) y kioskCodes (códigos de habilitación de kiosco)."),
     bullet("Un conjunto de tablas relacionales propias de PostgreSQL para el módulo de Eventos Especiales, que sí requiere integridad referencial real: evento_especial (los eventos), evento_docente (tabla puente que representa la convocatoria N:N entre eventos y docentes) y docente (una tabla espejo de app_data.teachers, que existe únicamente para que evento_docente pueda declarar una clave foránea válida hacia un id_docente numérico)."),
     h3("Diagrama entidad-relación (descripción textual)"),
     p("Dado que el documento no admite un diagrama gráfico interactivo, se describe a continuación la estructura entidad-relación equivalente:", { firstLine: false }),
@@ -151,7 +156,7 @@ function build() {
 
     h2("3. Autenticación y control de acceso"),
     p(
-      "A diferencia de lo que suele recomendarse como mejor práctica, ASIS_CAM no utiliza Supabase Auth. El inicio de sesión del administrador compara el usuario y la contraseña ingresados contra credenciales fijas definidas en el objeto CONFIG del propio script.js, y el inicio de sesión de cada docente compara su DNI y contraseña contra el registro correspondiente dentro de la colección teachers de app_data (con una contraseña por defecto asignada al crear al docente, que este puede cambiar desde su panel). El rol resultante (admin o teacher) se guarda únicamente en la variable de JavaScript currentUser durante la sesión del navegador, y es esa variable —no una política de base de datos— la que decide qué paneles y botones se muestran."
+      "A diferencia de lo que suele recomendarse como mejor práctica, ASIS_CAM no utiliza Supabase Auth. El inicio de sesión del administrador compara el usuario y la contraseña ingresados contra credenciales fijas definidas en el objeto CONFIG del <script> inline de index.html, y el inicio de sesión de cada docente compara su DNI y contraseña contra el registro correspondiente dentro de la colección teachers de app_data (con una contraseña por defecto asignada al crear al docente, que este puede cambiar desde su panel). El rol resultante (admin o teacher) se guarda únicamente en la variable de JavaScript currentUser durante la sesión del navegador, y es esa variable —no una política de base de datos— la que decide qué paneles y botones se muestran."
     ),
     p(
       "Como consecuencia directa de no usar Supabase Auth, las políticas de Row Level Security de las tablas app_data, evento_especial, evento_docente y docente están definidas de forma abierta para el rol anon (permiten select, insert y update sin restricción alguna), tal como se documenta en supabase_schema.sql y fix_rls_eventos.sql. Esto significa que, en el estado actual del sistema, RLS no diferencia entre administrador y docente a nivel de base de datos: toda la autorización por rol ocurre exclusivamente en el cliente. Este punto se retoma con mayor detalle en la sección de Resultados y Pruebas y en Limitaciones y Trabajo Futuro, por ser la observación de seguridad más relevante detectada durante la elaboración de este informe."
@@ -175,14 +180,22 @@ function build() {
       "En paralelo, un proceso de comparación (no una tarea programada del lado del servidor, sino un recorrido que la propia aplicación ejecuta al abrir el panel del administrador) revisa el calendario anual de cada docente y genera una alerta de \"Falta\" para cada fecha con clase asignada, ya vencido el margen de tolerancia (LATE_LIMIT = 15 minutos), en la que no exista un registro de entrada, salvo que ese día esté cubierto por una licencia autorizada. El estado de cada día para un docente se resuelve con la prioridad licencia > presente > falta > programado, y el algoritmo evita generar alertas duplicadas comparando contra las que ya existen para ese docente y esa fecha puntual."
     ),
 
-    h2("7. Módulo de licencias y permisos"),
+    h2("7. Geocerca obligatoria y kioscos autorizados"),
+    p(
+      "Para que el fichaje no pueda hacerse desde cualquier lugar con solo tener el rostro registrado, el sistema exige además que el dispositivo esté dentro de un radio configurable (entre 50 y 500 metros, mediante la API de Geolocalización del navegador, navigator.geolocation.getCurrentPosition) alrededor de un punto activo —normalmente, las coordenadas del establecimiento—. Esa configuración (coordenadas, radio y nombre del lugar) se guarda en app_data bajo la clave geofence, con el mismo patrón getGeofenceConfig()/saveGeofenceConfig() usado para el resto de las colecciones; si todavía no existe (por ejemplo, la primera vez que la aplicación corre contra un proyecto de Supabase nuevo), ensureGeofenceConfig() la crea automáticamente con un valor institucional por defecto."
+    ),
+    p(
+      "La verificación de la geocerca ocurre en dos momentos del mismo flujo de fichaje: al iniciar la identificación facial (antes de gastar tiempo activando la cámara y el reconocimiento si la persona ya está fuera de rango) y de nuevo justo antes de confirmar el registro de Ingreso o Salida, por si la posición cambió entre medio o alguien intentara forzar el guardado sin pasar por la primera verificación. Quedan exentos de esta restricción: el fichaje manual que carga el propio administrador, una PC designada como kiosco autorizado (kioskPrincipal, más sus kioskCodes de habilitación), el usuario administrador, y un \"Modo Prueba\" (modoPrueba) pensado para demostraciones y desarrollo, todos persistidos también en app_data con el mismo mecanismo de sincronización diferida descrito en el punto 11."
+    ),
+
+    h2("8. Módulo de licencias y permisos"),
     p(
       "El administrador puede registrar licencias (ausencias autorizadas) para un docente, indicando el período que cubren. Cualquier fecha comprendida dentro de una licencia vigente queda excluida de la detección automática de faltas descrita en el punto anterior, evitando que una ausencia justificada (por ejemplo, una licencia médica) se compute como una falta injustificada."
     ),
 
-    h2("8. Módulo de Eventos Especiales: el problema de los duplicados y su solución"),
+    h2("9. Módulo de Eventos Especiales: el problema de los duplicados y su solución"),
     p(
-      "El módulo de Eventos Especiales permite al administrador crear convocatorias (por ejemplo, un acto institucional) e invitar a un subconjunto de docentes mediante un buscador con autocompletado. Al guardar el evento, la función saveEvento() del frontend primero refleja en la tabla docente a cada docente convocado (upsertTeacherAsDocente(), usando su mismo id numérico) y luego inserta las filas correspondientes en evento_especial y evento_docente."
+      "El módulo de Eventos Especiales permite al administrador crear convocatorias (por ejemplo, un acto institucional) e invitar a un subconjunto de docentes mediante un buscador con autocompletado. Al guardar el evento, la función saveEvento() del frontend primero refleja en la tabla docente a cada docente convocado (syncTeacherToDocenteTable(), usando su mismo id numérico) y luego inserta las filas correspondientes en evento_especial y evento_docente."
     ),
     p(
       "Durante el uso real de la aplicación se detectó un incidente concreto: el acto \"Día del Estudiante\" quedó registrado dos veces —con id_evento 10 y 11— por un doble clic accidental sobre el botón Guardar antes de que la primera solicitud terminara de procesarse. Como ambos eventos duplicados ya tenían docentes convocados y varios de ellos habían fichado su asistencia contra ambos identificadores, la corrección no podía resolverse con un simple borrado: fue necesario (a) identificar cuál de los dos eventos concentraba más registros de asistencia reales, (b) migrar las convocatorias del evento sobrante al que se conservaba evitando filas repetidas, (c) reasignar manualmente, en los datos de asistencia, las marcaciones del evento sobrante hacia el evento conservado, y recién entonces (d) eliminar el evento duplicado."
@@ -196,12 +209,12 @@ function build() {
       "Esta doble capa ilustra un principio general de integridad de datos: una validación exclusivamente en el cliente puede evitar la mayoría de los duplicados accidentales, pero solo una restricción declarada en la propia base de datos garantiza la unicidad de forma absoluta frente a condiciones de carrera. El script SQL completo de esta corrección se incluye en el Anexo A."
     ),
 
-    h2("9. Módulo de alertas, histórico y estadísticas"),
+    h2("10. Módulo de alertas, histórico y estadísticas"),
     p(
       "El buzón de alertas del administrador combina dos orígenes de datos: las alertas locales de app_data.alerts (Falta, Tardanza, Salida Anticipada, generadas por la lógica descrita en el punto 6) y las alertas de asistencia a Eventos Especiales, que viven en una tabla alerta separada. Una alerta local puede archivarse (marcarse visible = false) sin perderse, de modo que sigue disponible en un histórico institucional y en el histórico individual de cada docente, aunque deje de mostrarse en el buzón activo; las alertas de eventos, en cambio, no tienen ese estado y no participan del histórico. El panel de estadísticas calcula en el momento —sin mantener contadores persistidos— los indicadores de asistencia y ausentismo, y los presenta mediante gráficos de torta, barras y líneas construidos con Chart.js."
     ),
 
-    h2("10. Persistencia híbrida y sincronización diferida automática (offline-first)"),
+    h2("11. Persistencia híbrida y sincronización diferida automática (offline-first)"),
     p(
       "Cada colección de app_data se cachea además en localStorage bajo el prefijo sb_cache_. Al iniciar, la aplicación intenta primero traer los datos desde Supabase y, si la conexión falla o responde con error, recurre a esa copia local en lugar de arrancar vacía. Del mismo modo, cada guardado escribe primero en localStorage —de forma inmediata, para que la interfaz responda sin demora— y luego intenta sincronizar el cambio con Supabase en segundo plano."
     ),
@@ -221,7 +234,18 @@ function build() {
       "Una limitación que este mecanismo no resuelve, por quedar fuera del alcance de la mejora solicitada, es la resolución de conflictos entre dispositivos: como cada colección se sincroniza como un único documento jsonb completo (no registro por registro), si dos dispositivos distintos guardan cambios diferentes sobre la misma colección mientras ambos están sin conexión, el que logra sincronizar en segundo lugar sobrescribe por completo la versión que el primero ya había subido, sin fusionar ambos conjuntos de cambios. Este punto se retoma en la sección de Limitaciones y Trabajo Futuro."
     ),
 
-    h2("11. Despliegue en Netlify con integración continua desde GitHub"),
+    h2("12. Reconocimiento facial sin conexión: modelos locales y service worker"),
+    p(
+      "CONFIG.FACE_MODELS_URL apuntaba originalmente a la carpeta de pesos de face-api.js publicada en el CDN de jsDelivr, sobre la rama @master del repositorio del proyecto (no una versión fijada). Esto tenía dos problemas: primero, el fichaje por rostro —la función más crítica del sistema— quedaba indisponible sin conexión, incluso si los datos de asistencia sí podían seguir guardándose localmente gracias a la sincronización diferida del punto anterior, porque face-api.js necesita descargar esos archivos de pesos para calcular el descriptor facial; segundo, al apuntar a una rama y no a una versión fija, el contenido servido podía cambiar sin aviso."
+    ),
+    p(
+      "Para resolverlo, se descargaron los 7 archivos que exigen los tres modelos usados (tiny_face_detector, face_landmark_68 y face_recognition: un manifiesto JSON y uno o dos archivos de pesos binarios —shards— cada uno) y se incorporaron al propio repositorio bajo /models, actualizando FACE_MODELS_URL a esa ruta local relativa. De esa forma, el reconocimiento facial deja de depender de un tercero externo en tiempo de ejecución."
+    ),
+    p(
+      "Sobre esa base se agregó un service worker (sw.js), registrado desde index.html al cargar la página. En su instalación, precachea: el app shell (index.html y style.css), las seis librerías de terceros necesarias en tiempo de ejecución (Bootstrap, el propio face-api.js, Chart.js, jsPDF y supabase-js, todas con versión fijada en la URL) y los 7 archivos de /models. Usa dos estrategias de caché distintas según el tipo de recurso: cache-first para los modelos y las librerías —al tener versión pinneada en la URL son efectivamente inmutables, así que una vez cacheados no se vuelven a pedir ni siquiera con conexión disponible— y network-first con reserva en caché para el app shell, de modo que una visita con conexión siempre reciba la última versión publicada, mientras que una visita sin conexión sigue arrancando desde la última copia que se cacheó con éxito. El service worker no intercepta ni cachea las llamadas a la API de Supabase: esas siguen el camino descrito en el punto anterior (persistencia local + cola de sincronización diferida)."
+    ),
+
+    h2("13. Despliegue en Netlify con integración continua desde GitHub"),
     p(
       "El repositorio se publica en Netlify configurando el archivo netlify.toml con publish = \".\" (se sirve la raíz del repositorio tal cual, sin comando de build) y una regla de redirección que envía cualquier ruta (/*) hacia index.html con código 200, necesaria para que la navegación interna de la aplicación (basada en mostrar y ocultar secciones del DOM, no en un enrutador de URL con múltiples rutas reales) no produzca errores 404 al recargar la página. Netlify queda conectado directamente al repositorio de GitHub del proyecto (github.com/Diosmel84/ASIS_CAM), de modo que cada cambio subido a la rama principal dispara automáticamente una nueva publicación en la URL de producción (asiscam-uno.netlify.app), sin pasos manuales adicionales. El proyecto conserva además, como configuración alternativa de respaldo, un archivo firebase.json y un _redirects equivalente para poder publicarse en Firebase Hosting si fuera necesario."
     ),
@@ -245,6 +269,10 @@ function build() {
     p(
       "face-api.js ejecuta la detección y el cálculo del descriptor facial enteramente en el navegador del usuario, usando modelos livianos (TinyFaceDetector) pensados para tiempo real. Esto evita transmitir imágenes del rostro de los docentes a un servidor externo para su procesamiento, y no requiere contratar un servicio de reconocimiento facial en la nube ni pagar por cada verificación realizada, lo cual era relevante para mantener el proyecto sin costos de infraestructura adicionales."
     ),
+    h3("¿Por qué autohospedar los modelos de reconocimiento facial y agregar un service worker en vez de confiar en el CDN?"),
+    p(
+      "El fichaje por rostro es la función crítica del sistema: si no puede calcularse el descriptor facial, ningún docente puede marcar su asistencia, sin importar que la sincronización diferida ya permita seguir guardando datos sin conexión. Depender de un CDN externo para los archivos de pesos del modelo introducía un punto único de falla ajeno al proyecto (el CDN puede estar caído, bloqueado por la red de la institución, o simplemente inalcanzable en una zona con mala señal) justo en el paso que nunca puede fallar. Autohospedar esos 7 archivos y precachearlos con un service worker traslada esa garantía al propio control del proyecto: una vez que el service worker se instaló con una visita online, el reconocimiento facial deja de depender de que haya internet, incluso si esa visita ocurrió días antes."
+    ),
     h3("¿Por qué Netlify como plataforma de despliegue?"),
     p(
       "Netlify permite publicar un sitio estático conectándolo directamente a un repositorio de GitHub, sin configurar servidores propios, con certificado HTTPS automático y republicación en cada cambio subido a la rama principal. Para un proyecto sin paso de build, la configuración se reduce a indicar la carpeta a publicar y la regla de redirección para la navegación interna, lo que hizo de Netlify la opción de menor fricción operativa disponible."
@@ -265,9 +293,16 @@ function build() {
     p(
       "Se comprobó que, con un umbral FACE_MATCH_THRESHOLD de 0.55, el sistema identifica correctamente al docente registrado bajo distintas condiciones de iluminación moderadas, y rechaza la identificación cuando se presenta ante la cámara una persona distinta a la registrada, exigiendo un nuevo intento. Se verificó también que los botones de marcación permanecen deshabilitados hasta obtener una identificación válida, y que la ventana de tolerancia de salida (15 minutos) efectivamente reclasifica una marcación de \"Retiro anticipado\" a \"Salida\" en cuanto se alcanza la hora de fin de horario configurada."
     ),
+    h2("Hallazgo: script.js era un archivo huérfano, sin uso en producción"),
+    p(
+      "Al construir el arnés de pruebas automatizado para la sincronización diferida (descrita más abajo) y, después, al implementar el service worker del punto 12, se detectó que index.html no contiene ningún <script src=\"script.js\">: ese archivo, presente en el repositorio, nunca fue cargado por el navegador. Toda la lógica que efectivamente corre en producción vivía en un <script> inline dentro del propio index.html, que además ya incluía funcionalidad ausente en script.js (la geocerca y los kioscos del punto 7, entre otras). En la práctica, esto significó que la primera versión de la sincronización diferida offline-first, implementada y probada contra script.js, nunca estuvo activa en el sitio publicado: el código era correcto, pero corría en un archivo que el navegador ignoraba por completo."
+    ),
+    p(
+      "La corrección consistió en portar esa misma lógica (cola de pendientes, reintento automático y sus tres disparadores) al <script> inline real de index.html, adaptar el arnés de pruebas para que extrajera y ejecutara ese bloque en lugar de script.js, y eliminar script.js del repositorio una vez confirmado que ninguna otra parte del proyecto lo referenciaba. El hallazgo se documenta acá porque ilustra un riesgo concreto de mantener una copia de un archivo fuente sin una única fuente de verdad: es perfectamente posible verificar exhaustivamente un fragmento de código —incluso con pruebas automatizadas en verde— sin que esa verificación diga nada sobre el comportamiento real del sistema en producción, si el archivo probado no es el que efectivamente se ejecuta."
+    ),
     h2("Pruebas automatizadas de la sincronización diferida (tests/test_offline_sync.js)"),
     p(
-      "Para verificar el mecanismo de sincronización diferida descrito en el punto 10 del Desarrollo sin depender de un navegador real ni del hardware de cámara necesario para el reconocimiento facial, se construyó un arnés de pruebas automatizado (tests/test_offline_sync.js) que ejecuta el archivo script.js real del proyecto —sin modificarlo ni reescribirlo— dentro de un contexto aislado de Node.js (módulo vm). Ese contexto provee implementaciones simuladas de localStorage, de window/document y de un cliente de Supabase falso cuyo comportamiento se puede alternar entre \"conectado\" y \"desconectado\" a voluntad, registrando además cada intento de escritura para poder inspeccionarlo. De esta forma, el arnés ejercita el código de producción tal cual corre en el navegador, reemplazando únicamente el entorno externo (red, almacenamiento, DOM) por versiones controlables desde la prueba."
+      "Para verificar el mecanismo de sincronización diferida descrito en el punto 11 del Desarrollo sin depender de un navegador real ni del hardware de cámara necesario para el reconocimiento facial, se construyó un arnés de pruebas automatizado (tests/test_offline_sync.js) que extrae el <script> inline real de index.html —sin modificarlo ni reescribirlo— y lo ejecuta dentro de un contexto aislado de Node.js (módulo vm). Ese contexto provee implementaciones simuladas de localStorage, de window/document y de un cliente de Supabase falso cuyo comportamiento se puede alternar entre \"conectado\" y \"desconectado\" a voluntad, registrando además cada intento de escritura para poder inspeccionarlo. De esta forma, el arnés ejercita el código de producción tal cual corre en el navegador, reemplazando únicamente el entorno externo (red, almacenamiento, DOM) por versiones controlables desde la prueba."
     ),
     p(
       "El arnés recorre seis escenarios encadenados: (1) una carga inicial de la aplicación con conexión disponible; (2) la pérdida de conectividad seguida del registro de una asistencia, verificando el guardado local inmediato y el encolado de la clave en sb_pending_sync; (3) un segundo guardado sin conexión (una alerta) para confirmar que el mecanismo admite varias colecciones pendientes a la vez; (4) el restablecimiento de la conexión, disparando el evento online y verificando que ambas colecciones se suban solas con su valor más reciente y que la cola quede vacía; (5) un nuevo guardado offline seguido de la simulación de una recarga de página (un contexto nuevo que reutiliza el mismo localStorage), para confirmar que la cola de pendientes sobrevive; y (6) la reapertura de la aplicación ya con señal, confirmando que el intento de sincronización del arranque sube en solitario lo que había quedado pendiente de la sesión anterior. Cada escenario se corrobora con aserciones puntuales sobre el estado de localStorage, la cola de pendientes, los avisos mostrados al usuario y el contenido exacto enviado a Supabase."
@@ -299,6 +334,10 @@ function build() {
       "El código completo del arnés se conserva versionado en el repositorio (tests/test_offline_sync.js) y puede ejecutarse en cualquier momento con npm test, incluyéndose como parte de la validación recomendada antes de modificar la lógica de persistencia de la aplicación.",
       { firstLine: false }
     ),
+    h2("Prueba del service worker y los modelos autohospedados"),
+    p(
+      "Antes de publicar el cambio, se sirvió el repositorio con un servidor estático local (equivalente a cómo Netlify sirve archivos ya existentes en el repositorio) y se solicitaron uno por uno index.html, sw.js, style.css y los 7 archivos de /models: todos respondieron con código 200 y el tamaño exacto esperado, mientras que una ruta inexistente bajo /models sirvió como control y devolvió 404, confirmando que el servidor no enmascaraba errores reales. Se verificó además la sintaxis del <script> inline extraído de index.html y la de sw.js con node --check, y se corrió nuevamente el arnés de pruebas de sincronización diferida contra el código ya portado, con el mismo resultado de 16 sobre 16 verificaciones aprobadas."
+    ),
     h2("Prueba del despliegue continuo"),
     p(
       "Se confirmó que un cambio subido a la rama principal del repositorio de GitHub se refleja automáticamente, sin intervención manual, en la URL de producción (asiscam-uno.netlify.app), y que la regla de redirección definida en netlify.toml evita errores 404 al recargar la página desde cualquier estado de la interfaz."
@@ -313,10 +352,14 @@ function build() {
     p(
       "El incidente real de eventos duplicados, y su resolución mediante una restricción de unicidad a nivel de base de datos, deja como aprendizaje concreto que la validación del lado del cliente es necesaria pero no suficiente: la garantía definitiva de integridad de datos debe residir en la base de datos misma. Al mismo tiempo, la revisión de las políticas de Row Level Security realizada para este informe puso en evidencia la limitación de seguridad más importante del sistema en su estado actual —la ausencia de autenticación real a nivel de base de datos y el almacenamiento de contraseñas en texto plano—, cuya corrección se detalla como prioridad en la siguiente sección."
     ),
+    p(
+      "El hallazgo de script.js como archivo huérfano deja, a su vez, un aprendizaje distinto pero igual de concreto: mantener una única fuente de verdad para el código fuente no es un detalle de organización menor, sino una condición necesaria para que cualquier prueba —manual o automatizada— diga algo real sobre el sistema en producción. La incorporación de los modelos de reconocimiento facial autohospedados y el service worker offline-first, finalmente, cierra la última dependencia externa crítica que quedaba en el flujo de fichaje, dejando a ASIS_CAM en condiciones de operar íntegramente sin conexión —tanto el reconocimiento facial como el guardado de datos— después de una primera visita con señal."
+    ),
   ];
 
   const limitaciones = [
     h1("Limitaciones y Trabajo Futuro"),
+    bullet("La geocerca depende de que el navegador conceda permiso de geolocalización y de la precisión del GPS/red del dispositivo: en interiores o con mala señal, la posición reportada puede tener un margen de error mayor al radio configurado, generando falsos rechazos. Conviene registrar y revisar periódicamente cuántos intentos de fichaje se rechazan por geocerca para calibrar el radio, además de mantener disponible el fichaje manual del administrador como vía de excepción."),
     bullet("Resolver la fusión de cambios entre dispositivos que sincronizan la sincronización diferida (offline-first) descrita en la sección de Desarrollo: hoy, si dos dispositivos guardan cambios distintos sobre la misma colección estando ambos sin conexión, el que sincroniza en segundo lugar sobrescribe por completo lo que había subido el primero. Una solución posible es pasar de guardar la colección entera como un único documento jsonb a registrar cada fichaje o alerta como una fila individual con marca de tiempo, de modo que sincronizar sea agregar filas nuevas en vez de reemplazar un documento completo."),
     bullet("Migrar la autenticación a Supabase Auth y restringir las políticas de RLS de app_data, evento_especial, evento_docente y docente al rol authenticated, de modo que la separación admin/docente exista también a nivel de base de datos y no solo en la interfaz."),
     bullet("Dejar de almacenar las contraseñas de los docentes en texto plano dentro de app_data.teachers, aplicando en su lugar un hash con sal (por ejemplo, mediante una función de base de datos o una Edge Function de Supabase que intermedie las escrituras)."),
@@ -332,7 +375,9 @@ function build() {
     reference("Chart.js Contributors. (2024). Chart.js documentation (v4.4). https://www.chartjs.org/docs/latest/"),
     reference("Google. (2024). Firebase Hosting documentation. https://firebase.google.com/docs/hosting"),
     reference("King, D. E. (2009). Dlib-ml: A machine learning toolkit. Journal of Machine Learning Research, 10, 1755–1758."),
+    reference("Mozilla Developer Network. (2024). Geolocation API. https://developer.mozilla.org/es/docs/Web/API/Geolocation_API"),
     reference("Mozilla Developer Network. (2024). JavaScript reference. Mozilla. https://developer.mozilla.org/es/docs/Web/JavaScript"),
+    reference("Mozilla Developer Network. (2024). Service Worker API. https://developer.mozilla.org/es/docs/Web/API/Service_Worker_API"),
     reference("Netlify, Inc. (2024). Netlify Docs: Continuous deployment. https://docs.netlify.com/site-deploys/create-deploys/"),
     reference("PostgreSQL Global Development Group. (2024). PostgreSQL 16 documentation: Row security policies. https://www.postgresql.org/docs/current/ddl-rowsecurity.html"),
     reference("PostgREST. (2024). PostgREST documentation. https://postgrest.org/en/stable/"),
@@ -340,6 +385,7 @@ function build() {
     reference("Supabase Inc. (2024b). Row Level Security. https://supabase.com/docs/guides/database/postgres/row-level-security"),
     reference("Twitter, Inc. / Bootstrap Team. (2023). Bootstrap 5.3 documentation. https://getbootstrap.com/docs/5.3/"),
     reference("Vincent, J. [justadudewhohacks]. (2020). face-api.js: JavaScript face recognition API for the browser and Node.js, implemented on top of TensorFlow.js core [Software]. GitHub. https://github.com/justadudewhohacks/face-api.js"),
+    reference("World Wide Web Consortium. (2022). Service Workers. https://www.w3.org/TR/service-workers/"),
     reference("World Wide Web Consortium. (2024). HTML Living Standard. WHATWG. https://html.spec.whatwg.org/"),
   ];
 
@@ -374,7 +420,7 @@ function build() {
       "  to = \"/index.html\"",
       "  status = 200",
     ]),
-    h2("Anexo D. Parámetros de configuración del reconocimiento facial (script.js)"),
+    h2("Anexo D. Parámetros de configuración del reconocimiento facial (index.html)"),
     codeBlock([
       "LATE_LIMIT: 15,                 // minutos de tolerancia para tardanza",
       "EXIT_TOLERANCE_MINUTES: 15,     // ventana previa a la salida",
@@ -383,7 +429,7 @@ function build() {
       "IDENTIFY_SAMPLES: 3,            // muestras promediadas al identificar",
       "IDENTIFY_SAMPLE_INTERVAL_MS: 250",
     ]),
-    h2("Anexo E. Sincronización diferida automática (script.js)"),
+    h2("Anexo E. Sincronización diferida automática (index.html)"),
     p("Cola de pendientes y reintento automático al recuperar conexión, agregados sobre persistToSupabase:", { firstLine: false }),
     codeBlock([
       "function markPendingSync(key) {",
@@ -425,12 +471,38 @@ function build() {
       "    if (getPendingSyncKeys().length > 0) flushPendingSync();",
       "}, 20000);",
     ]),
-    h2("Anexo F. Tabla resumen de módulos y tecnologías"),
+    h2("Anexo F. Service worker: precacheo offline-first (sw.js)"),
+    p("Listas de recursos precacheados en la instalación del service worker:", { firstLine: false }),
+    codeBlock([
+      "const APP_SHELL_URLS = ['./', './index.html', './style.css'];",
+      "",
+      "const MODEL_URLS = [",
+      "    './models/tiny_face_detector_model-weights_manifest.json',",
+      "    './models/tiny_face_detector_model-shard1',",
+      "    './models/face_landmark_68_model-weights_manifest.json',",
+      "    './models/face_landmark_68_model-shard1',",
+      "    './models/face_recognition_model-weights_manifest.json',",
+      "    './models/face_recognition_model-shard1',",
+      "    './models/face_recognition_model-shard2',",
+      "];",
+      "",
+      "const VENDOR_URLS = [",
+      "    'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',",
+      "    'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js',",
+      "    'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js',",
+      "    'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js',",
+      "    'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',",
+      "    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js',",
+      "];",
+    ]),
+    h2("Anexo G. Tabla resumen de módulos y tecnologías"),
     simpleTable(
       ["Módulo", "Tecnología / mecanismo", "Persistencia"],
       [
         ["Autenticación", "Comparación de credenciales en cliente (sin Supabase Auth)", "app_data.teachers / CONFIG"],
         ["Reconocimiento facial", "face-api.js (TinyFaceDetector + landmarks + descriptor)", "Descriptor en app_data.teachers"],
+        ["Reconocimiento facial offline", "Modelos autohospedados en /models + service worker (sw.js)", "Cache Storage del navegador"],
+        ["Geocerca y kioscos", "API de Geolocalización del navegador + radio configurable", "app_data.geofence / modoPrueba / kioskPrincipal / kioskCodes"],
         ["Fichaje de asistencia", "Lógica de horario + tolerancia en cliente", "app_data.attendance"],
         ["Licencias", "CRUD desde panel admin", "app_data.licencias"],
         ["Eventos especiales", "Tablas relacionales + constraint UNIQUE", "evento_especial / evento_docente"],
