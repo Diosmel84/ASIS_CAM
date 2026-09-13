@@ -95,6 +95,85 @@ function describeSupabaseError(error) {
     return [error.message, error.code, error.details, error.hint].filter(Boolean).join(' | ');
 }
 
+// ------------------------------------------------------------
+// SINCRONIZACIÓN DIFERIDA
+// Si un guardado a Supabase falla (sin conexión, CDN caído, etc.)
+// la clave queda marcada como "pendiente" en localStorage. En
+// cuanto el navegador avisa que hay conexión de nuevo (evento
+// 'online'), o cada cierto tiempo mientras haya pendientes (por si
+// ese evento no es confiable), se reintenta subir la versión más
+// reciente de esa colección. Como dataStore ya tiene siempre el
+// último valor guardado, si se guardó varias veces sin conexión se
+// sube de una sola vez la versión final, no cada guardado intermedio.
+// ------------------------------------------------------------
+const PENDING_SYNC_KEY = 'sb_pending_sync';
+
+function getPendingSyncKeys() {
+    try {
+        const raw = localStorage.getItem(PENDING_SYNC_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function markPendingSync(key) {
+    const pending = getPendingSyncKeys();
+    if (!pending.includes(key)) {
+        pending.push(key);
+        localStorage.setItem(PENDING_SYNC_KEY, JSON.stringify(pending));
+    }
+}
+
+function clearPendingSync(key) {
+    const pending = getPendingSyncKeys().filter(k => k !== key);
+    if (pending.length > 0) {
+        localStorage.setItem(PENDING_SYNC_KEY, JSON.stringify(pending));
+    } else {
+        localStorage.removeItem(PENDING_SYNC_KEY);
+    }
+}
+
+let isFlushingPendingSync = false;
+
+async function flushPendingSync() {
+    if (!sb || isFlushingPendingSync) return;
+    const pending = getPendingSyncKeys();
+    if (pending.length === 0) return;
+
+    isFlushingPendingSync = true;
+    let syncedCount = 0;
+    for (const key of pending) {
+        try {
+            const { error } = await sb.from('app_data')
+                .upsert({ key, value: dataStore[key], updated_at: new Date().toISOString() }, { onConflict: 'key' });
+            if (error) throw error;
+            clearPendingSync(key);
+            syncedCount++;
+        } catch (e) {
+            console.error('Reintento de sincronización falló para "' + key + '":', e);
+            // Se deja marcado como pendiente: se reintenta en el próximo 'online' o tick del intervalo.
+        }
+    }
+    isFlushingPendingSync = false;
+
+    if (syncedCount > 0) {
+        supabaseAvailable = true;
+        showToast('Conexión restablecida: se sincronizaron ' + syncedCount + ' cambio(s) guardado(s) sin conexión.', 'success');
+    }
+}
+
+window.addEventListener('online', flushPendingSync);
+window.addEventListener('offline', () => {
+    showToast('Sin conexión a internet. Los cambios se guardarán en este dispositivo y se subirán solos al reconectar.', 'warning');
+});
+// Respaldo por si el evento 'online' no es confiable (p. ej. wifi
+// conectado pero sin salida real a internet): reintenta cada 20s
+// mientras queden claves pendientes.
+setInterval(() => {
+    if (getPendingSyncKeys().length > 0) flushPendingSync();
+}, 20000);
+
 async function loadAllData() {
     if (!sb) {
         console.error('El cliente de Supabase no se pudo inicializar (¿no cargó el script de supabase-js?)');
@@ -124,15 +203,20 @@ async function loadAllData() {
 
 function persistToSupabase(key, value) {
     writeLocalCache(key, value);
-    if (!sb) return;
+    if (!sb) {
+        markPendingSync(key);
+        return;
+    }
     sb.from('app_data')
         .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' })
         .then(({ error }) => {
             if (error) {
                 console.error('Error guardando "' + key + '" en Supabase:', error);
-                showToast('No se pudo guardar en Supabase (' + describeSupabaseError(error) + '). Se guardó localmente.', 'warning');
+                markPendingSync(key);
+                showToast('Sin conexión con la base de datos (' + describeSupabaseError(error) + '). Se guardó localmente y se sincronizará solo al reconectar.', 'warning');
                 supabaseAvailable = false;
             } else {
+                clearPendingSync(key);
                 supabaseAvailable = true;
             }
         });
@@ -2313,5 +2397,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     saveCriteriaToStorage(criteria);
     checkFaltas();
     setInterval(checkFaltas, 5 * 60 * 1000);
+    flushPendingSync(); // por si quedaron cambios sin subir de una sesión offline anterior
     showToast('Sistema iniciado', 'info');
 });

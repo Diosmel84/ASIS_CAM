@@ -6,5 +6,8 @@
   "scripts": {
     "deploy:firebase": "firebase deploy --only hosting",
     "deploy:netlify": "netlify deploy --prod --dir=."
+  },
+  "devDependencies": {
+    "docx": "^9.7.1"
   }
 }
