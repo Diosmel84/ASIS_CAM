@@ -133,8 +133,21 @@ function isThisDeviceKiosk() {
 // contra el punto/kiosco/modo-prueba viejo hasta recargar. Si falla
 // la consulta (sin conexión), se degrada a la última copia conocida
 // en vez de romper el fichaje.
+//
+// IMPORTANTE: si esta clave todavía está pendiente de sincronizar
+// (ver sb_pending_sync / markPendingSync), NO hay que pisarla con lo
+// que devuelva Supabase: por definición, lo que hay en Supabase en
+// ese momento es viejo (el guardado local todavía no se subió, por
+// ejemplo por wifi inestable en el momento en que el admin guardó).
+// Sobrescribir acá dataStore/localStorage con ese valor viejo perdía
+// para siempre el cambio recién guardado -y encima confundía al
+// reintento automático, que termina resubiendo el valor viejo porque
+// ya no encuentra el nuevo en dataStore-. Bug real reportado: el
+// admin cambiaba la ubicación de la geocerca, y el docente seguía
+// viendo la ubicación anterior (Colegio Secundario De San Carlos por
+// defecto) hasta que alguien volvía a guardar.
 async function fetchFreshAppDataValue(key, fallbackGetter) {
-    if (sb) {
+    if (sb && !getPendingSyncKeys().includes(key)) {
         try {
             const { data, error } = await sb.from('app_data').select('value').eq('key', key).maybeSingle();
             if (error) throw error;
@@ -473,7 +486,18 @@ async function loadAllData() {
         const { data, error } = await sb.from('app_data').select('key,value').in('key', DATA_KEYS);
         if (error) throw error;
         const byKey = Object.fromEntries((data || []).map(row => [row.key, row.value]));
+        const pending = getPendingSyncKeys();
         DATA_KEYS.forEach(key => {
+            // Si esta clave tiene un guardado local todavía sin subir, ese
+            // guardado es más nuevo que lo que hay en Supabase por
+            // definición: se mantiene la copia local en vez de pisarla con
+            // el valor viejo del servidor (mismo motivo que en
+            // fetchFreshAppDataValue). flushPendingSync() se encarga de
+            // subirla apenas haya conexión.
+            if (pending.includes(key)) {
+                dataStore[key] = readLocalCache(key);
+                return;
+            }
             const value = (byKey[key] !== undefined) ? byKey[key] : readLocalCache(key);
             dataStore[key] = value;
             writeLocalCache(key, value);

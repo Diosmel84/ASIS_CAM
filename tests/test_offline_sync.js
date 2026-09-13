@@ -30,7 +30,14 @@ function makeSandbox(sharedLocalStorage) {
   const localStorage = sharedLocalStorage || new FakeStorage();
   const toasts = [];
   const upsertCalls = [];
-  const state = { networkOnline: true };
+  // serverData simula lo que hay REALMENTE guardado en Supabase en cada
+  // momento -independiente de dataStore/localStorage-, para poder probar
+  // el caso en que un guardado local todavía no llegó a subirse: la
+  // lectura "fresca" (.eq().maybeSingle(), usada por
+  // fetchFreshAppDataValue) y la carga en bloque (.in(), usada por
+  // loadAllData) tienen que devolver lo que hay en serverData, que puede
+  // seguir siendo el valor viejo aunque dataStore ya tenga el nuevo.
+  const state = { networkOnline: true, failUpsertFor: new Set(), serverData: {} };
 
   const windowListeners = {};
   const fakeWindow = {
@@ -44,21 +51,40 @@ function makeSandbox(sharedLocalStorage) {
     querySelectorAll() { return []; },
   };
 
+  function networkFailure() {
+    return { message: "Failed to fetch (offline simulado)" };
+  }
+
   const fakeSupabaseModule = {
     createClient() {
       return {
-        from(table) {
-          return {
-            select() { return this; },
-            in() { return Promise.resolve({ data: [], error: null }); },
+        from() {
+          let eqValue;
+          const builder = {
+            select() { return builder; },
+            eq(_col, value) { eqValue = value; return builder; },
+            in(_col, keys) {
+              if (!state.networkOnline) return Promise.resolve({ data: null, error: networkFailure() });
+              const rows = keys
+                .filter((k) => Object.prototype.hasOwnProperty.call(state.serverData, k))
+                .map((k) => ({ key: k, value: state.serverData[k] }));
+              return Promise.resolve({ data: rows, error: null });
+            },
+            maybeSingle() {
+              if (!state.networkOnline) return Promise.resolve({ data: null, error: networkFailure() });
+              const has = Object.prototype.hasOwnProperty.call(state.serverData, eqValue);
+              return Promise.resolve({ data: has ? { value: state.serverData[eqValue] } : null, error: null });
+            },
             upsert(payload) {
               upsertCalls.push({ ...payload, __online: state.networkOnline });
-              if (!state.networkOnline) {
-                return Promise.resolve({ error: { message: "Failed to fetch (offline simulado)" } });
+              if (!state.networkOnline || state.failUpsertFor.has(payload.key)) {
+                return Promise.resolve({ error: networkFailure() });
               }
+              state.serverData[payload.key] = payload.value;
               return Promise.resolve({ error: null });
             },
           };
+          return builder;
         },
       };
     },
@@ -167,6 +193,52 @@ async function main() {
   await tick(30);
   check("la licencia pendiente de la sesión anterior se sincronizó al reabrir con señal", env2.sandbox.getPendingSyncKeys().length === 0);
   check("se subió la licencia correcta a Supabase", env2.upsertCalls.some(c => c.key === "licencias" && c.__online));
+
+  console.log("\n== Paso 7: bug real reportado -> una lectura 'fresca' de Supabase no debe pisar un cambio de geocerca aún pendiente ==");
+  const env3 = makeSandbox(new FakeStorage());
+  await env3.sandbox.loadAllData(); // arranca sin nada guardado todavía
+  const ubicacionVieja = { lat: -27.747601, lng: -55.888582, radio: 150, nombreLugar: "Colegio Secundario De San Carlos", actualizadoPor: "sistema", actualizadoEn: null };
+  const ubicacionNueva = { lat: -27.5, lng: -55.9, radio: 200, nombreLugar: "Nueva sede", actualizadoPor: "admin", actualizadoEn: new Date().toISOString() };
+  // El admin ya había guardado la ubicación vieja en una sesión anterior
+  // (esto sí llega a Supabase: todavía no simulamos ninguna falla).
+  env3.sandbox.saveGeofenceConfig(ubicacionVieja);
+  await tick();
+  check("la ubicación vieja quedó sincronizada en el 'servidor'", env3.state.serverData.geofence.nombreLugar === ubicacionVieja.nombreLugar);
+
+  // El admin cambia la ubicación, pero justo en ese momento el guardado
+  // a Supabase falla (wifi de la escuela, típicamente) - la app SÍ queda
+  // con el valor nuevo en memoria y en localStorage, pero Supabase se
+  // queda con el viejo.
+  env3.state.failUpsertFor.add("geofence");
+  env3.sandbox.saveGeofenceConfig(ubicacionNueva);
+  await tick();
+  env3.state.failUpsertFor.delete("geofence"); // la red en sí sigue andando para todo lo demás (ver Paso 7b)
+  check("'geofence' quedó pendiente tras el guardado fallido", env3.sandbox.getPendingSyncKeys().includes("geofence"));
+  check("dataStore ya tiene la ubicación NUEVA en memoria", env3.sandbox.getGeofenceConfig().nombreLugar === ubicacionNueva.nombreLugar);
+  check("Supabase ('servidor') se quedó con la ubicación VIEJA", env3.state.serverData.geofence.nombreLugar === ubicacionVieja.nombreLugar);
+
+  // Ahora el docente intenta fichar: verifyGeofence() llama a
+  // fetchFreshAppDataValue('geofence', ...), que SÍ logra conectarse a
+  // Supabase (la red anda) y Supabase todavía tiene la ubicación vieja.
+  // Antes del fix, esto pisaba dataStore.geofence y el localStorage con
+  // el valor viejo; con el fix, como "geofence" sigue pendiente, no se
+  // toca nada.
+  const geofenceUsadaParaFichar = await env3.sandbox.fetchFreshAppDataValue("geofence", env3.sandbox.getGeofenceConfig);
+  check("el fichaje del docente usa la ubicación NUEVA, no la vieja del servidor", geofenceUsadaParaFichar.nombreLugar === ubicacionNueva.nombreLugar);
+  check("dataStore.geofence sigue siendo la ubicación NUEVA después de la lectura 'fresca'", env3.sandbox.getGeofenceConfig().nombreLugar === ubicacionNueva.nombreLugar);
+  check("el localStorage (sb_cache_geofence) NO quedó pisado con la ubicación vieja", JSON.parse(env3.localStorage.getItem("sb_cache_geofence")).nombreLugar === ubicacionNueva.nombreLugar);
+
+  console.log("\n== Paso 7b: lo mismo, pero simulando una recarga completa (loadAllData) en vez de fetchFreshAppDataValue ==");
+  const env4 = makeSandbox(env3.localStorage); // mismo dispositivo: comparte localStorage con env3
+  env4.state.serverData = env3.state.serverData; // y el mismo "Supabase" (todavía con la ubicación vieja)
+  await env4.sandbox.loadAllData();
+  check("tras 'recargar' la app, dataStore.geofence sigue siendo la ubicación NUEVA (no la vieja que trajo loadAllData)", env4.sandbox.getGeofenceConfig().nombreLugar === ubicacionNueva.nombreLugar);
+
+  console.log("\n== Paso 7c: al reconectar del todo, se termina subiendo la ubicación correcta (la nueva, no la vieja) ==");
+  await env4.sandbox.flushPendingSync();
+  await tick(30);
+  check("'geofence' ya no queda pendiente", env4.sandbox.getPendingSyncKeys().length === 0);
+  check("lo que terminó subiéndose a Supabase es la ubicación NUEVA", env4.state.serverData.geofence.nombreLugar === ubicacionNueva.nombreLugar);
 
   console.log("\n==================================================");
   const total = results.length, ok = results.filter(r => r.ok).length;
