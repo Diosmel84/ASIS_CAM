@@ -240,6 +240,52 @@ async function main() {
   check("'geofence' ya no queda pendiente", env4.sandbox.getPendingSyncKeys().length === 0);
   check("lo que terminó subiéndose a Supabase es la ubicación NUEVA", env4.state.serverData.geofence.nombreLugar === ubicacionNueva.nombreLugar);
 
+  console.log("\n== Paso 8: modo avión -> el GPS que falla no debe bloquear el fichaje si no hay conexión ==");
+  // navigator.geolocation no está definido en este sandbox (a propósito:
+  // getCurrentPositionPromise() rechaza con {code:'unsupported'} en
+  // cuanto se la llama), así que cualquier llamado a verifyGeofence() en
+  // este entorno simula exactamente "el GPS falló". currentUser queda
+  // en null (nadie inició sesión en este harness), así que no dispara
+  // ninguno de los bypass de admin/modoPrueba/kiosco: llega derecho a la
+  // parte de GPS, que es la que se está probando acá.
+  const env5 = makeSandbox(new FakeStorage());
+  await env5.sandbox.loadAllData();
+
+  env5.sandbox.navigator.onLine = false;
+  const geoOfflineSinGps = await env5.sandbox.verifyGeofence();
+  check("offline + GPS falla -> NO bloquea el fichaje (ok:true)", geoOfflineSinGps.ok === true);
+  check("...pero lo marca como pendiente de validar geocerca", geoOfflineSinGps.pendingGeofence === true);
+  check("el bypass queda identificado como 'offline_sin_gps'", geoOfflineSinGps.bypass === "offline_sin_gps");
+
+  env5.sandbox.navigator.onLine = true;
+  const geoOnlineSinGps = await env5.sandbox.verifyGeofence();
+  check("con conexión, el mismo fallo de GPS SÍ sigue bloqueando (no se aflojó la seguridad estando online)", geoOnlineSinGps.ok === false && geoOnlineSinGps.reason === "gps");
+
+  console.log("\n== Paso 8b: el fichaje offline pendiente se guarda con los campos correctos y se revalida al reconectar ==");
+  const ubicacionActual = env5.sandbox.getGeofenceConfig(); // la que use la app en este momento (el default de fábrica)
+  const geoConCoordsDentroDeRango = { ok: true, pendingGeofence: true, bypass: "offline_sin_gps", coords: { lat: ubicacionActual.lat, lng: ubicacionActual.lng } };
+  const attendanceGuardadaOffline = env5.sandbox.getAttendance();
+  attendanceGuardadaOffline.push({
+    id: "test-offline-1", teacherId: 99, teacherName: "Docente Prueba",
+    date: "2026-09-13", time: "07:55:00", type: "entry", status: "present",
+    timestamp: new Date().toISOString(), categoria: "regular",
+  });
+  // Simula lo que hace registerAttendance(type, geo) con pendingGeofenceFields(geo):
+  Object.assign(attendanceGuardadaOffline[attendanceGuardadaOffline.length - 1], { geofenceStatus: "pendiente_geocerca", offline: true, coords: geoConCoordsDentroDeRango.coords });
+  env5.sandbox.saveAttendance(attendanceGuardadaOffline);
+  await tick();
+  check("el registro guardado offline tiene geofenceStatus 'pendiente_geocerca'", env5.sandbox.getAttendance().find(a => a.id === "test-offline-1").geofenceStatus === "pendiente_geocerca");
+
+  await env5.sandbox.revalidatePendingGeofenceAttendance();
+  const registroRevalidado = env5.sandbox.getAttendance().find(a => a.id === "test-offline-1");
+  check("al reconectar, se revalida y queda 'validado_dentro_de_rango' (las coords estaban dentro del radio)", registroRevalidado.geofenceStatus === "validado_dentro_de_rango");
+  check("revalidatePendingGeofenceAttendance() no vuelve a tocar un registro ya validado", await (async () => {
+    const antes = JSON.stringify(env5.sandbox.getAttendance().find(a => a.id === "test-offline-1"));
+    await env5.sandbox.revalidatePendingGeofenceAttendance();
+    const despues = JSON.stringify(env5.sandbox.getAttendance().find(a => a.id === "test-offline-1"));
+    return antes === despues;
+  })());
+
   console.log("\n==================================================");
   const total = results.length, ok = results.filter(r => r.ok).length;
   console.log(`RESULTADO: ${ok}/${total} verificaciones OK`);

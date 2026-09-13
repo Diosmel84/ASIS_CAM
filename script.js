@@ -118,6 +118,25 @@ function isThisDeviceKiosk() {
     return !!(kiosk && kiosk.deviceId === getMyDeviceId());
 }
 
+// Última posición GPS que se pudo obtener con éxito, cacheada en este
+// dispositivo (no vive en app_data: es un dato efímero de "estuve
+// parado acá la última vez", no una configuración a sincronizar entre
+// dispositivos). Sirve para dejar constancia de la posición aproximada
+// de un fichaje offline aunque el GPS falle justo en ese momento.
+function saveLastKnownCoords(coords) {
+    try {
+        localStorage.setItem('last_known_coords', JSON.stringify({
+            lat: coords.latitude, lng: coords.longitude, at: new Date().toISOString()
+        }));
+    } catch (e) { /* localStorage lleno o deshabilitado: no es crítico, se ignora */ }
+}
+function getLastKnownCoords() {
+    try {
+        const raw = localStorage.getItem('last_known_coords');
+        return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+}
+
 // Devuelve {ok:true, ...} si puede fichar, o {ok:false, reason:
 // 'gps'|'geofence', distance} si no. El orden de las excepciones
 // importa: modo prueba y admin cubren TODO sin pedir GPS siquiera;
@@ -170,17 +189,72 @@ async function verifyGeofence() {
     const kioskPrincipal = await fetchFreshAppDataValue('kioskPrincipal', getKioskPrincipal);
     if (kioskPrincipal && kioskPrincipal.deviceId === getMyDeviceId()) return { ok: true, bypass: 'kiosk' };
 
+    // Sin conexión, no tiene sentido hacerlo esperar los 15s completos:
+    // sin datos móviles que asistan al GPS (A-GPS), conseguir una
+    // posición puede tardar mucho más que eso, así que se corta antes.
+    const isOffline = !navigator.onLine;
     let position;
     try {
-        position = await getCurrentPositionPromise(15000);
+        position = await getCurrentPositionPromise(isOffline ? 5000 : 15000);
     } catch (error) {
         console.error('No se pudo obtener la ubicación GPS:', error);
+        // Sin conexión Y sin GPS: el reconocimiento facial (que ya se
+        // hizo, y funciona 100% offline con los modelos autohospedados)
+        // es la garantía fuerte de identidad acá. Bloquear el fichaje
+        // solo porque además falló el GPS no tiene sentido si ni
+        // siquiera hay señal para consultar/actualizar la geocerca. Se
+        // deja pasar, marcado como pendiente de validar la ubicación
+        // cuando vuelva la conexión (ver revalidatePendingGeofenceAttendance).
+        if (isOffline) {
+            return { ok: true, bypass: 'offline_sin_gps', pendingGeofence: true, coords: getLastKnownCoords() };
+        }
         return { ok: false, reason: 'gps' };
     }
+    saveLastKnownCoords(position.coords);
     const geofence = await fetchFreshAppDataValue('geofence', getGeofenceConfig);
     const distance = haversineDistanceMeters(position.coords.latitude, position.coords.longitude, geofence.lat, geofence.lng);
     if (distance > geofence.radio) return { ok: false, reason: 'geofence', distance };
     return { ok: true, distance };
+}
+
+// Cuando vuelve la conexión, revisa los fichajes que quedaron guardados
+// sin poder confirmar la geocerca (bypass 'offline_sin_gps' de arriba)
+// y, si hay coordenadas cacheadas de ese momento, valida contra la
+// geocerca vigente. No bloquea nada retroactivamente -el fichaje ya
+// está hecho, y el rostro ya se verificó-, pero deja constancia
+// (geofenceStatus) y genera una alerta si terminó estando fuera de
+// rango, para que el administrador lo revise.
+async function revalidatePendingGeofenceAttendance() {
+    const attendance = getAttendance();
+    const pendientes = attendance.filter(a => a.geofenceStatus === 'pendiente_geocerca' && a.coords);
+    if (pendientes.length === 0) return;
+
+    const geofence = await fetchFreshAppDataValue('geofence', getGeofenceConfig);
+    let changed = false;
+    for (const registro of pendientes) {
+        const distance = haversineDistanceMeters(registro.coords.lat, registro.coords.lng, geofence.lat, geofence.lng);
+        registro.geofenceStatus = distance <= geofence.radio ? 'validado_dentro_de_rango' : 'validado_fuera_de_rango';
+        registro.geofenceDistanciaMts = Math.round(distance);
+        changed = true;
+        if (registro.geofenceStatus === 'validado_fuera_de_rango') {
+            const teacher = getTeacherByNumericId(registro.teacherId);
+            if (teacher) {
+                createAlert(teacher, 'Geocerca fuera de rango (offline)',
+                    `El fichaje de ${registro.teacherName} del ${registro.date} ${registro.time} se guardó sin conexión y, al validar la ubicación al reconectar, resultó a ${Math.round(distance)}mts del punto autorizado.`);
+            }
+        }
+    }
+    if (changed) saveAttendance(attendance);
+}
+
+// Campos extra que se agregan a un registro de asistencia cuando se
+// guardó gracias al bypass 'offline_sin_gps' de verifyGeofence(). No
+// se reutiliza el campo "status" existente (present/late) para no
+// romper todo lo que ya lee ese campo: la geocerca pendiente es un
+// concepto aparte, en su propio campo geofenceStatus.
+function pendingGeofenceFields(geo) {
+    if (!geo || !geo.pendingGeofence) return {};
+    return { geofenceStatus: 'pendiente_geocerca', offline: true, coords: geo.coords || null };
 }
 
 // Modal informativo (no bloqueante como el de fichaje: acá el
@@ -463,7 +537,18 @@ async function flushPendingSync() {
     }
 }
 
-window.addEventListener('online', flushPendingSync);
+// Además de subir lo pendiente (flushPendingSync), revalida contra la
+// geocerca vigente cualquier fichaje que se haya guardado offline sin
+// poder confirmar la ubicación (ver verifyGeofence/
+// revalidatePendingGeofenceAttendance). flushPendingSync() en sí no se
+// toca: sigue siendo la función genérica de sincronización diferida,
+// ya cubierta por sus propias pruebas.
+async function onReconnectSync() {
+    await flushPendingSync();
+    await revalidatePendingGeofenceAttendance();
+}
+
+window.addEventListener('online', onReconnectSync);
 window.addEventListener('offline', () => {
     showToast('Sin conexión a internet. Los cambios se guardarán en este dispositivo y se subirán solos al reconectar.', 'warning');
 });
@@ -471,7 +556,7 @@ window.addEventListener('offline', () => {
 // conectado pero sin salida real a internet): reintenta cada 20s
 // mientras queden claves pendientes.
 setInterval(() => {
-    if (getPendingSyncKeys().length > 0) flushPendingSync();
+    if (getPendingSyncKeys().length > 0) onReconnectSync();
 }, 20000);
 
 async function loadAllData() {
@@ -1818,7 +1903,7 @@ function getEventoExitInfo(eventoInfo) {
     return { isExitTime: nowMinutes >= (scheduledMinutes - tolerance), scheduledEnd };
 }
 
-function registerFaceEventoAttendance(type, teacher, eventoInfo) {
+function registerFaceEventoAttendance(type, teacher, eventoInfo, geo) {
     const yaEntro = hasEntryToday(teacher.id, 'evento', eventoInfo.id_evento);
     const yaSalio = hasExitToday(teacher.id, 'evento', eventoInfo.id_evento);
     if (type === 'entry' && yaEntro) { showToast('⚠️ Ya registraste tu ingreso a este evento.', 'warning'); return false; }
@@ -1877,6 +1962,7 @@ function registerFaceEventoAttendance(type, teacher, eventoInfo) {
         eventoHoraEntrada: (eventoInfo.hora_entrada || '').slice(0, 5),
         eventoHoraSalida: (eventoInfo.hora_salida || '').slice(0, 5),
         salidaAnticipada,
+        ...pendingGeofenceFields(geo),
     });
     saveAttendance(attendance);
 
@@ -1911,7 +1997,7 @@ async function confirmFaceAttendance(type, categoria, eventoId) {
         return;
     }
 
-    const ok = categoria === 'evento' ? registerFaceEventoAttendance(type, teacher, eventoInfo) : registerAttendance(type);
+    const ok = categoria === 'evento' ? registerFaceEventoAttendance(type, teacher, eventoInfo, geo) : registerAttendance(type, geo);
     if (!ok) {
         // Estado cambió entre que se abrió el modal y se tocó el
         // botón (p.ej. otra pestaña ya registró algo): se
@@ -1925,11 +2011,15 @@ async function confirmFaceAttendance(type, categoria, eventoId) {
     faceModalPending = false; // ya quedó guardado: no hay más riesgo de fichaje fantasma
     const time = new Date().toTimeString().split(' ')[0].slice(0, 5);
     const label = (type === 'entry') ? (categoria === 'evento' ? 'Ingreso a evento' : 'Ingreso') : (categoria === 'evento' ? 'Salida de evento' : 'Salida');
+    const pendingNote = (geo && geo.pendingGeofence)
+        ? `<div class="alert alert-warning py-2 px-3 mb-3 small"><i class="bi bi-wifi-off"></i> Fichaje offline guardado — se validará tu ubicación cuando vuelva la conexión.</div>`
+        : '';
     const body = document.getElementById('faceAttendanceModalBody');
     body.innerHTML = `
         <div class="text-success mb-2" style="font-size:3rem;"><i class="bi bi-check-circle-fill"></i></div>
         <h5>${label} registrado ${time}</h5>
         <p class="text-muted mb-3">${teacher.apellido} ${teacher.nombre}</p>
+        ${pendingNote}
         <button class="btn btn-success" onclick="finishFaceAttendance()"><i class="bi bi-check2"></i> Finalizar</button>
     `;
     resetFaceModalTimeout();
@@ -2023,7 +2113,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // ejemplo, entrada duplicada o fuera de horario) — el modal de
 // fichaje obligatorio usa este valor para saber si puede pasar a la
 // pantalla de "registrado" o si tiene que quedarse mostrando botones.
-function registerAttendance(type) {
+function registerAttendance(type, geo) {
     if (!isFaceVerified || !recognizedTeacher) { showToast('⚠️ Identifícate primero con "Identificarme"', 'warning'); return false; }
 
     // Entrada única diaria: se recalcula acá (no solo en la UI) para
@@ -2096,7 +2186,8 @@ function registerAttendance(type) {
         teacherId: recognizedTeacher.id,
         teacherName: `${recognizedTeacher.apellido} ${recognizedTeacher.nombre}`,
         date, time, type, status: attStatus, timestamp: now.toISOString(),
-        categoria: 'regular'
+        categoria: 'regular',
+        ...pendingGeofenceFields(geo),
     });
     saveAttendance(attendance);
 
@@ -2106,6 +2197,9 @@ function registerAttendance(type) {
     status.className = `face-recognition-status ${needsAttention ? 'warning' : 'success'}`;
     status.innerHTML = `<i class="bi bi-check-circle"></i> ✅ ${typeMap[type]} a las ${time}${warningNote}<br><small>Verificado facialmente</small>`;
     showToast(`${needsAttention ? '⚠️' : '✅'} ${typeMap[type]} registrada${type === 'early_exit' ? ' — queda pendiente de justificación' : ''}`, needsAttention ? 'warning' : 'success');
+    if (geo && geo.pendingGeofence) {
+        showToast('🟡 Fichaje offline guardado — se validará tu ubicación cuando vuelva la conexión.', 'warning');
+    }
 
     setTimeout(() => {
         isFaceVerified = false;
@@ -3461,7 +3555,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     checkFaltas();
     checkFaltasEvento();
     setInterval(() => { loadEventoConvocatoriasPorDocente().then(() => { checkFaltas(); checkFaltasEvento(); }); }, 5 * 60 * 1000);
-    flushPendingSync(); // por si quedaron cambios sin subir de una sesión offline anterior
+    onReconnectSync(); // sube lo pendiente y revalida geocerca de fichajes offline, por si quedaron de una sesión anterior
     showToast('Sistema iniciado', 'info');
 });
 
