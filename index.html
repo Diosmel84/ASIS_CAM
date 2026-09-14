@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASISCAM PRO</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="libs/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="libs/bootstrap-icons.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="main-container" id="app">
+        <!-- ===== LOGIN ===== -->
+        <div id="loginScreen">
+            <div class="login-header">
+                <img src="/logo.png" alt="ASISCAM PRO" class="institution-logo">
+                <h1><i class="bi bi-person-badge"></i> Bienvenidos</h1>
+                <p>Sistema de Control de Asistencia Docente</p>
+            </div>
+            <div class="login-form">
+                <div id="loginModelsBanner" class="models-banner">
+                    <span class="spinner-border spinner-border-sm"></span> Cargando módulo de reconocimiento facial...
+                </div>
+                <div class="form-group">
+                    <label for="loginUser">Usuario (DNI)</label>
+                    <input type="text" class="form-control" id="loginUser" placeholder="Ingresa tu DNI">
+                </div>
+                <div class="form-group">
+                    <label for="loginPass">Contraseña</label>
+                    <input type="password" class="form-control" id="loginPass" placeholder="Ingresa tu contraseña">
+                </div>
+                <div id="loginError" class="login-error">
+                    <i class="bi bi-exclamation-triangle"></i> Usuario o contraseña incorrectos
+                </div>
+                <button class="btn btn-primary" onclick="login()">
+                    <i class="bi bi-box-arrow-in-right"></i> Ingresar
+                </button>
+                <div class="text-center mt-2">
+                    <button type="button" class="btn btn-link btn-sm p-0" data-bs-toggle="modal" data-bs-target="#forgotPasswordModal" onclick="resetForgotPasswordForm()">¿Olvidaste tu contraseña?</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== RECUPERAR CONTRASEÑA ===== -->
+        <div class="modal fade" id="forgotPasswordModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-question-circle"></i> Recuperar Contraseña</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted small">Ingresá tu usuario o DNI. Si tiene un e-mail cargado, te enviamos un link para restablecer la contraseña.</p>
+                        <div class="form-group">
+                            <label>Usuario o DNI</label>
+                            <input type="text" class="form-control" id="forgotUserInput" placeholder="ADMIN o tu DNI">
+                        </div>
+                        <div id="forgotPasswordMsg" class="mt-2"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-primary" id="forgotPasswordSubmitBtn" onclick="solicitarRecuperacionPassword()">Enviar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== ESTABLECER NUEVA CONTRASEÑA (desde el link del mail) ===== -->
+        <div class="modal fade" id="resetPasswordModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-key"></i> Nueva Contraseña</h5>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>Nueva contraseña</label>
+                            <input type="password" class="form-control" id="resetNewPasswordInput" placeholder="Nueva contraseña">
+                        </div>
+                        <div class="form-group mt-2">
+                            <label>Confirmar nueva contraseña</label>
+                            <input type="password" class="form-control" id="resetConfirmPasswordInput" placeholder="Repetí la nueva contraseña">
+                        </div>
+                        <div id="resetPasswordError" class="login-error mt-2"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary" onclick="confirmarNuevaPassword()">Guardar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== EMAIL OBLIGATORIO ADMIN (primer login) ===== -->
+        <div class="modal fade" id="adminEmailModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-envelope"></i> Registrá tu e-mail</h5>
+                    </div>
+                    <div class="modal-body">
+                        <p>Para recuperar tu contraseña en el futuro, ingresá tu e-mail.</p>
+                        <div class="form-group">
+                            <label>E-mail</label>
+                            <input type="email" class="form-control" id="adminEmailInput" placeholder="tu@email.com">
+                        </div>
+                        <div id="adminEmailError" class="login-error mt-2"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary" onclick="guardarAdminEmail()">Guardar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== DASHBOARD ===== -->
+        <div id="dashboardScreen" class="hidden">
+            <div class="dashboard-header">
+                <h2 id="dashboardTitle">Panel de Control</h2>
+                <div>
+                    <span class="badge bg-primary me-2" id="userRoleBadge">Admin</span>
+                    <button class="btn-logout" id="dashboardLogoutBtn" onclick="logout()">
+                        <i class="bi bi-box-arrow-right"></i> Salir
+                    </button>
+                </div>
+            </div>
+
+            <!-- ===== ADMIN DASHBOARD ===== -->
+            <div id="adminDashboard" class="admin-panel hidden">
+                <!-- Barra de acciones: fila de botones en PC, menú hamburguesa en celular -->
+                <div class="d-none d-md-flex justify-content-end mb-3 gap-2 flex-wrap">
+                    <button class="btn btn-info btn-sm" onclick="showAnnualCalendar()">
+                        <i class="bi bi-calendar3"></i> Calendario Anual del Establecimiento
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="showFullScheduleGrid()">
+                        <i class="bi bi-grid-3x3"></i> Ver Grilla Completa de Horarios
+                    </button>
+                    <button class="btn btn-primary btn-sm" onclick="showStatsScreen()">
+                        <i class="bi bi-graph-up-arrow"></i> Ver Estadísticas
+                    </button>
+                    <button class="btn btn-secondary btn-sm" onclick="resetAdminChangePasswordForm()" data-bs-toggle="modal" data-bs-target="#adminChangePasswordModal">
+                        <i class="bi bi-key"></i> Cambiar Contraseña
+                    </button>
+                </div>
+                <div class="d-flex d-md-none justify-content-end mb-3">
+                    <div class="dropdown">
+                        <button class="btn btn-secondary hamburger-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menú">
+                            <i class="bi bi-list"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><button class="dropdown-item" onclick="showAnnualCalendar()"><i class="bi bi-calendar3"></i> Calendario Anual del Establecimiento</button></li>
+                            <li><button class="dropdown-item" onclick="showFullScheduleGrid()"><i class="bi bi-grid-3x3"></i> Ver Grilla Completa de Horarios</button></li>
+                            <li><button class="dropdown-item" onclick="showStatsScreen()"><i class="bi bi-graph-up-arrow"></i> Ver Estadísticas</button></li>
+                            <li><button class="dropdown-item" onclick="resetAdminChangePasswordForm()" data-bs-toggle="modal" data-bs-target="#adminChangePasswordModal"><i class="bi bi-key"></i> Cambiar Contraseña</button></li>
+                        </ul>
+                    </div>
+                </div>
+                <!-- Pestanas del panel de admin: agrupa todo en pestanas en vez de
+                     una sola pantalla larga, para reducir el scroll vertical. -->
+                <ul class="nav nav-tabs admin-tabs" id="adminTabs" role="tablist">
+                    <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabInicio" type="button" role="tab"><i class="bi bi-house"></i> Inicio</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabAlertas" type="button" role="tab"><i class="bi bi-bell"></i> Alertas <span class="badge bg-danger ms-1" id="alertCount">0</span></button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabDocentes" type="button" role="tab"><i class="bi bi-people"></i> Docentes</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabLicencias" type="button" role="tab"><i class="bi bi-file-medical"></i> Licencias</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabEventos" type="button" role="tab"><i class="bi bi-calendar-event"></i> Eventos</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabConfiguracion" type="button" role="tab"><i class="bi bi-gear"></i> Configuracion</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabReportes" type="button" role="tab"><i class="bi bi-file-earmark-text"></i> Reportes</button></li>
+                </ul>
+                <div class="tab-content admin-tab-content" id="adminTabsContent">
+                    <div class="tab-pane fade show active" id="tabInicio" role="tabpanel">
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="stat-card"><div class="number" id="totalTeachers">0</div><div class="label">Total Docentes</div></div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card"><div class="number" id="presentToday">0</div><div class="label">Presentes Hoy</div></div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card"><div class="number" id="absentToday">0</div><div class="label">Ausentes Hoy</div></div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card"><div class="number" id="lateToday">0</div><div class="label">Tardanzas Hoy</div></div>
+                    </div>
+                </div>
+                    </div>
+                    <div class="tab-pane fade" id="tabAlertas" role="tabpanel">
+                        <h4><i class="bi bi-bell"></i> Buzon de Alertas</h4>
+                        <div class="alerts-list-scroll">
+                            <div class="accordion-body" id="alertsList">
+                                <p class="text-muted">No hay alertas pendientes</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="tabDocentes" role="tabpanel">
+                        <!-- ===== REGISTRO DE DOCENTES ===== -->
+                <div class="form-section mt-3">
+                    <h4 id="regFormTitle"><i class="bi bi-person-plus"></i> Registrar Nuevo Docente</h4>
+                    <p class="text-muted">El administrador ingresa todos los datos del docente.</p>
+
+                    <div id="regModelsBanner" class="models-banner">
+                        <span class="spinner-border spinner-border-sm"></span> Cargando módulo de reconocimiento facial...
+                    </div>
+
+                        <div class="accordion docente-form-accordion" id="docenteFormAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#dfDatos" aria-expanded="true" aria-controls="dfDatos">
+                                        <i class="bi bi-person me-2"></i> Datos Personales
+                                    </button>
+                                </h2>
+                                <div id="dfDatos" class="accordion-collapse collapse show" data-bs-parent="#docenteFormAccordion">
+                                    <div class="accordion-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group"><label class="required-field">Apellido</label><input type="text" class="form-control" id="regApellido" placeholder="Apellido"></div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group"><label class="required-field">Nombre</label><input type="text" class="form-control" id="regNombre" placeholder="Nombre"></div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="required-field">DNI (Usuario)</label>
+                                <input type="text" class="form-control" id="regDni" placeholder="DNI">
+                                <small class="text-muted">Será su usuario para iniciar sesión</small>
+                            </div>
+                        </div>
+                    </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#dfContacto" aria-expanded="false" aria-controls="dfContacto">
+                                        <i class="bi bi-telephone me-2"></i> Contacto
+                                    </button>
+                                </h2>
+                                <div id="dfContacto" class="accordion-collapse collapse" data-bs-parent="#docenteFormAccordion">
+                                    <div class="accordion-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="form-group"><label class="required-field">Teléfono Personal</label><input type="text" class="form-control" id="regTelefono" placeholder="Teléfono"></div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group"><label class="required-field">Teléfono contacto familiar</label><input type="text" class="form-control" id="regTelefonoFamiliar" placeholder="Teléfono familiar"></div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group"><label class="required-field">E-mail</label><input type="email" class="form-control" id="regEmail" placeholder="correo@ejemplo.com"></div>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <div class="form-group"><label>Calle</label><input type="text" class="form-control" id="regCalle" placeholder="Calle"></div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-group"><label>Número</label><input type="text" class="form-control" id="regNumero" placeholder="Número"></div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group"><label>Barrio</label><input type="text" class="form-control" id="regBarrio" placeholder="Barrio"></div>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-4">
+                            <div class="form-group"><label>Localidad</label><input type="text" class="form-control" id="regLocalidad" placeholder="Localidad" value="Resistencia"></div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group"><label>Provincia</label><input type="text" class="form-control" id="regProvincia" placeholder="Provincia" value="Chaco"></div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group"><label>País</label><input type="text" class="form-control" id="regPais" placeholder="País" value="Argentina"></div>
+                        </div>
+                    </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#dfLaboral" aria-expanded="false" aria-controls="dfLaboral">
+                                        <i class="bi bi-briefcase me-2"></i> Laboral
+                                    </button>
+                                </h2>
+                                <div id="dfLaboral" class="accordion-collapse collapse" data-bs-parent="#docenteFormAccordion">
+                                    <div class="accordion-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Contraseña</label>
+                                <input type="text" class="form-control" id="regPassword" value="123456">
+                                <small class="text-muted">Por defecto: 123456</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="required-field">Registro facial (3 fotos)</label>
+                                <div id="regExistingPhotoWrap" class="text-center mb-2 hidden">
+                                    <img id="regExistingPhoto" src="" alt="Foto actual" style="width:70px;height:70px;border-radius:50%;object-fit:cover;border:2px solid var(--olive-600);">
+                                    <small class="text-muted d-block">Foto y biometría actuales. Se mantienen si no capturás fotos nuevas.</small>
+                                </div>
+                                <div class="camera-container" style="max-width: 320px;">
+                                    <video id="regVideo" autoplay playsinline muted></video>
+                                    <canvas id="regOverlay" class="camera-overlay"></canvas>
+                                </div>
+                                <div class="d-flex gap-2 justify-content-center mt-2">
+                                    <button class="btn btn-secondary btn-sm" onclick="startCamera()">
+                                        <i class="bi bi-camera-video"></i> Iniciar Cámara
+                                    </button>
+                                    <button class="btn btn-primary btn-sm" onclick="capturePhoto()">
+                                        <i class="bi bi-camera"></i> Capturar
+                                    </button>
+                                </div>
+                                <div id="captureThumbs" class="d-flex gap-2 justify-content-center mt-2"></div>
+                                <div id="captureStatus" class="capture-status">Fotos válidas: 0/3</div>
+                                <small class="text-muted d-block text-center mt-2">Capturá 3 fotos con el rostro bien iluminado y de frente, mirando a la cámara. Ubicá el rostro dentro del recuadro verde antes de capturar. Cada una se valida automáticamente.</small>
+                                <canvas id="regCanvas" style="display:none;"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <label class="required-field">Horario de trabajo</label>
+                            <div class="row g-2 align-items-end">
+                                <div class="col-6 col-md-3">
+                                    <label class="form-label small mb-1 text-muted">Día de la semana</label>
+                                    <select class="form-control" id="horarioDiaInput">
+                                        <option value="Lunes">Lunes</option>
+                                        <option value="Martes">Martes</option>
+                                        <option value="Miércoles">Miércoles</option>
+                                        <option value="Jueves">Jueves</option>
+                                        <option value="Viernes">Viernes</option>
+                                        <option value="Sábado">Sábado</option>
+                                        <option value="Domingo">Domingo</option>
+                                    </select>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <label class="form-label small mb-1 text-muted">Hora de inicio</label>
+                                    <input type="time" class="form-control" id="horarioInicioInput">
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <label class="form-label small mb-1 text-muted">Hora de finalización</label>
+                                    <input type="time" class="form-control" id="horarioFinInput">
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <button type="button" class="btn btn-primary w-100" onclick="agregarHorarioLaboral()">
+                                        <i class="bi bi-plus-circle"></i> Agregar Horario
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="horarioLaboralChips" class="d-flex flex-wrap gap-2 mt-3">
+                                <span class="text-muted">No se ha agregado ningún horario</span>
+                            </div>
+                        </div>
+                    </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    <div class="text-center mt-3">
+                        <button class="btn btn-success" id="saveTeacherBtn" onclick="saveTeacher()"><i class="bi bi-save"></i> Guardar Docente</button>
+                        <button class="btn btn-secondary" onclick="clearRegistrationForm()"><i class="bi bi-eraser"></i> Limpiar</button>
+                        <button class="btn btn-outline-secondary hidden" id="cancelEditTeacherBtn" onclick="cancelEditTeacher()"><i class="bi bi-x-circle"></i> Cancelar edición</button>
+                    </div>
+
+                    <div class="password-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Acceso:</strong> Usuario = DNI, Contraseña = asignada (por defecto: 123456)
+                    </div>
+                </div>
+
+                        <!-- ===== TABLA DE DOCENTES ===== -->
+                <!-- ===== TABLA DE DOCENTES ===== -->
+                <div class="accordion mt-3" id="teachersAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#teachersCollapse" aria-expanded="false" aria-controls="teachersCollapse">
+                                <i class="bi bi-people me-2"></i> Listado de Docentes
+                                <span class="badge bg-secondary ms-2" id="teacherCountBadge">0</span>
+                            </button>
+                        </h2>
+                        <div id="teachersCollapse" class="accordion-collapse collapse" data-bs-parent="#teachersAccordion">
+                            <div class="accordion-body" id="teachersAccordionBody">
+                                <div class="search-box mb-3">
+                                    <i class="bi bi-search"></i>
+                                    <input type="text" class="form-control" id="teacherSearchInput" placeholder="Buscar docente por nombre, DNI o materia..." oninput="filterTeachersTable()">
+                                </div>
+                                <div class="admin-table">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped ios-table">
+                                            <thead>
+                                                <tr><th>Foto</th><th>DNI</th><th>Nombre</th><th>Teléfono</th><th>Domicilio</th><th>Localidad</th><th>Materia</th><th>Horario</th><th>Contraseña</th><th>Biometría</th><th>Estado</th><th>Acciones</th></tr>
+                                            </thead>
+                                            <tbody id="teachersTableBody"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                    </div>
+                    <div class="tab-pane fade" id="tabLicencias" role="tabpanel">
+                <div class="form-section mt-4">
+                    <h4><i class="bi bi-file-medical"></i> Licencias / Permisos</h4>
+                    <p class="text-muted">Mientras un docente tiene una licencia activa, el sistema no genera alertas de Falta ni Tardanza en esas fechas. Si ya existían alertas de Falta generadas para esas fechas, se justifican automáticamente.</p>
+                    <div class="row">
+                        <div class="col-md-3"><div class="form-group"><label>Docente</label><select class="form-control" id="licenciaTeacher"><option value="">Seleccionar...</option></select></div></div>
+                        <div class="col-md-3"><div class="form-group"><label>Desde</label><input type="date" class="form-control" id="licenciaFrom"></div></div>
+                        <div class="col-md-3"><div class="form-group"><label>Hasta</label><input type="date" class="form-control" id="licenciaTo"></div></div>
+                        <div class="col-md-3"><div class="form-group"><label>Motivo</label><input type="text" class="form-control" id="licenciaMotivo" placeholder="Ej: Licencia médica"></div></div>
+                    </div>
+                    <button class="btn btn-primary" onclick="addLicencia()"><i class="bi bi-plus-circle"></i> Registrar Licencia</button>
+                    <div class="table-responsive mt-3">
+                        <table class="table table-sm table-striped">
+                            <thead><tr><th>Docente</th><th>Desde</th><th>Hasta</th><th>Motivo</th><th>Acciones</th></tr></thead>
+                            <tbody id="licenciasTableBody"><tr><td colspan="5" class="text-center text-muted">Sin licencias registradas</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+                    </div>
+                    <div class="tab-pane fade" id="tabEventos" role="tabpanel">
+                <div class="form-section mt-4">
+                    <h4><i class="bi bi-calendar-event"></i> Eventos Especiales</h4>
+                    <p class="text-muted">Los docentes convocados a un Evento Especial no generan alerta de Falta por su horario habitual en esa fecha.</p>
+                    <button class="btn btn-primary mb-3" onclick="openEventoModal()"><i class="bi bi-plus-circle"></i> Nuevo Evento</button>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            <thead><tr><th>Título</th><th>Descripción</th><th>Fecha inicio &rarr; Fin</th><th>Escuela</th><th>Docentes</th><th>Acciones</th></tr></thead>
+                            <tbody id="eventosTableBody"><tr><td colspan="6" class="text-center text-muted">Sin eventos registrados</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+                    </div>
+                    <div class="tab-pane fade" id="tabConfiguracion" role="tabpanel">
+                <div class="form-section mt-4">
+                    <h4><i class="bi bi-gear"></i> Criterios de Asistencia</h4>
+                    <div class="row">
+                        <div class="col-md-4"><div class="form-group"><label>Límite de tardanza (minutos)</label><input type="number" class="form-control" id="lateLimit" value="15" onchange="saveCriteria()"></div></div>
+                        <div class="col-md-4"><div class="form-group"><label>% mínimo de asistencia</label><input type="number" class="form-control" id="minAttendance" value="80" onchange="saveCriteria()"></div></div>
+                        <div class="col-md-4"><div class="form-group"><label>Horas mínimas diarias</label><input type="number" class="form-control" id="minHours" value="4" onchange="saveCriteria()"></div></div>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveCriteria()"><i class="bi bi-save"></i> Guardar</button>
+                </div>
+                <div class="form-section mt-4">
+                    <h4><i class="bi bi-geo-alt"></i> Configuración: Geocerca de Fichaje</h4>
+                    <p class="text-muted">El docente solo puede fichar (reconocimiento facial) estando a menos del radio indicado de este punto. Quedan exentos: el fichaje manual del administrador, la PC autorizada como kiosco, tu propio usuario admin, y el Modo Prueba.</p>
+                    <div class="row">
+                        <div class="col-md-6"><div class="form-group"><label>Nombre del lugar</label><input type="text" class="form-control" id="geofenceName"></div></div>
+                        <div class="col-md-3"><div class="form-group"><label>Latitud</label><input type="number" step="0.000001" class="form-control" id="geofenceLat"></div></div>
+                        <div class="col-md-3"><div class="form-group"><label>Longitud</label><input type="number" step="0.000001" class="form-control" id="geofenceLng"></div></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Radio: <strong id="geofenceRadiusLabel">150</strong> metros</label>
+                        <input type="range" class="form-range" id="geofenceRadius" min="50" max="500" step="10" oninput="document.getElementById('geofenceRadiusLabel').textContent = this.value; updateGeofenceMapPreview();">
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <button class="btn btn-primary" onclick="saveGeofenceAdminForm()"><i class="bi bi-save"></i> Guardar</button>
+                        <button class="btn btn-outline-secondary" onclick="useCurrentLocationForGeofence()"><i class="bi bi-crosshair"></i> Usar mi ubicación actual</button>
+                        <button class="btn btn-outline-danger" onclick="resetGeofenceAdminForm()"><i class="bi bi-arrow-counterclockwise"></i> Restablecer a Colegio Secundario De San Carlos</button>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="ratio ratio-4x3">
+                                <iframe id="geofenceMapPreview" style="border:0;border-radius:8px;" loading="lazy"></iframe>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-1"><a id="geofenceMapLink" href="#" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i> Abrir en Google Maps</a></p>
+                            <p class="text-muted small" id="geofenceUpdatedInfo"></p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="modoPruebaToggle" onchange="toggleModoPrueba(this.checked)">
+                        <label class="form-check-label" for="modoPruebaToggle"><strong>Modo Prueba:</strong> Desactivar geocerca para todos (temporal)</label>
+                    </div>
+                </div>
+                <div class="form-section mt-4">
+                    <h4><i class="bi bi-pc-display"></i> Dispositivos</h4>
+                    <p class="text-muted">La PC de preceptoría puede fichar sin GPS si está autorizada como "kiosco". Si esa PC se rompe, desautorizala y generá un código para autorizar la nueva.</p>
+                    <div id="kioskAdminInfo" class="mb-3"></div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-primary" onclick="generateKioskCode()"><i class="bi bi-key"></i> Generar código para autorizar nueva PC</button>
+                        <button class="btn btn-outline-danger" onclick="deauthorizeKiosk()"><i class="bi bi-x-circle"></i> Desautorizar kiosco actual</button>
+                    </div>
+                    <div id="kioskCodeDisplay" class="mt-3"></div>
+                </div>
+                    </div>
+                    <div class="tab-pane fade" id="tabReportes" role="tabpanel">
+                <div class="form-section mt-4">
+                    <h4><i class="bi bi-file-earmark-text"></i> Generar Reporte</h4>
+                    <div class="row">
+                        <div class="col-md-4"><div class="form-group"><label>Desde</label><input type="date" class="form-control" id="reportFrom"></div></div>
+                        <div class="col-md-4"><div class="form-group"><label>Hasta</label><input type="date" class="form-control" id="reportTo"></div></div>
+                        <div class="col-md-4"><div class="form-group"><label>Docente</label><select class="form-control" id="reportTeacher"><option value="all">Todos</option></select></div></div>
+                    </div>
+                    <button class="btn btn-success" onclick="generateReport()"><i class="bi bi-file-earmark-pdf"></i> Generar</button>
+                </div>
+                    </div>
+                </div>
+
+                <!-- ===== CAMBIAR CONTRASEÑA (ADMIN) ===== -->
+                <div class="modal fade" id="adminChangePasswordModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title"><i class="bi bi-key"></i> Cambiar Contraseña</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="form-group">
+                                    <label>Contraseña actual</label>
+                                    <input type="password" class="form-control" id="adminCurrentPasswordInput" placeholder="Contraseña actual">
+                                </div>
+                                <div class="form-group mt-2">
+                                    <label>Nueva contraseña</label>
+                                    <input type="password" class="form-control" id="adminNewPasswordInput" placeholder="Nueva contraseña">
+                                </div>
+                                <div class="form-group mt-2">
+                                    <label>Confirmar nueva contraseña</label>
+                                    <input type="password" class="form-control" id="adminConfirmPasswordInput" placeholder="Repetí la nueva contraseña">
+                                </div>
+                                <div id="adminChangePasswordError" class="login-error mt-2"></div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="changeAdminPassword()">Guardar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== TEACHER DASHBOARD ===== -->
+            <div id="teacherDashboard" class="hidden">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body" id="teacherInfo">
+                                <h5><i class="bi bi-person-circle"></i> Mis Datos</h5>
+                                <div class="row mt-3">
+                                    <div class="col-md-6">
+                                        <p><strong>DNI:</strong> <span id="teacherDni">-</span></p>
+                                        <p><strong>Nombre:</strong> <span id="teacherName">-</span></p>
+                                        <p><strong>Materia:</strong> <span id="teacherSubject">-</span></p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>Teléfono:</strong> <span id="teacherPhone">-</span></p>
+                                        <p><strong>E-mail:</strong> <span id="teacherEmail">-</span></p>
+                                        <p><strong>Dirección:</strong> <span id="teacherAddress">-</span></p>
+                                        <p><strong>Horario:</strong> <span id="teacherSchedule">-</span></p>
+                                    </div>
+                                </div>
+                                <div class="text-center mt-2">
+                                    <img id="teacherPhoto" src="" alt="Foto" style="width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid var(--olive-600);">
+                                </div>
+                                <div class="text-center mt-3">
+                                    <button class="btn btn-secondary btn-sm" onclick="resetChangePasswordForm()" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+                                        <i class="bi bi-key"></i> Cambiar Contraseña
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div id="teacherModelsBanner" class="models-banner">
+                            <span class="spinner-border spinner-border-sm"></span> Cargando módulo de reconocimiento facial...
+                        </div>
+                        <div class="teacher-camera-layout">
+                            <div class="camera-container">
+                                <video id="teacherVideo" autoplay playsinline muted></video>
+                                <canvas id="teacherOverlay" class="camera-overlay"></canvas>
+                                <canvas id="teacherCanvas" style="display:none;"></canvas>
+                            </div>
+                            <div class="camera-controls">
+                                <div id="fichajeContextBadges" class="mb-2 small"></div>
+                                <div id="faceRecognitionStatus" class="face-recognition-status waiting">
+                                    <i class="bi bi-info-circle"></i> Esperando identificación...
+                                </div>
+                                <div class="progress" id="recognitionProgress" style="display:none;">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                                </div>
+                                <button class="btn btn-capture" onclick="detectFace()"><i class="bi bi-person-check"></i> Identificarme</button>
+                                <button class="btn btn-entry" id="btnEntrada" onclick="registerAttendance('entry')" disabled><i class="bi bi-box-arrow-in-right"></i> Entrada</button>
+                                <button class="btn btn-exit" id="btnSalida" onclick="registerAttendance('exit')" disabled><i class="bi bi-box-arrow-left"></i> Salida</button>
+                                <button class="btn btn-early-exit" id="btnRetirada" onclick="registerAttendance('early_exit')" disabled><i class="bi bi-clock-history"></i> Salir antes de tiempo</button>
+                                <small class="text-muted d-block mt-1" id="attendanceButtonsHint">Tocá "Identificarme" antes de cada registro (entrada, salida o retirada).</small>
+                                <div id="kioskAuthorizeWrap" class="mt-2 hidden">
+                                    <button class="btn btn-link btn-sm p-0" onclick="toggleKioskAuthorizeForm()"><i class="bi bi-pc-display"></i> ¿Es esta la PC de la escuela? Autorizar con código</button>
+                                    <div id="kioskAuthorizeForm" class="hidden mt-2 d-flex gap-2 align-items-center">
+                                        <input type="text" class="form-control form-control-sm" id="kioskAuthorizeCodeInput" placeholder="Código de 6 dígitos" maxlength="6" style="max-width:160px;">
+                                        <button class="btn btn-sm btn-primary" onclick="submitKioskAuthorizeCode()">Autorizar</button>
+                                    </div>
+                                </div>
+                                <button class="btn btn-secondary mt-2" id="teacherLogoutBtn" onclick="logout()"><i class="bi bi-box-arrow-right"></i> Salir</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== CAMBIAR CONTRASEÑA ===== -->
+                <div class="modal fade" id="changePasswordModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title"><i class="bi bi-key"></i> Cambiar Contraseña</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="form-group">
+                                    <label>Contraseña actual</label>
+                                    <input type="password" class="form-control" id="currentPasswordInput" placeholder="Contraseña actual">
+                                </div>
+                                <div class="form-group mt-2">
+                                    <label>Nueva contraseña</label>
+                                    <input type="password" class="form-control" id="newPasswordInput" placeholder="Nueva contraseña">
+                                </div>
+                                <div class="form-group mt-2">
+                                    <label>Confirmar nueva contraseña</label>
+                                    <input type="password" class="form-control" id="confirmPasswordInput" placeholder="Repite la nueva contraseña">
+                                </div>
+                                <div id="changePasswordError" class="login-error mt-2"></div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="changeTeacherPassword()">Guardar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== ESTADÍSTICAS ===== -->
+            <div id="statsScreen" class="hidden">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <button class="btn btn-secondary btn-sm" onclick="hideStatsScreen()">
+                        <i class="bi bi-arrow-left"></i> Volver al Panel
+                    </button>
+                    <button class="btn btn-success btn-sm" onclick="exportStatsToPDF()">
+                        <i class="bi bi-file-earmark-pdf"></i> Exportar Resumen a PDF
+                    </button>
+                </div>
+
+                <div class="row mb-4" id="statsIndicators"></div>
+
+                <div id="statsNoData" class="alert-card hidden" style="border-left-color: var(--info-muted);">
+                    <i class="bi bi-info-circle"></i> Todavía no hay registros de asistencia para mostrar estadísticas. Los gráficos aparecerán a medida que los docentes registren entradas y salidas.
+                </div>
+
+                <div id="statsChartsContainer">
+                    <div class="form-section mt-3">
+                        <h4><i class="bi bi-pie-chart"></i> Distribución de Registros</h4>
+                        <p class="text-muted">Proporción de entradas registradas a horario frente a tardanzas.</p>
+                        <div class="chart-container"><canvas id="chartPie"></canvas></div>
+                    </div>
+
+                    <div class="form-section mt-3">
+                        <h4><i class="bi bi-bar-chart"></i> Presentes y Tardanzas por Docente</h4>
+                        <p class="text-muted">Comparativa de registros por docente, según los movimientos realizados.</p>
+                        <div class="chart-container"><canvas id="chartBar"></canvas></div>
+                    </div>
+
+                    <div class="form-section mt-3">
+                        <h4><i class="bi bi-graph-up"></i> Evolución de Registros por Día</h4>
+                        <p class="text-muted">Cantidad de movimientos (entradas, salidas y retiros) registrados por fecha.</p>
+                        <div class="chart-container"><canvas id="chartLine"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== CALENDARIO ANUAL DEL DOCENTE ===== -->
+    <div class="modal fade" id="calendarModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="calendarModalTitle"><i class="bi bi-calendar3"></i> Calendario</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="schedule-legend mb-3">
+                        <div class="schedule-legend-item"><div class="schedule-legend-color" style="background:#4f5f34;"></div><span>Presente</span></div>
+                        <div class="schedule-legend-item"><div class="schedule-legend-color" style="background:#8c3f3f;"></div><span>Falta</span></div>
+                        <div class="schedule-legend-item"><div class="schedule-legend-color" style="background:#55676b;"></div><span>Licencia</span></div>
+                        <div class="schedule-legend-item"><div class="schedule-legend-color" style="background:#eef1e6;border-color:#4f5f34;"></div><span>Programado (futuro)</span></div>
+                        <div class="schedule-legend-item"><div class="schedule-legend-color" style="background:white;"></div><span>Sin clase</span></div>
+                    </div>
+                    <div class="mini-calendar-container" id="calendarModalBody"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== CALENDARIO ANUAL DEL ESTABLECIMIENTO ===== -->
+    <div class="modal fade" id="annualCalendarModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-calendar3"></i> Calendario Anual del Establecimiento (hoy — Diciembre 2026)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="schedule-legend mb-3">
+                        <div class="schedule-legend-item"><div class="schedule-legend-color" style="background:#4f5f34;"></div><span>Presente</span></div>
+                        <div class="schedule-legend-item"><div class="schedule-legend-color" style="background:#8c3f3f;"></div><span>Falta</span></div>
+                        <div class="schedule-legend-item"><div class="schedule-legend-color" style="background:#55676b;"></div><span>Licencia</span></div>
+                        <div class="schedule-legend-item"><div class="schedule-legend-color" style="background:#96752c;"></div><span>Programado (futuro)</span></div>
+                    </div>
+                    <div class="annual-calendar-container" id="annualCalendarBody"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== GRILLA COMPLETA DE HORARIOS (solo visualización) ===== -->
+    <div class="modal fade" id="fullScheduleGridModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-grid-3x3"></i> Grilla Completa de Horarios del Personal</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="fullScheduleGridBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== FICHA / REPORTE INDIVIDUAL DEL DOCENTE ===== -->
+    <div class="modal fade" id="teacherDetailModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="teacherDetailModalTitle"><i class="bi bi-search"></i> Ficha del docente</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="teacherDetailBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-info" onclick="openCalendarFromDetail()"><i class="bi bi-calendar3"></i> Ver Calendario</button>
+                    <button type="button" class="btn btn-success" onclick="generateIndividualReport()"><i class="bi bi-file-earmark-pdf"></i> Generar Reporte</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== DETALLE DE UN DÍA DEL CALENDARIO ANUAL (nombres en grande) ===== -->
+    <div class="modal fade" id="dayDetailModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="dayDetailModalTitle"><i class="bi bi-calendar-day"></i> Día</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="dayDetailBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== EVENTO ESPECIAL: CREAR / EDITAR ===== -->
+    <div class="modal fade" id="eventoModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="eventoModalTitle"><i class="bi bi-calendar-event"></i> Nuevo Evento Especial</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="form-group"><label class="required-field">Título</label><input type="text" class="form-control" id="eventoTitulo" placeholder="Ej: Acto de Fin de Año"></div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group"><label class="required-field">Fecha</label><input type="date" class="form-control" id="eventoFecha"></div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group"><label class="required-field">Hora entrada</label><input type="time" class="form-control" id="eventoHoraEntrada"></div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group"><label class="required-field">Hora salida</label><input type="time" class="form-control" id="eventoHoraSalida"></div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group"><label>Lugar</label><input type="text" class="form-control" id="eventoLugar" placeholder="Ej: Salón de actos"></div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Descripción</label>
+                        <textarea class="form-control" id="eventoDescripcion" rows="2" placeholder="Detalles del evento"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Docentes convocados</label>
+                        <input type="text" class="form-control mb-2" id="eventoDocenteSearch" placeholder="Buscar docente por nombre..." oninput="renderEventoDocenteChecklist()" autocomplete="off">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="eventoSelectAllDocentes" onchange="toggleAllEventoDocentes(this.checked)">
+                            <label class="form-check-label" for="eventoSelectAllDocentes">Seleccionar todos los docentes</label>
+                        </div>
+                        <div id="eventoDocenteChecklist" class="evento-docente-checklist"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="saveEvento()"><i class="bi bi-save"></i> Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== EVENTO ESPECIAL: VER ===== -->
+    <div class="modal fade" id="eventoViewModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="eventoViewModalTitle"><i class="bi bi-calendar-event"></i> Evento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="eventoViewBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== FICHAJE MANUAL (admin) ===== -->
+    <div class="modal fade" id="manualAttendanceModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="manualAttendanceModalTitle"><i class="bi bi-fingerprint"></i> Fichaje Manual</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="manualAttendanceBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== FICHAJE OBLIGATORIO TRAS RECONOCIMIENTO FACIAL (docente) =====
+         Bloqueante a propósito: sin botón de cierre (X), sin data-bs-dismiss
+         salvo en los dos botones explícitos ("No soy yo"/"Finalizar"), y con
+         backdrop static + keyboard false (declarativo Y reforzado por JS al
+         crear la instancia) para que no se pueda cerrar con ESC ni clic
+         afuera — ver openFaceAttendanceModal(). -->
+    <div class="modal fade" id="faceAttendanceModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center py-4 px-4" id="faceAttendanceModalBody"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== GEOCERCA: aviso de GPS requerido / fuera de rango =====
+         A diferencia del modal de fichaje, este es informativo: el docente
+         solo necesita enterarse y reintentar, así que sí puede cerrarse
+         normalmente (X, ESC, clic afuera). -->
+    <div class="modal fade" id="geofenceModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-danger">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="geofenceModalTitle"><i class="bi bi-geo-alt-fill"></i> Fuera de rango</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="geofenceModalBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="libs/bootstrap.bundle.min.js"></script>
+    <script src="libs/face-api.min.js"></script>
+    <script src="libs/chart.umd.min.js"></script>
+    <script src="libs/jspdf.umd.min.js"></script>
+    <script src="libs/supabase.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script src="script.js"></script>
+    <script src="src/utils/checkSuscripcion.js"></script>
+</body>
+</html>
