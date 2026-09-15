@@ -120,7 +120,10 @@
         <!-- ===== DASHBOARD ===== -->
         <div id="dashboardScreen" class="hidden">
             <div class="dashboard-header">
-                <h2 id="dashboardTitle">Panel de Control</h2>
+                <div class="dashboard-brand">
+                    <img src="/logo.png" alt="ASISCAM PRO" class="dashboard-logo">
+                    <h2 id="dashboardTitle">Panel de Control</h2>
+                </div>
                 <div>
                     <span class="badge bg-primary me-2" id="userRoleBadge">Admin</span>
                     <button class="btn-logout" id="dashboardLogoutBtn" onclick="logout()">
@@ -212,7 +215,7 @@
                                         <i class="bi bi-person me-2"></i> Datos Personales
                                     </button>
                                 </h2>
-                                <div id="dfDatos" class="accordion-collapse collapse show" data-bs-parent="#docenteFormAccordion">
+                                <div id="dfDatos" class="accordion-collapse collapse show">
                                     <div class="accordion-body">
                     <div class="row">
                         <div class="col-md-4">
@@ -229,6 +232,11 @@
                             </div>
                         </div>
                     </div>
+                    <div class="row mt-2">
+                        <div class="col-md-4">
+                            <div class="form-group"><label>Materia</label><input type="text" class="form-control" id="regMateria" placeholder="Materia que dicta"></div>
+                        </div>
+                    </div>
                                     </div>
                                 </div>
                             </div>
@@ -238,7 +246,7 @@
                                         <i class="bi bi-telephone me-2"></i> Contacto
                                     </button>
                                 </h2>
-                                <div id="dfContacto" class="accordion-collapse collapse" data-bs-parent="#docenteFormAccordion">
+                                <div id="dfContacto" class="accordion-collapse collapse">
                                     <div class="accordion-body">
                     <div class="row">
                         <div class="col-md-3">
@@ -282,7 +290,7 @@
                                         <i class="bi bi-briefcase me-2"></i> Laboral
                                     </button>
                                 </h2>
-                                <div id="dfLaboral" class="accordion-collapse collapse" data-bs-parent="#docenteFormAccordion">
+                                <div id="dfLaboral" class="accordion-collapse collapse">
                                     <div class="accordion-body">
                     <div class="row">
                         <div class="col-md-6">
@@ -496,7 +504,8 @@
                         <div class="col-md-4"><div class="form-group"><label>Hasta</label><input type="date" class="form-control" id="reportTo"></div></div>
                         <div class="col-md-4"><div class="form-group"><label>Docente</label><select class="form-control" id="reportTeacher"><option value="all">Todos</option></select></div></div>
                     </div>
-                    <button class="btn btn-success" onclick="generateReport()"><i class="bi bi-file-earmark-pdf"></i> Generar</button>
+                    <button class="btn btn-success" onclick="generateReport()"><i class="bi bi-file-earmark-pdf"></i> Generar PDF</button>
+                    <button class="btn btn-outline-success" onclick="generateReportExcel()"><i class="bi bi-file-earmark-excel"></i> Generar Excel</button>
                 </div>
                     </div>
                 </div>
@@ -892,6 +901,7 @@
     <script src="libs/face-api.min.js"></script>
     <script src="libs/chart.umd.min.js"></script>
     <script src="libs/jspdf.umd.min.js"></script>
+    <script src="libs/xlsx.full.min.js"></script>
     <script src="libs/supabase.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <script src="script.js"></script>

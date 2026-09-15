@@ -1196,6 +1196,10 @@ function agregarHorarioLaboral() {
     const fin = document.getElementById('horarioFinInput').value;
     if (!inicio || !fin) { showToast('Completá la hora de inicio y de finalización', 'error'); return; }
     if (fin <= inicio) { showToast('La hora de finalización debe ser posterior a la de inicio', 'error'); return; }
+    if (horarioLaboralList.some(h => h.dia === dia && h.inicio === inicio && h.fin === fin)) {
+        showToast('Ese horario ya fue agregado', 'warning');
+        return;
+    }
     horarioLaboralList.push({ dia, inicio, fin });
     document.getElementById('horarioInicioInput').value = '';
     document.getElementById('horarioFinInput').value = '';
@@ -1353,11 +1357,13 @@ function clearRegistrationForm() {
     document.getElementById('regFormTitle').innerHTML = '<i class="bi bi-person-plus"></i> Registrar Nuevo Docente';
     document.getElementById('saveTeacherBtn').innerHTML = '<i class="bi bi-save"></i> Guardar Docente';
     document.getElementById('cancelEditTeacherBtn').classList.add('hidden');
+    document.querySelector('#tabDocentes .form-section').classList.remove('editing');
     document.getElementById('regExistingPhotoWrap').classList.add('hidden');
     document.getElementById('regExistingPhoto').src = '';
     document.getElementById('regApellido').value = '';
     document.getElementById('regNombre').value = '';
     document.getElementById('regDni').value = '';
+    document.getElementById('regMateria').value = '';
     document.getElementById('regTelefono').value = '';
     document.getElementById('regTelefonoFamiliar').value = '';
     document.getElementById('regEmail').value = '';
@@ -1387,10 +1393,12 @@ function editTeacher(id) {
     document.getElementById('regFormTitle').innerHTML = '<i class="bi bi-pencil-square"></i> Editar Docente';
     document.getElementById('saveTeacherBtn').innerHTML = '<i class="bi bi-save"></i> Guardar Cambios';
     document.getElementById('cancelEditTeacherBtn').classList.remove('hidden');
+    document.querySelector('#tabDocentes .form-section').classList.add('editing');
 
     document.getElementById('regApellido').value = teacher.apellido || '';
     document.getElementById('regNombre').value = teacher.nombre || '';
     document.getElementById('regDni').value = teacher.dni || '';
+    document.getElementById('regMateria').value = teacher.materia || '';
     document.getElementById('regTelefono').value = teacher.telefono || '';
     document.getElementById('regTelefonoFamiliar').value = teacher.telefonoFamiliar || '';
     document.getElementById('regEmail').value = teacher.email || '';
@@ -1404,6 +1412,14 @@ function editTeacher(id) {
 
     horarioLaboralList = getHorarioLaboral(teacher).slice();
     renderHorarioLaboralChips();
+
+    // Abre directamente "Laboral" (horarios + foto) porque es lo que
+    // más se edita; el resto de los datos ya quedó cargado en sus
+    // campos aunque esa sección esté colapsada.
+    const dfLaboral = document.getElementById('dfLaboral');
+    if (dfLaboral && window.bootstrap) {
+        bootstrap.Collapse.getOrCreateInstance(dfLaboral, { toggle: false }).show();
+    }
 
     capturedPhotos = [];
     capturedDescriptors = [];
@@ -1458,6 +1474,7 @@ function saveTeacher() {
     const apellido = document.getElementById('regApellido').value.trim();
     const nombre = document.getElementById('regNombre').value.trim();
     const dni = document.getElementById('regDni').value.trim();
+    const materia = document.getElementById('regMateria').value.trim();
     const telefono = document.getElementById('regTelefono').value.trim();
     const telefonoFamiliar = document.getElementById('regTelefonoFamiliar').value.trim();
     const email = document.getElementById('regEmail').value.trim();
@@ -1518,7 +1535,7 @@ function saveTeacher() {
         const idx = teachers.findIndex(t => t.id === editingTeacherId);
         teachers[idx] = {
             ...teachers[idx],
-            apellido, nombre, dni, telefono, telefonoFamiliar, email,
+            apellido, nombre, dni, materia, telefono, telefonoFamiliar, email,
             calle, numero, barrio, localidad, provincia, pais,
             horario_laboral: horarioLaboralList,
             photo, faceDescriptor, password,
@@ -1530,7 +1547,7 @@ function saveTeacher() {
             id: Date.now().toString(),
             apellido, nombre, dni, telefono, telefonoFamiliar, email,
             calle, numero, barrio, localidad, provincia, pais,
-            materia: '', horario_laboral: horarioLaboralList,
+            materia, horario_laboral: horarioLaboralList,
             photo, faceDescriptor,
             password, createdAt: new Date().toISOString(), active: true
         };
@@ -1845,6 +1862,53 @@ function generateReport() {
     const fileSuffix = singleTeacher ? `_${singleTeacher.dni}` : '';
     doc.save(`reporte${fileSuffix}_${from}_${to}.pdf`);
     showToast('Reporte generado', 'success');
+}
+
+// Mismo filtro que generateReport() (período + docente), pero en
+// planilla .xlsx (una fila por fichaje) en vez de PDF. Usa SheetJS
+// (libs/xlsx.full.min.js, autohospedado) para no depender de internet.
+function generateReportExcel() {
+    const from = document.getElementById('reportFrom').value;
+    const to = document.getElementById('reportTo').value;
+    const teacherId = document.getElementById('reportTeacher').value;
+    if (!from || !to) { showToast('Selecciona un período', 'warning'); return; }
+    const attendance = getAttendance();
+    const teachers = getTeachers();
+    let filtered = attendance.filter(a => a.date >= from && a.date <= to);
+    if (teacherId !== 'all') filtered = filtered.filter(a => a.teacherId === teacherId);
+    if (filtered.length === 0) { showToast('No hay registros', 'warning'); return; }
+
+    const teacherMap = {};
+    teachers.forEach(t => teacherMap[t.id] = t);
+    const typeMap = { entry: 'ENTRADA', exit: 'SALIDA', early_exit: 'SALIDA ANTES DE TIEMPO' };
+
+    const rows = filtered
+        .slice()
+        .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
+        .map(r => {
+            const teacher = teacherMap[r.teacherId];
+            return {
+                Fecha: r.date,
+                Hora: r.time,
+                Apellido: teacher ? teacher.apellido : '-',
+                Nombre: teacher ? teacher.nombre : '-',
+                DNI: teacher ? teacher.dni : '-',
+                Materia: teacher ? (teacher.materia || '-') : '-',
+                Tipo: typeMap[r.type] || r.type,
+                Estado: r.status || '-',
+                Evento: r.categoria === 'evento' ? (r.eventoTitulo || r.eventoId) : ''
+            };
+        });
+
+    const singleTeacher = teacherId !== 'all' ? teacherMap[teacherId] : null;
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 16 }, { wch: 16 }, { wch: 10 }, { wch: 18 }, { wch: 22 }, { wch: 12 }, { wch: 20 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'Asistencia');
+
+    const fileSuffix = singleTeacher ? `_${singleTeacher.dni}` : '';
+    XLSX.writeFile(wb, `reporte${fileSuffix}_${from}_${to}.xlsx`);
+    showToast('Reporte Excel generado', 'success');
 }
 
 function deleteTeacher(id) {

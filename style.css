@@ -145,6 +145,9 @@ body {
     flex-wrap: wrap;
 }
 .dashboard-header h2 { color: var(--olive-800); font-weight: 700; margin: 0; }
+.dashboard-brand { display: flex; align-items: center; gap: 12px; }
+.dashboard-logo { height: 40px; width: auto; }
+@media (max-width: 576px) { .dashboard-logo { height: 30px; } }
 
 .btn-logout {
     background: var(--danger-color);
@@ -247,6 +250,15 @@ body {
 }
 .form-section h4 { color: var(--olive-800); margin-bottom: 20px; font-weight: 700; }
 .form-section h4 i { color: var(--olive-700); }
+
+/* Se agrega al formulario de alta/edición de docente mientras se está
+   editando uno existente (ver editTeacher()/clearRegistrationForm()
+   en script.js), para que sea obvio a simple vista que no se está
+   cargando un docente nuevo. */
+.form-section.editing {
+    border: 2px solid var(--olive-600);
+    box-shadow: 0 0 0 4px var(--olive-tint), var(--shadow-soft);
+}
 
 .camera-preview {
     width: 150px;
