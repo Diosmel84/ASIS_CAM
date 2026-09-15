@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="libs/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="libs/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -455,27 +456,30 @@
                     <h4><i class="bi bi-geo-alt"></i> Configuración: Geocerca de Fichaje</h4>
                     <p class="text-muted">El docente solo puede fichar (reconocimiento facial) estando a menos del radio indicado de este punto. Quedan exentos: el fichaje manual del administrador, la PC autorizada como kiosco, tu propio usuario admin, y el Modo Prueba.</p>
                     <div class="row">
-                        <div class="col-md-6"><div class="form-group"><label>Nombre del lugar</label><input type="text" class="form-control" id="geofenceName"></div></div>
-                        <div class="col-md-3"><div class="form-group"><label>Latitud</label><input type="number" step="0.000001" class="form-control" id="geofenceLat"></div></div>
-                        <div class="col-md-3"><div class="form-group"><label>Longitud</label><input type="number" step="0.000001" class="form-control" id="geofenceLng"></div></div>
+                        <div class="col-md-12"><div class="form-group"><label>Nombre del lugar</label><input type="text" class="form-control" id="geofenceName"></div></div>
+                        <input type="hidden" id="geofenceLat">
+                        <input type="hidden" id="geofenceLng">
                     </div>
                     <div class="form-group">
                         <label>Radio: <strong id="geofenceRadiusLabel">150</strong> metros</label>
-                        <input type="range" class="form-range" id="geofenceRadius" min="50" max="500" step="10" oninput="document.getElementById('geofenceRadiusLabel').textContent = this.value; updateGeofenceMapPreview();">
+                        <input type="range" class="form-range" id="geofenceRadius" min="50" max="500" step="10" oninput="document.getElementById('geofenceRadiusLabel').textContent = this.value; updateGeocercaCircleRadius('config');">
                     </div>
                     <div class="d-flex flex-wrap gap-2 mb-3">
                         <button class="btn btn-primary" onclick="saveGeofenceAdminForm()"><i class="bi bi-save"></i> Guardar</button>
                         <button class="btn btn-outline-secondary" onclick="useCurrentLocationForGeofence()"><i class="bi bi-crosshair"></i> Usar mi ubicación actual</button>
                         <button class="btn btn-outline-danger" onclick="resetGeofenceAdminForm()"><i class="bi bi-arrow-counterclockwise"></i> Restablecer a Colegio Secundario De San Carlos</button>
                     </div>
+                    <div class="form-group">
+                        <input type="text" class="form-control" id="buscador-geocerca" placeholder="🔍 Buscar: Provincia, Localidad, Calle" autocomplete="off">
+                    </div>
                     <div class="row">
                         <div class="col-md-6">
-                            <div class="ratio ratio-4x3">
-                                <iframe id="geofenceMapPreview" style="border:0;border-radius:8px;" loading="lazy"></iframe>
-                            </div>
+                            <div id="geofenceMapContainer" style="height:320px;border-radius:8px;overflow:hidden;"></div>
                         </div>
                         <div class="col-md-6">
-                            <p class="mb-1"><a id="geofenceMapLink" href="#" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i> Abrir en Google Maps</a></p>
+                            <p class="mb-1"><strong>Dirección seleccionada:</strong></p>
+                            <div id="direccion-seleccionada" class="text-muted small mb-2">Hacé clic en el mapa, buscá una dirección o usá tu ubicación actual.</div>
+                            <p class="mb-1"><a id="geofenceMapLink" href="#" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i> Abrir en OpenStreetMap</a></p>
                             <p class="text-muted small" id="geofenceUpdatedInfo"></p>
                         </div>
                     </div>
@@ -805,12 +809,41 @@
                             <div class="form-group"><label class="required-field">Hora salida</label><input type="time" class="form-control" id="eventoHoraSalida"></div>
                         </div>
                         <div class="col-md-4">
-                            <div class="form-group"><label>Lugar</label><input type="text" class="form-control" id="eventoLugar" placeholder="Ej: Salón de actos"></div>
+                            <div class="form-group"><label>Lugar / Dirección</label><input type="text" class="form-control" id="eventoLugar" placeholder="Ej: Plaza 25 de Mayo, Resistencia"></div>
                         </div>
                     </div>
                     <div class="form-group">
                         <label>Descripción</label>
                         <textarea class="form-control" id="eventoDescripcion" rows="2" placeholder="Detalles del evento"></textarea>
+                    </div>
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="eventoTieneGeocerca" onchange="toggleEventoGeocerca(this.checked)">
+                        <label class="form-check-label" for="eventoTieneGeocerca"><strong>¿Este evento requiere geocerca?</strong> Para eventos fuera del colegio: el docente solo va a poder fichar parado en el punto marcado.</label>
+                    </div>
+                    <div id="eventoGeocercaFields" class="hidden mb-3">
+                        <input type="hidden" id="eventoGeocercaLat">
+                        <input type="hidden" id="eventoGeocercaLng">
+                        <div class="form-group">
+                            <label>Radio: <strong id="eventoGeocercaRadioLabel">150</strong> metros</label>
+                            <input type="range" class="form-range" id="eventoGeocercaRadio" min="50" max="500" step="10" value="150" oninput="document.getElementById('eventoGeocercaRadioLabel').textContent = this.value; updateGeocercaCircleRadius('evento');">
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="useCurrentLocationForEventoGeocerca()"><i class="bi bi-crosshair"></i> Usar mi ubicación actual</button>
+                        </div>
+                        <div class="form-group">
+                            <input type="text" class="form-control" id="buscador-geocerca-evento" placeholder="🔍 Buscar: Provincia, Localidad, Calle" autocomplete="off">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div id="eventoGeocercaMapContainer" style="height:320px;border-radius:8px;overflow:hidden;"></div>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Dirección seleccionada:</strong></p>
+                                <div id="direccion-seleccionada-evento" class="text-muted small mb-2">Hacé clic en el mapa, buscá una dirección o usá tu ubicación actual.</div>
+                                <p class="mb-1"><a id="eventoGeocercaMapLink" href="#" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i> Abrir en OpenStreetMap</a></p>
+                                <p class="text-muted small mb-0">El docente va a necesitar GPS y estar dentro de este radio para poder fichar el evento con reconocimiento facial.</p>
+                            </div>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Docentes convocados</label>
@@ -904,6 +937,7 @@
     <script src="libs/xlsx.full.min.js"></script>
     <script src="libs/supabase.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="script.js"></script>
     <script src="src/utils/checkSuscripcion.js"></script>
 </body>

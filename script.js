@@ -238,7 +238,13 @@ async function fetchFreshAppDataValue(key, fallbackGetter) {
     return fallbackGetter();
 }
 
-async function verifyGeofence() {
+// geofenceOverride es opcional: {lat, lng, radio, nombreLugar}. Se usa
+// para validar contra la geocerca de UN EVENTO ESPECIAL puntual en vez
+// de la geocerca del colegio (ver confirmFaceAttendance/
+// getEventoGeofenceOverride) - mismo algoritmo y mismos bypasses
+// (modo prueba, admin, kiosco, sin conexión), solo cambia el punto y
+// el radio contra el que se mide la distancia.
+async function verifyGeofence(geofenceOverride) {
     const modoPrueba = await fetchFreshAppDataValue('modoPrueba', getModoPrueba);
     if (modoPrueba.activo) return { ok: true, bypass: 'modoPrueba' };
     if (currentUser && currentUser.role === 'admin') return { ok: true, bypass: 'admin' };
@@ -268,10 +274,27 @@ async function verifyGeofence() {
         return { ok: false, reason: 'gps' };
     }
     saveLastKnownCoords(position.coords);
-    const geofence = await fetchFreshAppDataValue('geofence', getGeofenceConfig);
+    const geofence = geofenceOverride || await fetchFreshAppDataValue('geofence', getGeofenceConfig);
     const distance = haversineDistanceMeters(position.coords.latitude, position.coords.longitude, geofence.lat, geofence.lng);
-    if (distance > geofence.radio) return { ok: false, reason: 'geofence', distance };
-    return { ok: true, distance };
+    if (distance > geofence.radio) return { ok: false, reason: 'geofence', distance, geofence };
+    return { ok: true, distance, geofence };
+}
+
+// Arma el {lat,lng,radio,nombreLugar} de la geocerca de UN evento
+// especial puntual, para pasarlo como override a verifyGeofence().
+// Devuelve null si el evento no tiene geocerca activada o le faltan
+// coordenadas (en ese caso, el fichaje del evento no valida ubicación
+// en absoluto - ver confirmFaceAttendance).
+function getEventoGeofenceOverride(eventoInfo) {
+    if (!eventoInfo || !eventoInfo.tiene_geocerca) return null;
+    if (!Number.isFinite(eventoInfo.geocerca_lat) || !Number.isFinite(eventoInfo.geocerca_lng)) return null;
+    return {
+        lat: eventoInfo.geocerca_lat,
+        lng: eventoInfo.geocerca_lng,
+        radio: eventoInfo.geocerca_radio || 150,
+        nombreLugar: eventoInfo.direccion_evento || eventoInfo.titulo,
+        esEvento: true,
+    };
 }
 
 // Cuando vuelve la conexión, revisa los fichajes que quedaron guardados
@@ -320,7 +343,12 @@ function pendingGeofenceFields(geo) {
 function showGeofenceBlockModal(result) {
     const title = document.getElementById('geofenceModalTitle');
     const body = document.getElementById('geofenceModalBody');
-    const geofence = getGeofenceConfig();
+    // result.geofence viene de verifyGeofence(): es la geocerca del
+    // EVENTO si se le pasó un override (fichaje de Evento Especial con
+    // geocerca propia), o la del colegio si no - así el mensaje siempre
+    // muestra el lugar/radio contra el que realmente se validó.
+    const geofence = result.geofence || getGeofenceConfig();
+    const esEvento = !!(result.geofence && result.geofence.esEvento);
     if (result.reason === 'gps') {
         title.innerHTML = '<i class="bi bi-geo-alt-fill"></i> GPS requerido';
         body.innerHTML = `
@@ -328,24 +356,202 @@ function showGeofenceBlockModal(result) {
             <p class="text-muted small mb-0">Habilitá el permiso de ubicación de este sitio en tu navegador (o activá el GPS del dispositivo) e intentá de nuevo. El sitio necesita conexión HTTPS para poder pedir tu ubicación.</p>`;
     } else {
         const metros = Math.round(result.distance);
-        title.innerHTML = '<i class="bi bi-geo-alt-fill"></i> Fuera de la zona permitida';
-        body.innerHTML = `
-            <p class="mb-1">Estás a <strong>${metros} mts</strong> de ${geofence.nombreLugar}.</p>
-            <p class="mb-0">Debes estar a menos de ${geofence.radio}mts.</p>`;
+        const metrosFaltantes = Math.round(result.distance - geofence.radio);
+        title.innerHTML = esEvento
+            ? '<i class="bi bi-geo-alt-fill"></i> Estás fuera del área del evento'
+            : '<i class="bi bi-geo-alt-fill"></i> Fuera de la zona permitida';
+        body.innerHTML = esEvento
+            ? `<p class="mb-1">Estás a <strong>${metros} mts</strong> de ${geofence.nombreLugar}.</p>
+               <p class="mb-0">Te faltan <strong>${metrosFaltantes} mts</strong> para entrar al radio permitido (${geofence.radio}mts) del evento.</p>`
+            : `<p class="mb-1">Estás a <strong>${metros} mts</strong> de ${geofence.nombreLugar}.</p>
+               <p class="mb-0">Debes estar a menos de ${geofence.radio}mts.</p>`;
     }
     new bootstrap.Modal(document.getElementById('geofenceModal')).show();
 }
+
+// ============================================================
+// GEOCERCA: mapa interactivo con Leaflet + OpenStreetMap (sin API key).
+// Un solo motor (geocercaMaps) reutilizado por las dos geocercas de la
+// app: la del colegio ('config', tab Configuración) y la de cada
+// Evento Especial ('evento', modal #eventoModal). Click en el mapa o
+// arrastre del marcador = guarda lat/lng en los inputs hidden
+// correspondientes + reverse geocode con Nominatim.
+// ============================================================
+const RESISTENCIA_CHACO = { lat: -27.4511, lng: -58.9853 };
+const geocercaMaps = {}; // key ('config' | 'evento') -> { map, marker, circle }
+
+function getGeocercaFieldIds(key) {
+    return key === 'evento'
+        ? { latId: 'eventoGeocercaLat', lngId: 'eventoGeocercaLng', radioId: 'eventoGeocercaRadio', direccionId: 'direccion-seleccionada-evento', linkId: 'eventoGeocercaMapLink' }
+        : { latId: 'geofenceLat', lngId: 'geofenceLng', radioId: 'geofenceRadius', direccionId: 'direccion-seleccionada', linkId: 'geofenceMapLink' };
+}
+
+function getGeocercaRadius(key) {
+    const { radioId } = getGeocercaFieldIds(key);
+    const el = document.getElementById(radioId);
+    const val = el ? parseInt(el.value, 10) : NaN;
+    return Number.isFinite(val) && val > 0 ? val : 110;
+}
+
+function initGeocercaMap(key, containerId) {
+    if (geocercaMaps[key]) return geocercaMaps[key];
+    const map = L.map(containerId).setView([RESISTENCIA_CHACO.lat, RESISTENCIA_CHACO.lng], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+    const instance = { map, marker: null, circle: null };
+    geocercaMaps[key] = instance;
+    map.on('click', e => setGeocercaPoint(key, e.latlng.lat, e.latlng.lng, true));
+    return instance;
+}
+
+function setGeocercaPoint(key, lat, lng, reverseGeocode) {
+    const instance = geocercaMaps[key];
+    if (!instance) return;
+    const { latId, lngId, linkId } = getGeocercaFieldIds(key);
+    const radio = getGeocercaRadius(key);
+
+    document.getElementById(latId).value = lat;
+    document.getElementById(lngId).value = lng;
+    const linkEl = document.getElementById(linkId);
+    if (linkEl) linkEl.href = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=17/${lat}/${lng}`;
+
+    if (instance.marker) {
+        instance.marker.setLatLng([lat, lng]);
+    } else {
+        instance.marker = L.marker([lat, lng], { draggable: true }).addTo(instance.map);
+        instance.marker.on('dragend', () => {
+            const pos = instance.marker.getLatLng();
+            setGeocercaPoint(key, pos.lat, pos.lng, true);
+        });
+    }
+    if (instance.circle) {
+        instance.circle.setLatLng([lat, lng]).setRadius(radio);
+    } else {
+        instance.circle = L.circle([lat, lng], { radius: radio, color: '#0d6efd', fillOpacity: 0.15 }).addTo(instance.map);
+    }
+    instance.map.setView([lat, lng], Math.max(instance.map.getZoom(), 16));
+
+    if (reverseGeocode) reverseGeocodeGeocerca(key, lat, lng);
+}
+
+function updateGeocercaCircleRadius(key) {
+    const instance = geocercaMaps[key];
+    if (!instance || !instance.circle) return;
+    instance.circle.setRadius(getGeocercaRadius(key));
+}
+
+async function reverseGeocodeGeocerca(key, lat, lng) {
+    const { direccionId } = getGeocercaFieldIds(key);
+    const el = document.getElementById(direccionId);
+    if (el) el.textContent = 'Buscando dirección...';
+    try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, { headers: { 'Accept-Language': 'es' } });
+        const data = await res.json();
+        if (el) el.textContent = data.display_name || 'Dirección no encontrada';
+    } catch (error) {
+        console.error('Error en reverse geocode:', error);
+        if (el) el.textContent = 'No se pudo obtener la dirección';
+    }
+}
+
+async function buscarGeocercaDireccion(key, query) {
+    if (!query || query.trim().length < 3) return;
+    try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ar&q=${encodeURIComponent(query)}`, { headers: { 'Accept-Language': 'es' } });
+        const results = await res.json();
+        if (!results.length) { showToast('No se encontró esa dirección', 'warning'); return; }
+        const lat = parseFloat(results[0].lat);
+        const lng = parseFloat(results[0].lon);
+        setGeocercaPoint(key, lat, lng, false);
+        const instance = geocercaMaps[key];
+        if (instance) instance.map.setView([lat, lng], 17);
+        const { direccionId } = getGeocercaFieldIds(key);
+        const el = document.getElementById(direccionId);
+        if (el) el.textContent = results[0].display_name;
+    } catch (error) {
+        console.error('Error buscando dirección:', error);
+        showToast('No se pudo buscar esa dirección', 'error');
+    }
+}
+
+function wireGeocercaSearchInput(key, inputId) {
+    const input = document.getElementById(inputId);
+    if (!input || input.dataset.wired) return;
+    input.dataset.wired = '1';
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            buscarGeocercaDireccion(key, input.value);
+        }
+    });
+}
+
+// Verifica que la geocerca tenga lat/lng cargados (marcados en el mapa)
+// antes de permitir guardar.
+function validarGeocerca(latId, lngId) {
+    const lat = parseFloat(document.getElementById(latId).value);
+    const lng = parseFloat(document.getElementById(lngId).value);
+    return Number.isFinite(lat) && Number.isFinite(lng);
+}
+
+function resetGeocercaMap(key) {
+    const instance = geocercaMaps[key];
+    if (!instance) return;
+    if (instance.marker) { instance.map.removeLayer(instance.marker); instance.marker = null; }
+    if (instance.circle) { instance.map.removeLayer(instance.circle); instance.circle = null; }
+    instance.map.setView([RESISTENCIA_CHACO.lat, RESISTENCIA_CHACO.lng], 15);
+    const { direccionId } = getGeocercaFieldIds(key);
+    const el = document.getElementById(direccionId);
+    if (el) el.textContent = 'Hacé clic en el mapa, buscá una dirección o usá tu ubicación actual.';
+}
+
+function useMyLocationForGeocerca(key) {
+    if (!navigator.geolocation) { showToast('Este navegador no soporta geolocalización', 'error'); return; }
+    showToast('Obteniendo tu ubicación actual...', 'info');
+    navigator.geolocation.getCurrentPosition(
+        pos => {
+            setGeocercaPoint(key, pos.coords.latitude, pos.coords.longitude, true);
+            showToast('✅ Ubicación actual cargada en el formulario. Revisá y guardá.', 'success');
+        },
+        error => {
+            console.error('No se pudo obtener la ubicación actual:', error);
+            showToast('No se pudo obtener tu ubicación actual', 'error');
+        },
+        { enableHighAccuracy: true, timeout: 15000 }
+    );
+}
+
+// Los mapas se crean mientras su contenedor puede estar oculto (tab
+// pane / modal todavía no mostrados), y Leaflet calcula mal el tamaño
+// en ese caso: hay que forzar un recálculo cuando se muestran.
+document.addEventListener('DOMContentLoaded', () => {
+    const tabConfigBtn = document.querySelector('[data-bs-target="#tabConfiguracion"]');
+    if (tabConfigBtn) {
+        tabConfigBtn.addEventListener('shown.bs.tab', () => {
+            if (geocercaMaps.config) geocercaMaps.config.map.invalidateSize();
+        });
+    }
+    const eventoModalEl = document.getElementById('eventoModal');
+    if (eventoModalEl) {
+        eventoModalEl.addEventListener('shown.bs.modal', () => {
+            if (geocercaMaps.evento) geocercaMaps.evento.map.invalidateSize();
+        });
+    }
+});
 
 // ============================================================
 // ADMIN > CONFIGURACIÓN > GEOCERCA (formulario) Y DISPOSITIVOS
 // (kiosco autorizado)
 // ============================================================
 function updateGeofenceMapPreview() {
+    initGeocercaMap('config', 'geofenceMapContainer');
+    wireGeocercaSearchInput('config', 'buscador-geocerca');
     const lat = parseFloat(document.getElementById('geofenceLat').value);
     const lng = parseFloat(document.getElementById('geofenceLng').value);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-    document.getElementById('geofenceMapPreview').src = `https://maps.google.com/maps?q=${lat},${lng}&z=17&output=embed`;
-    document.getElementById('geofenceMapLink').href = `https://www.google.com/maps?q=${lat},${lng}`;
+    if (Number.isFinite(lat) && Number.isFinite(lng)) setGeocercaPoint('config', lat, lng, true);
+    setTimeout(() => geocercaMaps.config && geocercaMaps.config.map.invalidateSize(), 200);
 }
 
 function loadGeofenceAdminForm() {
@@ -367,7 +573,7 @@ function saveGeofenceAdminForm() {
     const lng = parseFloat(document.getElementById('geofenceLng').value);
     const radio = parseInt(document.getElementById('geofenceRadius').value, 10);
     const nombreLugar = document.getElementById('geofenceName').value.trim() || DEFAULT_GEOFENCE_CONFIG.nombreLugar;
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) { showToast('Latitud y longitud deben ser números válidos', 'error'); return; }
+    if (!validarGeocerca('geofenceLat', 'geofenceLng')) { showToast('Marcá una ubicación en el mapa antes de guardar', 'error'); return; }
     if (!Number.isFinite(radio) || radio < 50 || radio > 500) { showToast('El radio debe estar entre 50 y 500 metros', 'error'); return; }
     saveGeofenceConfig({
         lat, lng, radio, nombreLugar,
@@ -391,21 +597,32 @@ function resetGeofenceAdminForm() {
 // Atajo para cargar rápido la ubicación real (parado en la escuela,
 // o en la plaza/salón de un acto) sin tener que buscar coordenadas.
 function useCurrentLocationForGeofence() {
-    if (!navigator.geolocation) { showToast('Este navegador no soporta geolocalización', 'error'); return; }
-    showToast('Obteniendo tu ubicación actual...', 'info');
-    navigator.geolocation.getCurrentPosition(
-        pos => {
-            document.getElementById('geofenceLat').value = pos.coords.latitude;
-            document.getElementById('geofenceLng').value = pos.coords.longitude;
-            updateGeofenceMapPreview();
-            showToast('✅ Ubicación actual cargada en el formulario. Revisá y guardá.', 'success');
-        },
-        error => {
-            console.error('No se pudo obtener la ubicación actual:', error);
-            showToast('No se pudo obtener tu ubicación actual', 'error');
-        },
-        { enableHighAccuracy: true, timeout: 15000 }
-    );
+    useMyLocationForGeocerca('config');
+}
+
+// ============================================================
+// GEOCERCA POR EVENTO ESPECIAL
+// Mismo motor que la geocerca del colegio (geocercaMaps / setGeocercaPoint
+// más arriba), con su propia instancia de mapa ('evento'). Vive dentro
+// del modal de Nuevo/Editar Evento Especial (#eventoModal).
+// ============================================================
+function toggleEventoGeocerca(checked) {
+    document.getElementById('eventoGeocercaFields').classList.toggle('hidden', !checked);
+    if (checked) updateEventoGeocercaMapPreview();
+}
+
+function updateEventoGeocercaMapPreview() {
+    initGeocercaMap('evento', 'eventoGeocercaMapContainer');
+    wireGeocercaSearchInput('evento', 'buscador-geocerca-evento');
+    updateGeocercaCircleRadius('evento');
+    const lat = parseFloat(document.getElementById('eventoGeocercaLat').value);
+    const lng = parseFloat(document.getElementById('eventoGeocercaLng').value);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) setGeocercaPoint('evento', lat, lng, false);
+    setTimeout(() => geocercaMaps.evento && geocercaMaps.evento.map.invalidateSize(), 200);
+}
+
+function useCurrentLocationForEventoGeocerca() {
+    useMyLocationForGeocerca('evento');
 }
 
 function toggleModoPrueba(activo) {
@@ -2473,10 +2690,25 @@ async function confirmFaceAttendance(type, categoria, eventoId) {
     // registro (por si se movió entre que se abrió el modal y tocó
     // el botón, o si alguien intenta forzar el registro sin pasar
     // por acá). Se pausa el timeout de 60s mientras se espera el GPS.
-    clearFaceModalTimeout();
-    const body0 = document.getElementById('faceAttendanceModalBody');
-    body0.innerHTML = `<div class="spinner-border text-primary mb-2"></div><p class="mb-0">Verificando tu ubicación...</p>`;
-    const geo = await verifyGeofence();
+    //
+    // Para categoria 'evento': si el evento tiene geocerca propia, se
+    // valida CONTRA ESA (no contra la del colegio) - ver
+    // getEventoGeofenceOverride(). Si el evento no tiene geocerca
+    // activada, se ficha "normal" (solo reconocimiento facial, sin
+    // pedir ni validar ubicación) exactamente como cualquier evento
+    // hasta ahora.
+    const geofenceOverride = categoria === 'evento' ? getEventoGeofenceOverride(eventoInfo) : undefined;
+    const skipGeofence = categoria === 'evento' && !geofenceOverride;
+
+    let geo;
+    if (skipGeofence) {
+        geo = { ok: true, bypass: 'evento_sin_geocerca' };
+    } else {
+        clearFaceModalTimeout();
+        const body0 = document.getElementById('faceAttendanceModalBody');
+        body0.innerHTML = `<div class="spinner-border text-primary mb-2"></div><p class="mb-0">Verificando tu ubicación...</p>`;
+        geo = await verifyGeofence(geofenceOverride);
+    }
     if (!geo.ok) {
         showGeofenceBlockModal(geo);
         renderFaceAttendanceModalBody();
@@ -3037,32 +3269,33 @@ let currentEventos = [];
 let eventoSelectedTeacherIds = [];
 let editingEventoId = null;
 
-// evento_especial guarda fecha_inicio/fecha_fin como timestamptz (no
-// fecha + hora_entrada + hora_salida por separado). Se derivan esos 3
-// campos acá, una sola vez al cargar cada evento, para que el resto del
-// código (tardanza, salida anticipada, renders del fichaje) siga
-// funcionando sin tener que tocar cada lugar que los usa.
+// evento_especial guarda fecha_inicio/fecha_fin como timestamp SIN zona
+// horaria (no fecha + hora_entrada + hora_salida por separado). Se
+// derivan esos 3 campos acá, una sola vez al cargar cada evento, para
+// que el resto del código (tardanza, salida anticipada, renders del
+// fichaje) siga funcionando sin tener que tocar cada lugar que los usa.
+// Se parsea con split('T') a propósito, nunca con new Date(...): al no
+// tener offset, new Date() lo reinterpreta como hora local o UTC según
+// el navegador y corre la fecha/hora mostrada.
 function normalizeEventoEspecial(ev) {
-    const inicio = ev.fecha_inicio ? new Date(ev.fecha_inicio) : null;
-    const fin = ev.fecha_fin ? new Date(ev.fecha_fin) : null;
-    const pad = n => String(n).padStart(2, '0');
-    const toDateStr = d => d ? `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` : '';
-    const toTimeStr = d => d ? `${pad(d.getHours())}:${pad(d.getMinutes())}` : '';
+    const [fechaInicio, horaInicio] = (ev.fecha_inicio || '').split('T');
+    const [, horaFin] = (ev.fecha_fin || '').split('T');
     return {
         ...ev,
-        fecha: toDateStr(inicio),
-        hora_entrada: toTimeStr(inicio),
-        hora_salida: toTimeStr(fin),
+        fecha: fechaInicio || '',
+        hora_entrada: (horaInicio || '').slice(0, 5),
+        hora_salida: (horaFin || '').slice(0, 5),
     };
 }
 
-// Inversa de normalizeEventoEspecial: arma un timestamptz (ISO) a partir
-// de un <input type="date"> + <input type="time"> del formulario, ambos
-// en hora local del navegador.
+// Inversa de normalizeEventoEspecial: arma el string que espera la
+// columna fecha_inicio/fecha_fin (timestamp SIN zona horaria) a partir
+// de un <input type="date"> + <input type="time"> del formulario.
+// Ojo: nunca pasar esto por new Date()/toISOString() - eso reinterpreta
+// la hora local como si fuera UTC (o viceversa) y desplaza fecha/hora
+// según la zona horaria del navegador.
 function combinarFechaHora(fechaStr, horaStr) {
-    const [y, m, d] = fechaStr.split('-').map(Number);
-    const [h, min] = (horaStr || '00:00').split(':').map(Number);
-    return new Date(y, m - 1, d, h, min, 0).toISOString();
+    return `${fechaStr}T${horaStr || '00:00'}:00`;
 }
 // Convocatorias a eventos especiales por docente (id numérico ->
 // array de {id, titulo, fecha, hora_entrada, hora_salida}).
@@ -3158,7 +3391,7 @@ async function loadEventoConvocatoriasPorDocente() {
         const idsEventos = [...new Set(convocatorias.map(row => row.evento_id))];
         const { data: eventos, error: eventosError } = await sb
             .from('evento_especial')
-            .select('id,escuela_id,titulo,fecha_inicio,fecha_fin')
+            .select('id,escuela_id,titulo,fecha_inicio,fecha_fin,tiene_geocerca,geocerca_lat,geocerca_lng,geocerca_radio,direccion_evento')
             .in('id', idsEventos);
         if (eventosError) throw eventosError;
 
@@ -3210,7 +3443,7 @@ async function loadEventosEspeciales() {
         // 2 queries separadas (sin join automático) y se cruzan acá.
         const { data: eventosData, error: eventosError } = await sb
             .from('evento_especial')
-            .select('id,escuela_id,titulo,descripcion,fecha_inicio,fecha_fin')
+            .select('id,escuela_id,titulo,descripcion,fecha_inicio,fecha_fin,tiene_geocerca,geocerca_lat,geocerca_lng,geocerca_radio,direccion_evento')
             .order('fecha_inicio', { ascending: false });
         if (eventosError) throw eventosError;
         currentEventos = (eventosData || []).map(normalizeEventoEspecial);
@@ -3273,6 +3506,13 @@ function openEventoModal() {
     document.getElementById('eventoHoraEntrada').value = '';
     document.getElementById('eventoHoraSalida').value = '';
     document.getElementById('eventoLugar').value = '';
+    document.getElementById('eventoTieneGeocerca').checked = false;
+    document.getElementById('eventoGeocercaLat').value = '';
+    document.getElementById('eventoGeocercaLng').value = '';
+    document.getElementById('eventoGeocercaRadio').value = 150;
+    document.getElementById('eventoGeocercaRadioLabel').textContent = 150;
+    document.getElementById('eventoGeocercaFields').classList.add('hidden');
+    resetGeocercaMap('evento');
     document.getElementById('eventoDocenteSearch').value = '';
     renderEventoDocenteChecklist();
     new bootstrap.Modal(document.getElementById('eventoModal')).show();
@@ -3288,7 +3528,15 @@ async function editEvento(idEvento) {
     document.getElementById('eventoFecha').value = ev.fecha || '';
     document.getElementById('eventoHoraEntrada').value = (ev.hora_entrada || '').slice(0, 5);
     document.getElementById('eventoHoraSalida').value = (ev.hora_salida || '').slice(0, 5);
-    document.getElementById('eventoLugar').value = ev.lugar || '';
+    document.getElementById('eventoLugar').value = ev.direccion_evento || '';
+    document.getElementById('eventoTieneGeocerca').checked = !!ev.tiene_geocerca;
+    document.getElementById('eventoGeocercaLat').value = ev.geocerca_lat ?? '';
+    document.getElementById('eventoGeocercaLng').value = ev.geocerca_lng ?? '';
+    document.getElementById('eventoGeocercaRadio').value = ev.geocerca_radio || 150;
+    document.getElementById('eventoGeocercaRadioLabel').textContent = ev.geocerca_radio || 150;
+    document.getElementById('eventoGeocercaFields').classList.toggle('hidden', !ev.tiene_geocerca);
+    if (ev.tiene_geocerca) updateEventoGeocercaMapPreview();
+    else resetGeocercaMap('evento');
     document.getElementById('eventoDocenteSearch').value = '';
 
     try {
@@ -3312,10 +3560,15 @@ async function viewEvento(idEvento) {
     const ev = currentEventos.find(e => e.id === idEvento);
     if (!ev) { showToast('Evento no encontrado', 'error'); return; }
     document.getElementById('eventoViewModalTitle').innerHTML = `<i class="bi bi-calendar-event"></i> ${ev.titulo}`;
+    const geocercaInfo = ev.tiene_geocerca
+        ? `Sí — radio ${ev.geocerca_radio}mts (<a href="https://www.google.com/maps?q=${ev.geocerca_lat},${ev.geocerca_lng}" target="_blank" rel="noopener">ver punto</a>)`
+        : 'No';
     document.getElementById('eventoViewBody').innerHTML = `
         <p><strong>Fecha:</strong> ${ev.fecha}</p>
         <p><strong>Horario:</strong> ${(ev.hora_entrada || '').slice(0, 5)} - ${(ev.hora_salida || '').slice(0, 5)}</p>
         <p><strong>Escuela:</strong> ${ev.escuela_id}</p>
+        <p><strong>Lugar / Dirección:</strong> ${ev.direccion_evento || '-'}</p>
+        <p><strong>Geocerca:</strong> ${geocercaInfo}</p>
         <p><strong>Descripción:</strong> ${ev.descripcion || '-'}</p>
         <p class="mb-1"><strong>Docentes convocados:</strong></p>
         <div id="eventoViewDocentes"><span class="text-muted">Cargando...</span></div>
@@ -3402,9 +3655,8 @@ async function saveEvento() {
     const fecha = document.getElementById('eventoFecha').value;
     const horaEntrada = document.getElementById('eventoHoraEntrada').value;
     const horaSalida = document.getElementById('eventoHoraSalida').value;
-    // El campo "Lugar" del formulario ya no se guarda: evento_especial no
-    // tiene columna `lugar` (solo id, escuela_id, titulo, descripcion,
-    // fecha_inicio, fecha_fin).
+    const direccionEvento = document.getElementById('eventoLugar').value.trim();
+    const tieneGeocerca = document.getElementById('eventoTieneGeocerca').checked;
 
     if (!titulo) { showToast('El título es obligatorio', 'error'); return; }
     if (!fecha) { showToast('La fecha es obligatoria', 'error'); return; }
@@ -3412,11 +3664,36 @@ async function saveEvento() {
     if (horaSalida <= horaEntrada) { showToast('La hora de salida debe ser posterior a la de entrada', 'error'); return; }
     if (!sb) { showToast('Sin conexión a Supabase, no se puede guardar', 'error'); return; }
 
-    // fecha_inicio/fecha_fin son timestamptz: se arman combinando la
-    // fecha + cada hora del formulario (ver combinarFechaHora arriba).
+    // Geocerca del evento: opcional, solo si se tildó el switch. Mismo
+    // rango de radio que la geocerca del colegio (50-500mts).
+    let geocercaLat = null, geocercaLng = null, geocercaRadio = null;
+    if (tieneGeocerca) {
+        geocercaLat = parseFloat(document.getElementById('eventoGeocercaLat').value);
+        geocercaLng = parseFloat(document.getElementById('eventoGeocercaLng').value);
+        geocercaRadio = parseInt(document.getElementById('eventoGeocercaRadio').value, 10);
+        if (!validarGeocerca('eventoGeocercaLat', 'eventoGeocercaLng')) {
+            showToast('Marcá una ubicación válida para la geocerca del evento (hacé clic en el mapa, buscá una dirección, o usá "Usar mi ubicación actual")', 'error');
+            return;
+        }
+        if (!Number.isFinite(geocercaRadio) || geocercaRadio < 50 || geocercaRadio > 500) {
+            showToast('El radio de la geocerca del evento debe estar entre 50 y 500 metros', 'error');
+            return;
+        }
+    }
+
+    // fecha_inicio/fecha_fin son timestamp sin zona horaria: se arman
+    // combinando la fecha + cada hora del formulario tal cual el usuario
+    // las eligió (ver combinarFechaHora arriba).
     const fechaInicio = combinarFechaHora(fecha, horaEntrada);
     const fechaFin = combinarFechaHora(fecha, horaSalida);
-    const payload = { titulo, descripcion: descripcion || null, escuela_id: ESCUELA_ID, fecha_inicio: fechaInicio, fecha_fin: fechaFin };
+    const payload = {
+        titulo, descripcion: descripcion || null, escuela_id: ESCUELA_ID, fecha_inicio: fechaInicio, fecha_fin: fechaFin,
+        direccion_evento: direccionEvento || null,
+        tiene_geocerca: tieneGeocerca,
+        geocerca_lat: tieneGeocerca ? geocercaLat : null,
+        geocerca_lng: tieneGeocerca ? geocercaLng : null,
+        geocerca_radio: tieneGeocerca ? geocercaRadio : null,
+    };
 
     // Anti-duplicado: si ya existe un evento con el mismo título +
     // fecha_inicio (p. ej. por un doble clic en "Guardar"), se avisa y
