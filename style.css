@@ -373,6 +373,18 @@ body {
 .btn-whatsapp { background: #25D366; border-color: #25D366; color: #fff; }
 .btn-whatsapp:hover, .btn-whatsapp:focus { background: #1DA851; border-color: #1DA851; color: #fff; }
 
+/* ===== GEOCERCA: mapa Leaflet (Configuración y Evento Especial) =====
+   min-height fijo (no height) para que el mapa no se vea recortado en
+   celular; display:block + width:100% asegura que Leaflet calcule bien
+   el tamaño del contenedor al inicializarse. */
+.geocerca-map-container {
+    display: block;
+    width: 100%;
+    min-height: 380px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
 /* ===== EVENTOS ESPECIALES: checklist de docentes convocados ===== */
 .evento-docente-checklist {
     max-height: 240px; overflow-y: auto; border: 1px solid var(--gray-200);

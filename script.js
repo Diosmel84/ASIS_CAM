@@ -395,7 +395,18 @@ function getGeocercaRadius(key) {
 
 function initGeocercaMap(key, containerId) {
     if (geocercaMaps[key]) return geocercaMaps[key];
-    const map = L.map(containerId).setView([RESISTENCIA_CHACO.lat, RESISTENCIA_CHACO.lng], 15);
+    // Opciones explícitas (en vez de confiar en los defaults de Leaflet)
+    // para que el mapa se pueda arrastrar con el dedo en celular:
+    // dragging/touchZoom/tap/doubleClickZoom en true, y scrollWheelZoom
+    // en false para que la rueda del mouse en desktop no "atrape" el
+    // scroll de la página al pasar por encima del mapa.
+    const map = L.map(containerId, {
+        dragging: true,
+        touchZoom: true,
+        tap: true,
+        doubleClickZoom: true,
+        scrollWheelZoom: false,
+    }).setView([RESISTENCIA_CHACO.lat, RESISTENCIA_CHACO.lng], 15);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -1396,6 +1407,16 @@ function showDashboard() {
 // HORARIO LABORAL DEL DOCENTE (alta/edición: día + inicio + fin)
 // Se guarda por docente como horario_laboral: [{dia, inicio, fin}].
 // ============================================================
+const DIAS_HORARIO_RAPIDO = [
+    { id: 'horarioRapidoLunes', dia: 'Lunes' },
+    { id: 'horarioRapidoMartes', dia: 'Martes' },
+    { id: 'horarioRapidoMiercoles', dia: 'Miércoles' },
+    { id: 'horarioRapidoJueves', dia: 'Jueves' },
+    { id: 'horarioRapidoViernes', dia: 'Viernes' },
+    { id: 'horarioRapidoSabado', dia: 'Sábado' },
+    { id: 'horarioRapidoDomingo', dia: 'Domingo' },
+];
+
 function resetHorarioLaboralForm() {
     horarioLaboralList = [];
     const dia = document.getElementById('horarioDiaInput');
@@ -1404,7 +1425,38 @@ function resetHorarioLaboralForm() {
     if (dia) dia.selectedIndex = 0;
     if (inicio) inicio.value = '';
     if (fin) fin.value = '';
+    DIAS_HORARIO_RAPIDO.forEach(({ id }) => {
+        const checkbox = document.getElementById(id);
+        if (checkbox) checkbox.checked = false;
+    });
+    const rapidoInicio = document.getElementById('horarioRapidoInicioInput');
+    const rapidoFin = document.getElementById('horarioRapidoFinInput');
+    if (rapidoInicio) rapidoInicio.value = '';
+    if (rapidoFin) rapidoFin.value = '';
     renderHorarioLaboralChips();
+}
+
+// Atajo para el caso típico (mismo horario Lunes a Viernes): tilda los
+// días con checkbox y aplica un único inicio/fin a todos de una vez,
+// agregándolos a la misma horarioLaboralList que usa el selector
+// día-por-día de abajo (incluye el mismo chequeo antiduplicados).
+function aplicarHorarioRapido() {
+    const inicio = document.getElementById('horarioRapidoInicioInput').value;
+    const fin = document.getElementById('horarioRapidoFinInput').value;
+    if (!inicio || !fin) { showToast('Completá la hora de inicio y de finalización', 'error'); return; }
+    if (fin <= inicio) { showToast('La hora de finalización debe ser posterior a la de inicio', 'error'); return; }
+
+    const diasMarcados = DIAS_HORARIO_RAPIDO.filter(({ id }) => document.getElementById(id).checked);
+    if (diasMarcados.length === 0) { showToast('Marcá al menos un día', 'error'); return; }
+
+    let agregados = 0;
+    diasMarcados.forEach(({ dia }) => {
+        if (horarioLaboralList.some(h => h.dia === dia && h.inicio === inicio && h.fin === fin)) return;
+        horarioLaboralList.push({ dia, inicio, fin });
+        agregados++;
+    });
+    renderHorarioLaboralChips();
+    showToast(agregados > 0 ? `✅ Horario aplicado a ${agregados} día(s)` : 'Esos horarios ya estaban agregados', agregados > 0 ? 'success' : 'info');
 }
 
 function agregarHorarioLaboral() {
