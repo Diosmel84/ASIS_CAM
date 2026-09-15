@@ -1207,7 +1207,7 @@ function agregarHorarioLaboral() {
 }
 
 function quitarHorarioLaboral(index) {
-    horarioLaboralList.splice(index, 1);
+    horarioLaboralList = horarioLaboralList.filter((_, i) => i !== index);
     renderHorarioLaboralChips();
 }
 
