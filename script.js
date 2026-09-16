@@ -4481,6 +4481,14 @@ function showToast(message, type = 'info') {
 // INICIALIZACIÓN
 // ============================================================
 document.addEventListener('DOMContentLoaded', async function() {
+    // EmailJS todavía no está configurado (EMAILJS_PUBLIC_KEY/SERVICE_ID/
+    // TEMPLATE_ID siguen con los placeholders "TU_..." en script.js), así
+    // que "¿Olvidaste tu contraseña?" hoy nunca manda un mail real -
+    // siempre termina en "Contactá a soporte" (ver solicitarRecuperacionPassword).
+    // Se oculta el botón para no mostrar una función a medio terminar; en
+    // cuanto se carguen las credenciales reales de EmailJS, vuelve a
+    // aparecer solo.
+    document.getElementById('forgotPasswordBtnWrap')?.classList.toggle('hidden', !emailjsConfigurado());
     loadFaceApiModels();
     await loadAllData();
     await loadAdminUsuario();
