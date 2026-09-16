@@ -719,8 +719,8 @@ let chartLineInstance = null;
 // localStorage (inmediato) y después intenta sincronizar con
 // Supabase en segundo plano.
 // ============================================================
-const SUPABASE_URL = 'https://zyxcummfswlnaupvaqor.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_A8DB82XADkPWo-CDJiC6RA_mk_pT7V3';
+const SUPABASE_URL = 'https://kclnaabvcxdovvgblyoc.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_Zp4yPHc5wue0xjDmo9r2-g_xFsLav8i';
 const sb = (typeof supabase !== 'undefined')
     ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
     : null;
