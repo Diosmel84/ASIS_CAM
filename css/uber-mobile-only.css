@@ -1,4 +1,8 @@
 @media (max-width: 767px) {
+  /* ===== 1. Matar el scroll horizontal ===== */
+  html, body { overflow-x: hidden; width: 100%; }
+  * { box-sizing: border-box; max-width: 100%; }
+
   body {
     background: #FFFFFF !important;
     color: #000000 !important;
@@ -13,6 +17,50 @@
   select,
   textarea {
     border-color: #E6E6E6 !important;
+  }
+
+  /* ===== 2. Elementos que suelen romper el ancho ===== */
+  .table,
+  .card,
+  .container,
+  .container-fluid,
+  .row,
+  .col,
+  [class*="col-"],
+  form,
+  iframe,
+  img {
+    width: 100% !important;
+  }
+
+  /* .row de Bootstrap usa margenes negativos (gutter) para alinear las
+     columnas; con eso puesto, un width:100% igual se sale del borde por
+     los costados. Hay que anular también el margen. */
+  .row {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  /* Solo la tabla/grilla/barra de pestañas puede scrollear de costado si
+     su contenido no entra (ej. muchas columnas o muchas pestañas); el
+     resto de la página no. La barra de pestañas del admin (.nav-tabs) es
+     un .nav de Bootstrap, no un .d-flex/.row, así que sin esto se sale
+     del ancho igual (7 pestañas en fila no entran en 375px). */
+  .table-responsive,
+  .schedule-container,
+  .nav-tabs,
+  .nav {
+    overflow-x: auto;
+    flex-wrap: nowrap !important;
+    max-width: 100%;
+  }
+
+  /* ===== 3. Filas de botones -> columna, ancho completo ===== */
+  .d-flex,
+  .row,
+  .teacher-camera-layout {
+    flex-direction: column !important;
+    gap: 12px !important;
   }
 
   /* #app se antepone porque style.css ya define
@@ -41,6 +89,7 @@
     max-width: 100%;
     max-height: 90vh;
     overflow-y: auto;
+    overflow-x: hidden;
     background: #FFFFFF !important;
     border-radius: 24px 24px 0 0 !important;
     padding: 24px !important;
