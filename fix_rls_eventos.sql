@@ -1,4 +1,4 @@
--- Ejecutar una sola vez en el SQL Editor de Supabase (proyecto zyxcummfswlnaupvaqor).
+-- Ejecutar una sola vez en el SQL Editor de Supabase (proyecto kclnaabvcxdovvgblyoc).
 --
 -- El módulo de Eventos Especiales necesita insertar/actualizar/borrar en
 -- evento_especial, evento_docente y docente desde el propio navegador (con

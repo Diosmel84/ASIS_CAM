@@ -1,4 +1,4 @@
--- Ejecutar una sola vez en el SQL Editor de Supabase (proyecto zyxcummfswlnaupvaqor)
+-- Ejecutar una sola vez en el SQL Editor de Supabase (proyecto kclnaabvcxdovvgblyoc)
 -- Reemplaza el localStorage del sistema de asistencia por una tabla clave/valor:
 -- cada fila guarda una de las colecciones que antes vivían en localStorage
 -- (teachers, attendance, alerts, licencias, criteria, weeklyGrid) como jsonb.

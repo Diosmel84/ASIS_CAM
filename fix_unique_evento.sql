@@ -1,4 +1,4 @@
--- Ejecutar una sola vez en el SQL Editor de Supabase (proyecto zyxcummfswlnaupvaqor).
+-- Ejecutar una sola vez en el SQL Editor de Supabase (proyecto kclnaabvcxdovvgblyoc).
 --
 -- Evita que se puedan crear dos "Eventos Especiales" con el mismo título +
 -- fecha + hora de entrada (típicamente por un doble clic en "Guardar" al

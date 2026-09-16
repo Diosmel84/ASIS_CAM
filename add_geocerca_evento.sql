@@ -1,4 +1,4 @@
--- Ejecutar una sola vez en el SQL Editor de Supabase (proyecto zyxcummfswlnaupvaqor).
+-- Ejecutar una sola vez en el SQL Editor de Supabase (proyecto kclnaabvcxdovvgblyoc).
 --
 -- Geocerca por Evento Especial: hasta ahora, un evento especial (acto,
 -- capacitación, etc.) no tenía forma de exigir que el docente fiche
