@@ -1,55 +1,12 @@
-@media (max-width: 767px) {
-  body {
-    background: #FFFFFF !important;
-    color: #000000 !important;
-  }
-
-  .main-container,
-  .card,
-  .admin-table,
-  .table,
-  .form-control,
-  input,
-  select,
-  textarea {
-    border-color: #E6E6E6 !important;
-  }
-
-  /* #app se antepone porque style.css ya define
-     "#app .btn-primary/.btn-success/..." con !important: sin el prefijo,
-     esas reglas (más específicas por el ID) le ganan a esta y el botón
-     no se pondría negro. */
-  #app .btn:not(.btn-link):not(.btn-close):not(.btn-sm),
-  .btn:not(.btn-link):not(.btn-close):not(.btn-sm) {
-    height: 56px !important;
-    width: 100% !important;
-    background: #000000 !important;
-    color: #FFFFFF !important;
-    border: none !important;
-    border-radius: 12px !important;
-    font-weight: 700 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.5px !important;
-  }
-
-  .main-container {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100%;
-    max-width: 100%;
-    max-height: 90vh;
-    overflow-y: auto;
-    background: #FFFFFF !important;
-    border-radius: 24px 24px 0 0 !important;
-    padding: 24px !important;
-    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
-    z-index: 1050;
-  }
-
-  .sidebar,
-  .side-nav {
-    display: none !important;
-  }
+@media (max-width: 768px) {
+  #app *{box-sizing:border-box;max-width:100%;font-family:'Inter',-apple-system,sans-serif !important}
+  #app{overflow-x:hidden!important;width:100vw!important}
+  #app #loginScreen{background:#FFF!important;min-height:100vh!important;padding:0 24px 40px 24px!important;display:flex!important;flex-direction:column!important}
+  #app #loginScreen h1{font-size:36px!important;font-weight:800!important;color:#000!important;margin:40px 0 8px 0!important}
+  #app #loginScreen p{font-size:16px!important;color:#6B7280!important;margin:0 0 32px 0!important}
+  #app input[type="email"], #app input[type="text"], #app input[type="password"], #app #inputEmail, #app #inputPassword, #app .input-field{background:#F2F4F7!important;border:0!important;border-radius:16px!important;height:56px!important;padding:0 16px 0 48px!important;width:100%!important;margin-bottom:16px!important;font-size:16px!important}
+  #app button, #app #btnLogin, #app #btnConfirmarAsistencia, #app .btn-primary, #app button.btn-primary, #app .btn-success, #app .btn-danger, #app .btn-warning, #app .btn-info, #app .btn-secondary{background:#000000!important;color:#FFFFFF!important;height:56px!important;width:100%!important;border-radius:16px!important;border:0!important;font-size:18px!important;font-weight:700!important}
+  #app #map{width:100vw!important;height:100vh!important}
+  #app .nav-tabs, #app .row{max-width:100%!important;overflow-x:hidden!important;flex-wrap:wrap!important}
+  #app .bottom-sheet, #app #attendanceCard, #app #successCard{position:fixed!important;bottom:0!important;left:0!important;right:0!important;background:#FFF!important;border-radius:32px 32px 0 0!important;padding:24px!important;box-shadow:0 -8px 40px rgba(0,0,0,0.12)!important;z-index:1000!important}
 }
