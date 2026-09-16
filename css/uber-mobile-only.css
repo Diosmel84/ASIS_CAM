@@ -1,0 +1,55 @@
+@media (max-width: 767px) {
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+  }
+
+  .main-container,
+  .card,
+  .admin-table,
+  .table,
+  .form-control,
+  input,
+  select,
+  textarea {
+    border-color: #E6E6E6 !important;
+  }
+
+  /* #app se antepone porque style.css ya define
+     "#app .btn-primary/.btn-success/..." con !important: sin el prefijo,
+     esas reglas (más específicas por el ID) le ganan a esta y el botón
+     no se pondría negro. */
+  #app .btn:not(.btn-link):not(.btn-close):not(.btn-sm),
+  .btn:not(.btn-link):not(.btn-close):not(.btn-sm) {
+    height: 56px !important;
+    width: 100% !important;
+    background: #000000 !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 12px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+  }
+
+  .main-container {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    background: #FFFFFF !important;
+    border-radius: 24px 24px 0 0 !important;
+    padding: 24px !important;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
+    z-index: 1050;
+  }
+
+  .sidebar,
+  .side-nav {
+    display: none !important;
+  }
+}
