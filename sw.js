@@ -22,7 +22,7 @@
  * sincroniza sola al reconectar.
  */
 
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v3";
 const CACHE_NAME = "asiscam-cache-" + CACHE_VERSION;
 
 // App shell: mismo origen que este service worker.
@@ -135,9 +135,13 @@ async function cacheFirst(request) {
 // Network-first con reserva en caché: para el app shell, así quien tiene
 // conexión siempre ve la última versión publicada, y quien no la tiene
 // sigue viendo la última versión que llegó a cachearse con éxito.
+// cache: "no-store" es a propósito: sin esto, fetch() puede resolverse
+// contra la caché HTTP del navegador (Firebase Hosting manda
+// Cache-Control en index.html/sw.js) y esta función "network-first"
+// terminaría devolviendo una respuesta vieja creyendo que fue a la red.
 async function networkFirst(request) {
   try {
-    const response = await fetch(request);
+    const response = await fetch(request, { cache: "no-store" });
     if (response && response.ok) {
       const cache = await caches.open(CACHE_NAME);
       cache.put(request, response.clone());
