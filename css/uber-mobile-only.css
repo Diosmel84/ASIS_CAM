@@ -9,4 +9,18 @@
   #app #map{width:100vw!important;height:100vh!important}
   #app .nav-tabs, #app .row{max-width:100%!important;overflow-x:hidden!important;flex-wrap:wrap!important}
   #app .bottom-sheet, #app #attendanceCard, #app #successCard{position:fixed!important;bottom:0!important;left:0!important;right:0!important;background:#FFF!important;border-radius:32px 32px 0 0!important;padding:24px!important;box-shadow:0 -8px 40px rgba(0,0,0,0.12)!important;z-index:1000!important}
+
+  /* Sin marco gris alrededor del login/dashboard en mobile: body (que en
+     desktop tiene fondo gris + padding para centrar la tarjeta) queda
+     blanco y sin padding, para que #app ocupe todo el ancho sin bordes. */
+  body{background:#FFFFFF!important;padding:0!important}
+
+  /* Tablas que no tienen ya su propio layout de tarjetas (.ios-table, ver
+     style.css): scroll horizontal en vez de romper el layout. */
+  #app table:not(.ios-table){display:block!important;overflow-x:auto!important;white-space:nowrap!important}
+
+  /* Bottom sheet: la caja visible de un modal de Bootstrap es
+     .modal-content (.modal es el wrapper fixed invisible), así que el
+     radius va acá para que se note. */
+  #app .modal-content{border-radius:32px 32px 0 0!important}
 }
