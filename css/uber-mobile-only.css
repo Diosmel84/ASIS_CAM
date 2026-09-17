@@ -1,9 +1,15 @@
 @media (max-width: 768px) {
   #app *{box-sizing:border-box;max-width:100%;font-family:'Inter',-apple-system,sans-serif !important}
   #app{overflow-x:hidden!important;width:100vw!important}
-  #app #loginScreen{background:#FFF!important;min-height:100vh!important;padding:0 24px 40px 24px!important;display:flex!important;flex-direction:column!important}
-  #app #loginScreen h1{font-size:36px!important;font-weight:800!important;color:#000!important;margin:40px 0 8px 0!important}
-  #app #loginScreen p{font-size:16px!important;color:#6B7280!important;margin:0 0 32px 0!important}
+  /* :not(.hidden) es clave: sin esto, este selector (2 ids) le gana en
+     especificidad a .hidden{display:none!important} (1 clase) aunque
+     ambos tengan !important, y el login queda visible y apilado arriba
+     del panel de admin/docente después de iniciar sesión. login()/
+     showDashboard()/logout() en script.js ya agregan y sacan .hidden
+     correctamente - el bug era puramente de CSS. */
+  #app #loginScreen:not(.hidden){background:#FFF!important;min-height:100vh!important;padding:0 24px 40px 24px!important;display:flex!important;flex-direction:column!important}
+  #app #loginScreen:not(.hidden) h1{font-size:36px!important;font-weight:800!important;color:#000!important;margin:40px 0 8px 0!important}
+  #app #loginScreen:not(.hidden) p{font-size:16px!important;color:#6B7280!important;margin:0 0 32px 0!important}
   #app input[type="email"], #app input[type="text"], #app input[type="password"], #app #inputEmail, #app #inputPassword, #app .input-field{background:#F2F4F7!important;border:0!important;border-radius:16px!important;height:56px!important;padding:0 16px 0 48px!important;width:100%!important;margin-bottom:16px!important;font-size:16px!important}
   /* OJO: nunca un "#app button" a secas acá - #app envuelve TODA la app
      (dashboard incluido, no solo el login), y agarraría de rebote los
