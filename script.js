@@ -440,7 +440,7 @@ function setGeocercaPoint(key, lat, lng, reverseGeocode) {
     if (instance.circle) {
         instance.circle.setLatLng([lat, lng]).setRadius(radio);
     } else {
-        instance.circle = L.circle([lat, lng], { radius: radio, color: '#0d6efd', fillOpacity: 0.15 }).addTo(instance.map);
+        instance.circle = L.circle([lat, lng], { radius: radio, color: '#0066FF', fillOpacity: 0.15 }).addTo(instance.map);
     }
     instance.map.setView([lat, lng], Math.max(instance.map.getZoom(), 16));
 
@@ -1877,10 +1877,10 @@ function loadTeachersTable() {
         const localidadDisplay = teacher.localidad || '-';
         const searchText = `${teacher.apellido} ${teacher.nombre} ${teacher.dni} ${teacher.materia || ''}`.toLowerCase();
         return `
-            <tr data-search="${searchText}">
+            <tr data-search="${searchText}" onclick="showTeacherDetail('${teacher.id}')">
                 <td data-label="Foto"><img src="${teacher.photo}" alt="Foto" style="width:50px;height:50px;border-radius:50%;object-fit:cover;"></td>
                 <td data-label="DNI"><strong>${teacher.dni}</strong></td>
-                <td data-label="Nombre">${teacher.apellido} ${teacher.nombre} ${renderWhatsAppButton(teacher.telefono, teacher.nombre)} <button class="btn btn-sm btn-primary" title="Editar docente" onclick="editTeacher('${teacher.id}')"><i class="bi bi-pencil"></i></button></td>
+                <td data-label="Nombre">${teacher.apellido} ${teacher.nombre}</td>
                 <td data-label="Teléfono">${teacher.telefono || '-'}</td>
                 <td data-label="Domicilio">${domicilioDisplay}</td>
                 <td data-label="Localidad">${localidadDisplay}</td>
@@ -1889,12 +1889,13 @@ function loadTeachersTable() {
                 <td data-label="Contraseña"><span class="badge bg-info">${teacher.password}</span></td>
                 <td data-label="Biometría">${bioBadge}</td>
                 <td data-label="Estado hoy">${status}</td>
-                <td data-label="Acciones">
-                    <button class="btn btn-sm btn-primary" title="Ficha / Reporte individual" onclick="showTeacherDetail('${teacher.id}')"><i class="bi bi-search"></i></button>
+                <td data-label="Acciones" onclick="event.stopPropagation()">
+                    ${renderWhatsAppButton(teacher.telefono, teacher.nombre)}
+                    <button class="btn btn-sm btn-primary" title="Editar docente" onclick="editTeacher('${teacher.id}')"><i class="bi bi-pencil"></i></button>
                     <button class="btn btn-sm btn-info" title="Calendario ${SCHEDULE_CALENDAR_YEAR}" onclick="showTeacherCalendar('${teacher.id}')"><i class="bi bi-calendar3"></i></button>
                     <button class="btn btn-sm btn-warning" title="Fichaje manual" onclick="openManualAttendanceModal('${teacher.id}')"><i class="bi bi-fingerprint"></i></button>
                     <button class="btn btn-sm btn-secondary" title="Restablecer contraseña" onclick="resetTeacherPassword('${teacher.id}')"><i class="bi bi-key"></i></button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteTeacher('${teacher.id}')"><i class="bi bi-trash"></i></button>
+                    <button class="btn btn-sm btn-danger" title="Eliminar" onclick="deleteTeacher('${teacher.id}')"><i class="bi bi-trash"></i></button>
                 </td>
             </tr>
         `;
@@ -3299,11 +3300,11 @@ function loadLicenciasList() {
     }
     tbody.innerHTML = licencias.map(l => `
         <tr>
-            <td>${l.teacherName}</td>
-            <td>${l.from}</td>
-            <td>${l.to}</td>
-            <td>${l.motivo}</td>
-            <td><button class="btn btn-sm btn-danger" onclick="deleteLicencia('${l.id}')"><i class="bi bi-trash"></i></button></td>
+            <td data-label="Docente">${l.teacherName}</td>
+            <td data-label="Desde">${l.from}</td>
+            <td data-label="Hasta">${l.to}</td>
+            <td data-label="Motivo">${l.motivo}</td>
+            <td data-label="Acciones"><button class="btn btn-sm btn-danger" title="Eliminar" onclick="deleteLicencia('${l.id}')"><i class="bi bi-trash"></i></button></td>
         </tr>
     `).join('');
 }
@@ -3529,12 +3530,12 @@ async function loadEventosEspeciales() {
             const docentesCell = cantDocentes > 0 ? cantDocentes : '<span class="text-muted">Sin docentes asignados</span>';
             return `
                 <tr>
-                    <td>${ev.titulo}</td>
-                    <td>${ev.descripcion || '-'}</td>
-                    <td>${ev.fecha} ${ev.hora_entrada} &rarr; ${ev.hora_salida}</td>
-                    <td>${ev.escuela_id}</td>
-                    <td>${docentesCell}</td>
-                    <td>
+                    <td data-label="Título">${ev.titulo}</td>
+                    <td data-label="Descripción">${ev.descripcion || '-'}</td>
+                    <td data-label="Fecha inicio → Fin">${ev.fecha} ${ev.hora_entrada} &rarr; ${ev.hora_salida}</td>
+                    <td data-label="Escuela">${ev.escuela_id}</td>
+                    <td data-label="Docentes">${docentesCell}</td>
+                    <td data-label="Acciones">
                         <button class="btn btn-sm btn-info" title="Ver" onclick="viewEvento(${ev.id})"><i class="bi bi-eye"></i></button>
                         <button class="btn btn-sm btn-primary" title="Editar" onclick="editEvento(${ev.id})"><i class="bi bi-pencil"></i></button>
                         <button class="btn btn-sm btn-danger" title="Eliminar" onclick="deleteEvento(${ev.id})"><i class="bi bi-trash"></i></button>
@@ -4071,6 +4072,12 @@ function showFullScheduleGrid() {
 // ============================================================
 // FICHA / REPORTE INDIVIDUAL DEL DOCENTE (buscador)
 // ============================================================
+// Ficha del docente: vista de detalle full-screen (tipo iOS), mismo
+// patron de show/hide que showStatsScreen()/hideStatsScreen(). Antes
+// esto abria un modal de Bootstrap; los datos que muestra son
+// exactamente los mismos (mismas funciones locales getAttendance()/
+// getAlerts()/getLicencias()/getHorarioLaboral()), solo cambio donde
+// se pintan.
 function showTeacherDetail(teacherId) {
     const teacher = getTeachers().find(t => t.id === teacherId);
     if (!teacher) return;
@@ -4083,49 +4090,93 @@ function showTeacherDetail(teacherId) {
     const faltaCount = alerts.filter(a => a.type === 'Falta' && !a.justified).length;
     const licencias = getLicencias().filter(l => l.teacherId === teacherId);
 
+    const today = new Date().toDateString();
+    const attendanceToday = attendance.filter(a => new Date(a.date).toDateString() === today);
+    const estadoHoy = attendanceToday.length > 0 ? `Presente (${attendanceToday.length})` : 'Ausente';
+
     const horarioTeacherDetail = getHorarioLaboral(teacher);
     const scheduleDisplay = horarioTeacherDetail.length > 0 ?
         horarioTeacherDetail.map(h => `${h.dia} ${h.inicio}-${h.fin}`).join('<br>') : 'Sin horario asignado';
     const licenciasDisplay = licencias.length > 0 ?
         licencias.map(l => `${l.from} al ${l.to} — ${l.motivo}`).join('<br>') : 'Sin licencias registradas';
 
-    document.getElementById('teacherDetailModalTitle').textContent = `Ficha de ${teacher.apellido} ${teacher.nombre}`;
-    document.getElementById('teacherDetailBody').innerHTML = `
-        <div class="text-center mb-3">
-            <img src="${teacher.photo || ''}" alt="Foto" style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid var(--olive-600);">
-        </div>
-        <div class="row">
-            <div class="col-md-6">
-                <p><strong>DNI:</strong> ${teacher.dni}</p>
-                <p><strong>Teléfono:</strong> ${teacher.telefono || '-'}</p>
-                <p><strong>Tel. familiar:</strong> ${teacher.telefonoFamiliar || '-'}</p>
-                <p><strong>E-mail:</strong> ${teacher.email || '-'}</p>
-                <p><strong>Dirección:</strong> ${getDomicilioCompleto(teacher)}</p>
-                <p><strong>Materia:</strong> ${teacher.materia || '-'}</p>
-            </div>
-            <div class="col-md-6">
-                <p><strong>Entradas a horario:</strong> ${presentCount}</p>
-                <p><strong>Tardanzas:</strong> ${lateCount}</p>
-                <p><strong>Faltas sin justificar:</strong> ${faltaCount}</p>
-                <p><strong>Licencias:</strong><br>${licenciasDisplay}</p>
-            </div>
-        </div>
-        <p><strong>Horario de trabajo:</strong><br>${scheduleDisplay}</p>
+    document.getElementById('teacherDetailHeaderActions').innerHTML = `
+        <button class="btn btn-sm btn-secondary" title="Fichaje manual" onclick="openManualAttendanceModal('${teacher.id}')"><i class="bi bi-fingerprint"></i></button>
+        <button class="btn btn-sm btn-success" title="Generar reporte PDF" onclick="generateIndividualReport('${teacher.id}')"><i class="bi bi-file-earmark-pdf"></i></button>
+        <button class="btn btn-sm btn-secondary" title="Restablecer contraseña" onclick="resetTeacherPassword('${teacher.id}')"><i class="bi bi-key"></i></button>
+        <button class="btn btn-sm btn-danger" title="Eliminar" onclick="deleteTeacher('${teacher.id}')"><i class="bi bi-trash"></i></button>
     `;
-    document.getElementById('teacherDetailModal').dataset.teacherId = teacherId;
-    new bootstrap.Modal(document.getElementById('teacherDetailModal')).show();
+
+    document.getElementById('teacherDetailFullBody').innerHTML = `
+        <img class="teacher-detail-avatar" src="${teacher.photo || ''}" alt="Foto">
+        <div class="teacher-detail-name">${teacher.apellido} ${teacher.nombre}</div>
+        <div class="teacher-detail-dni">DNI ${teacher.dni}</div>
+        <div class="teacher-detail-info-grid">
+            <div class="teacher-detail-info-row">
+                <div class="teacher-detail-info-label">Materia</div>
+                <div class="teacher-detail-info-value">${teacher.materia || '-'}</div>
+            </div>
+            <div class="teacher-detail-info-row">
+                <div class="teacher-detail-info-label">Horario</div>
+                <div class="teacher-detail-info-value">${scheduleDisplay}</div>
+            </div>
+            <div class="teacher-detail-info-row">
+                <div class="teacher-detail-info-label">Estado hoy</div>
+                <div class="teacher-detail-info-value">${estadoHoy}</div>
+            </div>
+            <div class="teacher-detail-info-row">
+                <div class="teacher-detail-info-label">Resumen</div>
+                <div class="teacher-detail-info-value">${presentCount} entradas a horario · ${lateCount} tardanzas · ${faltaCount} faltas sin justificar</div>
+            </div>
+            <div class="teacher-detail-info-row">
+                <div class="teacher-detail-info-label">Licencias</div>
+                <div class="teacher-detail-info-value">${licenciasDisplay}</div>
+            </div>
+            <div class="teacher-detail-info-row">
+                <div class="teacher-detail-info-label">Contacto</div>
+                <div class="teacher-detail-info-value">${teacher.telefono || '-'} · ${teacher.email || '-'}<br>${getDomicilioCompleto(teacher)}</div>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('teacherDetailBottomActions').innerHTML = `
+        <button class="btn btn-primary" onclick="showTeacherCalendar('${teacher.id}')"><i class="bi bi-calendar-check"></i> Ver Asistencias</button>
+        <button class="btn btn-secondary" onclick="editTeacherFromDetail('${teacher.id}')"><i class="bi bi-pencil"></i> Editar</button>
+        <button class="btn btn-secondary" onclick="goToLicenciaForTeacher('${teacher.id}')"><i class="bi bi-file-medical"></i> Licencia</button>
+    `;
+
+    document.getElementById('adminDashboard').classList.add('hidden');
+    document.getElementById('teacherDetailScreen').classList.remove('hidden');
+    window.scrollTo(0, 0);
 }
 
-function openCalendarFromDetail() {
-    const teacherId = document.getElementById('teacherDetailModal').dataset.teacherId;
-    if (!teacherId) return;
-    const modalEl = document.getElementById('teacherDetailModal');
-    bootstrap.Modal.getInstance(modalEl)?.hide();
-    showTeacherCalendar(teacherId);
+function hideTeacherFullDetail() {
+    document.getElementById('teacherDetailScreen').classList.add('hidden');
+    document.getElementById('adminDashboard').classList.remove('hidden');
+    window.scrollTo(0, 0);
 }
 
-function generateIndividualReport() {
-    const teacherId = document.getElementById('teacherDetailModal').dataset.teacherId;
+// Vuelve al listado de Docentes y abre el formulario de edicion ya
+// cargado con los datos del docente (editTeacher() hace el resto,
+// igual que si se hubiera tocado el lapiz en la fila).
+function editTeacherFromDetail(teacherId) {
+    hideTeacherFullDetail();
+    bootstrap.Tab.getOrCreateInstance(document.querySelector('[data-bs-target="#tabDocentes"]')).show();
+    editTeacher(teacherId);
+}
+
+// Vuelve al panel y abre la pestaña Licencias con este docente ya
+// seleccionado en el combo (mismo flujo de addLicencia() de siempre,
+// solo se le ahorra al admin tener que volver a buscarlo).
+function goToLicenciaForTeacher(teacherId) {
+    hideTeacherFullDetail();
+    bootstrap.Tab.getOrCreateInstance(document.querySelector('[data-bs-target="#tabLicencias"]')).show();
+    const select = document.getElementById('licenciaTeacher');
+    if (select) select.value = teacherId;
+    document.getElementById('licenciaFrom')?.focus();
+}
+
+function generateIndividualReport(teacherId) {
     const teacher = getTeachers().find(t => t.id === teacherId);
     if (!teacher) return;
     document.getElementById('reportTeacher').value = teacherId;

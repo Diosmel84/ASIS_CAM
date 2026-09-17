@@ -1,173 +1,266 @@
 /* ============================================================
-   ASIS_CAM - Sistema de Control de Asistencia Docente
+   ASIS-CAM - Sistema de Control de Asistencia Docente
    style.css - Estilos de la aplicación
 
    Único archivo de estilos propio de la app (además de Bootstrap
    5.3 y Bootstrap Icons, autohospedados en /libs). Contiene la
-   paleta institucional verde oliva y los estilos de todos los
-   paneles, tarjetas, modales y componentes a medida del sistema.
+   paleta "Uber minimalista" (blanco / negro / gris + acento azul
+   reservado a la geocerca) y los estilos de todos los paneles,
+   tarjetas, modales y componentes a medida del sistema.
+
+   Todos los selectores y nombres de clase/ID que ya usan
+   index.html y script.js se mantienen intactos: este archivo
+   solo cambia apariencia (color, tipografía, radios, sombras,
+   layout visual), nunca lógica ni estructura de datos.
    ============================================================ */
 
 /* ============================================================
-   PALETA ASISCAM PRO: PETRÓLEO / BLANCO / GRIS (estilo Apple)
+   PALETA ASIS-CAM: BLANCO / NEGRO / GRIS + ACENTO AZUL (geocerca)
    Se sobreescriben las variables de Bootstrap 5.3 para que TODA
    la interfaz (botones, badges, alerts, acordeón) tome la paleta
-   automáticamente, y además se definen variables propias para
-   los componentes a medida de este sistema. Los nombres de
-   variable (--olive-*) se mantienen para no tener que tocar cada
-   regla que ya los usa en todo el archivo; solo cambian los
-   valores de petróleo/gris estilo Apple.
+   automáticamente. Los nombres de variable (--olive-*) se
+   mantienen por compatibilidad con reglas existentes, pero ahora
+   apuntan a negro/gris en vez de petróleo/verde oliva.
 ============================================================ */
 :root {
-    /* Paleta base - petróleo #204E4A */
-    --olive-900: #12312e;
-    --olive-800: #204E4A;
-    --olive-700: #2a615c;
-    --olive-600: #357972;
-    --olive-500: #4f948c;
-    --olive-tint: #e7f0ef;
-    --gray-50:  #fafafa;
-    --gray-100: #F5F5F7;
-    --gray-200: #e5e5ea;
-    --gray-400: #aeaeb2;
-    --gray-600: #6e6e73;
-    --gray-800: #1d1d1f;
-    --white: #ffffff;
-    --danger-muted: #8c3f3f;
-    --warning-muted: #96752c;
-    --info-muted: #55676b;
+    /* Paleta base: negro sobre blanco, un solo acento */
+    --ink: #000000;
+    --ink-soft: #1A1A1A;
+    --white: #FFFFFF;
+    --gray-hairline: #F2F2F2;
+    --gray-border: #E5E5E0;
+    --gray-50:  #FAFAFA;
+    --gray-100: #F2F2F2;
+    --gray-200: #E5E5E0;
+    --gray-400: #B8B8B0;
+    --gray-500: #9A9A94;
+    --gray-600: #6B6B66;
+    --gray-800: #1A1A1A;
+    --accent-blue: #0066FF;
 
-    /* Variables propias usadas por los componentes del sistema */
-    --primary-color: var(--olive-800);
-    --secondary-color: var(--olive-700);
-    --success-color: var(--olive-700);
-    --danger-color: var(--danger-muted);
-    --warning-color: var(--warning-muted);
+    /* Compatibilidad: nombres viejos (--olive-*) usados en reglas
+       existentes de este archivo, remapeados a la paleta nueva. */
+    --olive-900: #000000;
+    --olive-800: #000000;
+    --olive-700: #000000;
+    --olive-600: #1A1A1A;
+    --olive-500: #333333;
+    --olive-tint: #F2F2F2;
+    --primary-color: #000000;
+    --secondary-color: #1A1A1A;
+    --success-color: #000000;
+    --danger-color: #1A1A1A;
+    --warning-color: #1A1A1A;
+    --info-muted: #6B6B66;
+    --danger-muted: #1A1A1A;
+    --warning-muted: #6B6B66;
     --light-bg: var(--gray-50);
 
-    /* Radios y sombras estilo Apple, reutilizables en todo el CSS */
+    /* Radios y sombras: estilo app nativa, tarjetas con sombra suave */
     --radius-sm: 10px;
-    --radius-md: 12px;
+    --radius-md: 14px;
     --radius-lg: 16px;
-    --shadow-soft: 0 8px 24px rgba(32, 78, 74, 0.08);
-    --shadow-softer: 0 2px 10px rgba(32, 78, 74, 0.05);
-    --transition-base: 0.3s ease;
+    --radius-xl: 24px;
+    --radius-pill: 999px;
+    --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.06);
+    --shadow-softer: 0 2px 12px rgba(0, 0, 0, 0.06);
+    --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.05);
+    --transition-base: 0.2s ease;
 
     /* Overrides de Bootstrap: así btn-primary, bg-danger, badge, etc.
-       heredan la paleta institucional sin tocar cada clase */
-    --bs-primary: #204E4A;
-    --bs-primary-rgb: 32, 78, 74;
-    --bs-secondary: #6e6e73;
-    --bs-secondary-rgb: 110, 110, 115;
-    --bs-success: #2a615c;
-    --bs-success-rgb: 42, 97, 92;
-    --bs-danger: #8c3f3f;
-    --bs-danger-rgb: 140, 63, 63;
-    --bs-warning: #96752c;
-    --bs-warning-rgb: 150, 117, 44;
-    --bs-info: #55676b;
-    --bs-info-rgb: 85, 103, 107;
-    --bs-link-color: #204E4A;
-    --bs-link-color-rgb: 32, 78, 74;
-    --bs-link-hover-color: #12312e;
+       heredan la paleta neutra sin tocar cada clase generada por JS.
+       No hay rojo/verde/amarillo "chillón": todo pasa a negro/gris.
+       El único acento de color de toda la app es el azul de la
+       geocerca (ver .geocerca-map-container y el circle de Leaflet
+       en script.js, con color explícito #0066FF). */
+    --bs-primary: #000000;
+    --bs-primary-rgb: 0, 0, 0;
+    --bs-secondary: #6B6B66;
+    --bs-secondary-rgb: 107, 107, 102;
+    --bs-success: #000000;
+    --bs-success-rgb: 0, 0, 0;
+    --bs-danger: #1A1A1A;
+    --bs-danger-rgb: 26, 26, 26;
+    --bs-warning: #6B6B66;
+    --bs-warning-rgb: 107, 107, 102;
+    --bs-info: #6B6B66;
+    --bs-info-rgb: 107, 107, 102;
+    --bs-link-color: #000000;
+    --bs-link-color-rgb: 0, 0, 0;
+    --bs-link-hover-color: #000000;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+html, body { background: var(--white); }
+
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    background: var(--gray-100);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: var(--white);
     min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    padding: 20px;
-    color: var(--gray-800);
+    color: var(--ink);
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 .main-container {
     background: var(--white);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--gray-200);
-    border-top: 5px solid var(--olive-700);
-    box-shadow: var(--shadow-soft);
     width: 100%;
     max-width: 1400px;
-    min-height: 90vh;
-    padding: 30px;
+    min-height: 100vh;
+    margin: 0 auto;
+    padding: 0;
     position: relative;
+}
+
+/* ============================================================
+   MARCA: logo institucional (el ojo con diafragma de camara,
+   /logo.png) — NO se reemplaza por un icono minimalista, se deja
+   grande y visible tal cual el archivo original.
+============================================================ */
+.login-header .institution-logo {
+    height: 120px;
+    width: auto;
+    margin-bottom: 14px;
+}
+.dashboard-brand .dashboard-logo { height: 44px; width: auto; }
+@media (max-width: 576px) { .dashboard-brand .dashboard-logo { height: 34px; } }
+
+/* ============================================================
+   LOGIN: pantalla unica, centrada, sin nada mas alrededor
+============================================================ */
+#loginScreen {
+    min-height: 100vh;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 32px 24px 40px;
+    background: var(--white);
 }
 
 .login-header {
     text-align: center;
-    margin-bottom: 30px;
-    padding: 20px 0;
-    border-bottom: 2px solid var(--gray-200);
+    margin-bottom: 28px;
+    padding: 0;
+    border-bottom: none;
+    width: 100%;
+    max-width: 380px;
 }
-.login-header .institution-logo {
-    height: 130px;
-    width: auto;
-    margin-bottom: 12px;
-    filter: drop-shadow(0 4px 10px rgba(44, 51, 25, 0.22));
+.login-header h1 {
+    color: var(--ink);
+    font-weight: 800;
+    font-size: 1.9rem;
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
 }
-.login-header h1 { color: var(--olive-800); font-weight: 700; font-size: 2.2rem; letter-spacing: 0.3px; }
-.login-header h1 i { color: var(--olive-700); }
-.login-header p { color: var(--gray-600); font-size: 1.05rem; margin-top: 4px; }
+.login-header h1 i { display: none; }
+.login-header p { color: var(--gray-600); font-size: 0.95rem; font-weight: 400; margin-top: 2px; }
 
 .login-form {
-    max-width: 400px;
+    width: 100%;
+    max-width: 380px;
     margin: 0 auto;
-    padding: 30px;
-    background: var(--white);
-    border: 1px solid var(--gray-200);
-    border-radius: var(--radius-lg);
-    box-shadow: 0 4px 16px rgba(44, 51, 25, 0.06);
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
 }
-.login-form .form-group { margin-bottom: 20px; }
-.login-form label { font-weight: 600; color: var(--olive-800); }
-.login-form .form-control:focus { border-color: var(--olive-600); box-shadow: 0 0 0 0.2rem rgba(79,95,52,0.15); }
+.login-form .form-group { margin-bottom: 14px; }
+.login-form label { display: none !important; } /* placeholders ya explican el campo, look mas limpio */
+.login-form .form-control {
+    background: var(--gray-hairline);
+    border: 1px solid var(--gray-hairline);
+    border-radius: var(--radius-lg);
+    height: 56px;
+    padding: 0 18px;
+    font-size: 1rem;
+    color: var(--ink);
+}
+.login-form .form-control::placeholder { color: var(--gray-600); }
+.login-form .form-control:focus {
+    background: var(--white);
+    border-color: var(--ink);
+    box-shadow: none;
+}
 .login-form .btn-primary {
     border: none;
-    padding: 12px;
-    font-weight: 600;
+    height: 56px;
+    padding: 0;
+    font-weight: 700;
+    font-size: 1.05rem;
     width: 100%;
+    border-radius: var(--radius-lg);
+    margin-top: 6px;
 }
-.login-error { color: var(--danger-color); text-align: center; margin-top: 10px; display: none; }
+.login-error { color: var(--ink); text-align: center; margin-top: 10px; display: none; font-weight: 600; font-size: 0.9rem; }
+#forgotPasswordBtnWrap { margin-top: 6px !important; }
+#forgotPasswordBtnWrap .btn-link {
+    color: var(--gray-600) !important;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: none;
+}
+#forgotPasswordBtnWrap .btn-link:hover { color: var(--ink) !important; text-decoration: underline; }
+
+/* Banner de carga del modulo de reconocimiento facial: discreto,
+   no debe competir visualmente con el login limpio. */
+#loginScreen .models-banner {
+    background: transparent;
+    border: none;
+    color: var(--gray-600);
+    font-size: 0.78rem;
+    justify-content: center;
+    padding: 0 0 14px;
+    margin-bottom: 4px;
+}
+#loginScreen .models-banner.ok,
+#loginScreen .models-banner.error { background: transparent; }
+
+/* ============================================================
+   DASHBOARD: header + contenido
+============================================================ */
+#dashboardScreen { padding: 20px 20px 60px; }
+@media (min-width: 992px) { #dashboardScreen { padding: 28px 32px 60px; } }
 
 .dashboard-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px 0;
-    border-bottom: 2px solid var(--gray-200);
-    margin-bottom: 30px;
+    padding: 4px 0 20px;
+    border-bottom: 1px solid var(--gray-hairline);
+    margin-bottom: 24px;
     flex-wrap: wrap;
+    gap: 12px;
 }
-.dashboard-header h2 { color: var(--olive-800); font-weight: 700; margin: 0; }
-.dashboard-brand { display: flex; align-items: center; gap: 12px; }
-.dashboard-logo { height: 40px; width: auto; }
-@media (max-width: 576px) { .dashboard-logo { height: 30px; } }
+.dashboard-header h2 { color: var(--ink); font-weight: 800; font-size: 1.3rem; margin: 0; letter-spacing: -0.01em; }
+.dashboard-brand { display: flex; align-items: center; gap: 10px; }
 
 .btn-logout {
-    background: var(--danger-color);
-    color: white;
+    background: var(--ink);
+    color: var(--white);
     border: none;
-    padding: 8px 20px;
-    border-radius: var(--radius-md);
-    font-weight: 600;
-    transition: all 0.3s ease;
+    padding: 10px 18px;
+    border-radius: var(--radius-pill);
+    font-weight: 700;
+    font-size: 0.85rem;
+    transition: opacity var(--transition-base);
 }
-.btn-logout:hover { background: #712f2f; color: white; }
+.btn-logout:hover { background: var(--ink); color: var(--white); opacity: 0.75; }
 
+/* ============================================================
+   CAMARA
+============================================================ */
 .camera-container {
-    background: #1c1e19;
+    background: #0A0A0A;
     border-radius: var(--radius-lg);
     overflow: hidden;
     position: relative;
     max-width: 640px;
     margin: 0 auto;
-    border: 1px solid var(--gray-200);
+    border: 1px solid var(--gray-hairline);
 }
 .camera-container video { width: 100%; height: auto; display: block; }
 .camera-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
@@ -175,30 +268,24 @@ body {
 .camera-controls {
     text-align: center;
     padding: 20px;
-    background: var(--gray-50);
-    border-radius: 0 0 10px 10px;
+    background: var(--white);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
 .btn-capture, .btn-entry, .btn-exit, .btn-early-exit {
     border: none;
-    color: white;
-    padding: 12px 28px;
-    border-radius: var(--radius-md);
-    font-weight: 600;
-    transition: all 0.3s ease;
+    color: var(--white);
+    background: var(--ink);
+    padding: 14px 28px;
+    border-radius: var(--radius-pill);
+    font-weight: 700;
+    transition: opacity var(--transition-base);
     margin: 6px 6px;
 }
-.btn-capture { background: var(--olive-700); }
-.btn-capture:hover { background: var(--olive-800); }
-.btn-entry { background: var(--olive-600); }
-.btn-entry:hover { background: var(--olive-800); }
-.btn-exit { background: var(--danger-color); }
-.btn-exit:hover { background: #712f2f; }
-.btn-early-exit { background: var(--warning-color); }
-.btn-early-exit:hover { background: #7a5e22; }
-.btn-entry:disabled, .btn-exit:disabled, .btn-early-exit:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-capture:hover, .btn-entry:hover, .btn-exit:hover, .btn-early-exit:hover { background: var(--ink); opacity: 0.8; }
+.btn-entry:disabled, .btn-exit:disabled, .btn-early-exit:disabled { opacity: 0.3; cursor: not-allowed; }
 
-/* ===== Cámara del docente: más chica y con los botones al costado
+/* ===== Camara del docente: mas chica y con los botones al costado
    en vez de abajo, para que entren todos sin scroll. ===== */
 .teacher-camera-layout { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
 .teacher-camera-layout .camera-container { max-width: 260px; flex: 0 0 auto; }
@@ -210,54 +297,67 @@ body {
 .teacher-camera-layout .camera-controls .btn-exit,
 .teacher-camera-layout .camera-controls .btn-early-exit,
 .teacher-camera-layout .camera-controls .btn-secondary {
-    display: block; width: 100%; margin: 0 0 8px 0; padding: 10px 14px;
+    display: block; width: 100%; margin: 0 0 8px 0; padding: 14px 16px; text-align: center;
 }
 @media (max-width: 767px) {
     .teacher-camera-layout .camera-container { max-width: 100%; }
 }
 
-.admin-panel { padding: 20px 0; }
+.admin-panel { padding: 4px 0 20px; }
 
+/* ============================================================
+   TABLA ADMIN (desktop) - fondo blanco, sin franja de color
+============================================================ */
 .admin-table {
     background: var(--white);
-    border: 1px solid var(--gray-200);
+    border: 1px solid var(--gray-hairline);
     border-radius: var(--radius-lg);
     overflow: hidden;
-    padding: 20px;
+    padding: 4px;
 }
-.admin-table thead { background: var(--olive-800); color: white; }
-.admin-table tbody tr:hover { background: var(--olive-tint); }
+.admin-table thead { background: var(--white); color: var(--gray-600); }
+.admin-table thead th {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700;
+    border-bottom: 1px solid var(--gray-hairline) !important;
+}
+.admin-table tbody tr:hover { background: var(--gray-50); }
+.admin-table tbody td { border-bottom: 1px solid var(--gray-hairline) !important; }
 
+/* ============================================================
+   ALERTAS: tarjetas blancas, sombra suave, sin rojo/verde
+============================================================ */
 .alert-card {
     background: var(--white);
-    border: 1px solid var(--gray-200);
-    border-radius: var(--radius-md);
+    border: 1px solid var(--gray-hairline);
+    border-radius: var(--radius-lg);
     padding: 18px;
-    margin-bottom: 14px;
-    border-left: 5px solid var(--danger-color);
+    margin-bottom: 12px;
+    border-left: none;
+    box-shadow: var(--shadow-card);
 }
-.alert-card.justified { border-left-color: var(--success-color); }
+.alert-card.justified { background: var(--white); }
 
-.badge-justified { background: var(--success-color); color: white; padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; }
-.badge-unjustified { background: var(--danger-color); color: white; padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; }
+.badge-justified { background: var(--gray-hairline); color: var(--ink); padding: 5px 12px; border-radius: var(--radius-pill); font-size: 0.75rem; font-weight: 700; }
+.badge-unjustified { background: var(--ink); color: var(--white); padding: 5px 12px; border-radius: var(--radius-pill); font-size: 0.75rem; font-weight: 700; }
 
 .form-section {
     background: var(--white);
-    padding: 28px;
-    border: 1px solid var(--gray-200);
+    padding: 24px;
+    border: 1px solid var(--gray-hairline);
     border-radius: var(--radius-lg);
-    margin-bottom: 28px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-card);
 }
-.form-section h4 { color: var(--olive-800); margin-bottom: 20px; font-weight: 700; }
-.form-section h4 i { color: var(--olive-700); }
+.form-section h4 { color: var(--ink); margin-bottom: 18px; font-weight: 800; font-size: 1.05rem; }
+.form-section h4 i { color: var(--ink); }
 
-/* Se agrega al formulario de alta/edición de docente mientras se está
+/* Se agrega al formulario de alta/edicion de docente mientras se esta
    editando uno existente (ver editTeacher()/clearRegistrationForm()
-   en script.js), para que sea obvio a simple vista que no se está
+   en script.js), para que sea obvio a simple vista que no se esta
    cargando un docente nuevo. */
 .form-section.editing {
-    border: 2px solid var(--olive-600);
-    box-shadow: 0 0 0 4px var(--olive-tint), var(--shadow-soft);
+    border: 2px solid var(--ink);
+    box-shadow: var(--shadow-soft);
 }
 
 .camera-preview {
@@ -265,32 +365,33 @@ body {
     height: 150px;
     border-radius: 50%;
     overflow: hidden;
-    border: 3px solid var(--olive-600);
+    border: 3px solid var(--gray-hairline);
     margin: 0 auto 14px;
-    background: var(--gray-100);
+    background: var(--gray-50);
     display: flex;
     align-items: center;
     justify-content: center;
 }
 .camera-preview img { width: 100%; height: 100%; object-fit: cover; }
-.camera-preview .placeholder { color: var(--gray-400); font-size: 0.9rem; text-align: center; }
+.camera-preview .placeholder { color: var(--gray-500); font-size: 0.9rem; text-align: center; }
 
 .capture-status { text-align: center; font-size: 0.85rem; color: var(--gray-600); margin-top: 6px; font-weight: 600; }
-.capture-status.ready { color: var(--olive-700); }
+.capture-status.ready { color: var(--ink); }
 
 .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
 .toast-custom {
     background: var(--white);
+    color: var(--ink);
     padding: 14px 22px;
-    border-radius: var(--radius-md);
-    box-shadow: 0 6px 20px rgba(44,51,25,0.15);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-soft);
     margin-bottom: 10px;
     animation: slideInRight 0.4s ease;
-    border-left: 5px solid var(--success-color);
+    border-left: none;
+    border: 1px solid var(--gray-hairline);
     min-width: 260px;
 }
-.toast-custom.error { border-left-color: var(--danger-color); }
-.toast-custom.warning { border-left-color: var(--warning-color); }
+.toast-custom.error, .toast-custom.warning { border: 1px solid var(--gray-hairline); }
 
 @keyframes slideInRight {
     from { transform: translateX(100%); opacity: 0; }
@@ -299,221 +400,320 @@ body {
 
 .hidden { display: none !important; }
 
+/* ============================================================
+   TARJETAS DE ESTADISTICAS (Inicio del panel admin)
+============================================================ */
 .stat-card {
     background: var(--white);
-    border: 1px solid var(--gray-200);
+    border: 1px solid var(--gray-hairline);
     border-radius: var(--radius-lg);
-    padding: 20px;
+    padding: 22px 18px;
     text-align: center;
+    box-shadow: var(--shadow-card);
 }
-.stat-card .number { font-size: 2.3rem; font-weight: 700; color: var(--olive-800); }
-.stat-card .label { color: var(--gray-600); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }
+.stat-card .number { font-size: 2.2rem; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; }
+.stat-card .label { color: var(--gray-600); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-top: 4px; }
 
-.required-field::after { content: " *"; color: var(--danger-color); font-weight: bold; }
+.required-field::after { content: " *"; color: var(--ink); font-weight: bold; }
 
 /* ===== BUSCADOR (lupa) ===== */
 .search-box { position: relative; max-width: 420px; }
-.search-box i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--gray-400); }
+.search-box i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--gray-500); }
 .search-box .form-control { padding-left: 38px; }
 
-/* ===== CALENDARIO ===== */
+/* ===== CALENDARIO =====
+   Se mantiene un codigo de color por estado (Presente / Falta /
+   Licencia / Programado) porque es informacion funcional que el
+   admin necesita distinguir de un vistazo; se usan tonos apagados
+   en escala de gris + negro (sin rojo/verde saturado) para que
+   siga encajando con la paleta minimalista. */
 .schedule-container { overflow-x: auto; background: var(--gray-50); border-radius: var(--radius-md); padding: 15px; }
 .schedule-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; min-width: 500px; }
 .schedule-header {
     font-weight: 700; text-align: center; padding: 10px 5px;
-    background: var(--olive-800); color: white; border-radius: var(--radius-sm);
+    background: var(--ink); color: var(--white); border-radius: var(--radius-sm);
     font-size: 0.8rem; display: flex; align-items: center; justify-content: center;
 }
 .schedule-slot {
-    background: var(--white); border: 1px solid var(--gray-200); border-radius: 4px;
+    background: var(--white); border: 1px solid var(--gray-hairline); border-radius: 4px;
     padding: 6px 4px; text-align: center; cursor: pointer; transition: all 0.15s ease;
     min-height: 48px; display: flex; flex-direction: column; align-items: center;
     justify-content: center; font-size: 0.65rem; position: relative;
 }
-.schedule-slot:hover { background: var(--olive-tint); z-index: 1; }
-.schedule-slot.selected { background: var(--olive-700); color: white; border-color: var(--olive-700); }
+.schedule-slot:hover { background: var(--gray-50); z-index: 1; }
+.schedule-slot.selected { background: var(--ink); color: var(--white); border-color: var(--ink); }
 .schedule-slot .slot-time {
     font-weight: 600; font-size: 0.55rem; color: var(--gray-600); cursor: pointer;
     padding: 2px 6px; border-radius: 3px; background: rgba(0,0,0,0.03);
     border: 1px dashed transparent; width: 100%; text-align: center;
 }
-.schedule-slot .slot-time:hover { background: rgba(79,95,52,0.15); border-color: var(--olive-600); color: var(--olive-800); }
+.schedule-slot .slot-time:hover { background: var(--gray-hairline); border-color: var(--gray-400); color: var(--ink); }
 .schedule-slot.selected .slot-time { color: rgba(255,255,255,0.9); border-color: rgba(255,255,255,0.3); }
 .schedule-slot .slot-content { font-size: 0.7rem; font-weight: 600; margin-top: 2px; }
-.schedule-slot.selected .slot-content { color: white; }
+.schedule-slot.selected .slot-content { color: var(--white); }
 
 .schedule-legend { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 10px; padding: 10px; background: var(--gray-50); border-radius: var(--radius-md); }
-.schedule-legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.8rem; color: var(--gray-800); }
-.schedule-legend-color { width: 20px; height: 20px; border-radius: 4px; border: 1px solid var(--gray-200); }
-.schedule-legend-color.selected { background: var(--olive-700); }
-.schedule-legend-color.unselected { background: white; }
+.schedule-legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.8rem; color: var(--ink); }
+.schedule-legend-color { width: 20px; height: 20px; border-radius: 4px; border: 1px solid var(--gray-hairline); }
+.schedule-legend-color.selected { background: var(--ink); }
+.schedule-legend-color.unselected { background: var(--white); }
 
 .password-info {
-    background: var(--olive-tint);
-    border-left: 4px solid var(--olive-700);
+    background: var(--gray-50);
+    border-left: 4px solid var(--ink);
     padding: 10px 15px; border-radius: var(--radius-sm); margin-top: 10px;
 }
-.password-info strong { color: var(--olive-800); }
+.password-info strong { color: var(--ink); }
 
-.schedule-stats { font-size: 0.85rem; color: var(--gray-600); margin-top: 10px; padding: 8px; background: var(--gray-100); border-radius: var(--radius-sm); }
+.schedule-stats { font-size: 0.85rem; color: var(--gray-600); margin-top: 10px; padding: 8px; background: var(--gray-50); border-radius: var(--radius-sm); }
 
 .horario-chip {
     display: inline-flex; align-items: center; gap: 8px;
-    background: var(--olive-tint); color: var(--olive-800);
-    border: 1px solid var(--olive-600);
-    border-radius: 20px; padding: 6px 8px 6px 14px; font-size: 0.85rem; font-weight: 600;
+    background: var(--gray-hairline); color: var(--ink);
+    border: 1px solid var(--gray-border);
+    border-radius: var(--radius-pill); padding: 6px 8px 6px 14px; font-size: 0.85rem; font-weight: 600;
 }
 .horario-chip-remove {
-    background: none; border: none; color: var(--olive-800); font-size: 1.1rem; line-height: 1;
+    background: none; border: none; color: var(--ink); font-size: 1.1rem; line-height: 1;
     cursor: pointer; padding: 0 4px; font-weight: 700;
 }
-.horario-chip-remove:hover { color: var(--danger-color); }
+.horario-chip-remove:hover { opacity: 0.6; }
 
-/* ===== WHATSAPP (botón rápido de contacto) ===== */
+/* ===== WHATSAPP (boton rapido de contacto): se deja su verde de marca
+   por ser un icono de identificacion universal, no un color decorativo
+   del sistema; es chico y puntual, no compite con la paleta. ===== */
 .btn-whatsapp { background: #25D366; border-color: #25D366; color: #fff; }
 .btn-whatsapp:hover, .btn-whatsapp:focus { background: #1DA851; border-color: #1DA851; color: #fff; }
 
-/* ===== GEOCERCA: mapa Leaflet (Configuración y Evento Especial) =====
-   min-height fijo (no height) para que el mapa no se vea recortado en
-   celular; display:block + width:100% asegura que Leaflet calcule bien
-   el tamaño del contenedor al inicializarse. */
+/* ===== GEOCERCA: mapa Leaflet (Configuracion y Evento Especial)
+   Unico acento de color de toda la app: azul #0066FF, ver
+   L.circle(...) en script.js. ===== */
 .geocerca-map-container {
     display: block;
     width: 100%;
     min-height: 380px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     overflow: hidden;
+    border: 1px solid var(--gray-hairline);
 }
+.form-range::-webkit-slider-thumb { background: var(--accent-blue); }
+.form-range::-moz-range-thumb { background: var(--accent-blue); border: none; }
+.form-range::-webkit-slider-runnable-track { background: var(--gray-border); }
+.form-range:focus::-webkit-slider-thumb { box-shadow: 0 0 0 4px rgba(0,102,255,0.15); }
+#geofenceRadiusLabel, #eventoGeocercaRadioLabel { color: var(--accent-blue); }
 
 /* ===== EVENTOS ESPECIALES: checklist de docentes convocados ===== */
 .evento-docente-checklist {
-    max-height: 240px; overflow-y: auto; border: 1px solid var(--gray-200);
+    max-height: 240px; overflow-y: auto; border: 1px solid var(--gray-hairline);
     border-radius: var(--radius-md); padding: 6px 14px; background: var(--gray-50);
 }
-.evento-docente-checklist .form-check { padding: 6px 0 6px 1.8em; border-bottom: 1px solid var(--gray-200); }
+.evento-docente-checklist .form-check { padding: 6px 0 6px 1.8em; border-bottom: 1px solid var(--gray-hairline); }
 .evento-docente-checklist .form-check:last-child { border-bottom: none; }
 .evento-docente-checklist .dropdown-empty { padding: 8px 0; color: var(--gray-600); font-size: 0.85rem; }
 
 /* ===== CALENDARIO ANUAL (por docente) ===== */
 .mini-calendar-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
-.mini-calendar { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: var(--radius-md); padding: 10px; }
-.mini-calendar-title { font-weight: 700; color: var(--olive-800); text-align: center; margin-bottom: 6px; font-size: 0.9rem; }
+.mini-calendar { background: var(--gray-50); border: 1px solid var(--gray-hairline); border-radius: var(--radius-md); padding: 10px; }
+.mini-calendar-title { font-weight: 700; color: var(--ink); text-align: center; margin-bottom: 6px; font-size: 0.9rem; }
 .mini-calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
 .mini-calendar-dow { font-size: 0.6rem; text-align: center; color: var(--gray-600); font-weight: 600; }
 .mini-calendar-day {
     font-size: 0.65rem; text-align: center; padding: 3px 0; border-radius: 3px;
-    background: var(--white); border: 1px solid var(--gray-200); cursor: default;
+    background: var(--white); border: 1px solid var(--gray-hairline); cursor: default;
 }
 .mini-calendar-day.empty { background: transparent; border: none; }
-.mini-calendar-day.day-present { background: var(--olive-700); color: white; border-color: var(--olive-700); }
-.mini-calendar-day.day-falta { background: var(--danger-muted); color: white; border-color: var(--danger-muted); }
-.mini-calendar-day.day-licencia { background: var(--info-muted); color: white; border-color: var(--info-muted); }
-.mini-calendar-day.day-scheduled { background: var(--olive-tint); border-color: var(--olive-600); }
+.mini-calendar-day.day-present { background: var(--ink); color: var(--white); border-color: var(--ink); }
+.mini-calendar-day.day-falta { background: var(--gray-500); color: var(--white); border-color: var(--gray-500); }
+.mini-calendar-day.day-licencia { background: var(--gray-300, #d9d9d3); color: var(--ink); border-color: var(--gray-border); }
+.mini-calendar-day.day-scheduled { background: var(--gray-hairline); border-color: var(--gray-border); }
 
 /* ===== CALENDARIO ANUAL DEL ESTABLECIMIENTO (con nombres de docentes) ===== */
 .annual-calendar-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
-.annual-month { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: var(--radius-md); padding: 10px; }
-.annual-month-title { font-weight: 700; color: var(--olive-800); text-align: center; margin-bottom: 6px; }
+.annual-month { background: var(--gray-50); border: 1px solid var(--gray-hairline); border-radius: var(--radius-md); padding: 10px; }
+.annual-month-title { font-weight: 700; color: var(--ink); text-align: center; margin-bottom: 6px; }
 .annual-month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
 .annual-month-dow { font-size: 0.6rem; text-align: center; color: var(--gray-600); font-weight: 600; }
 .annual-day-cell {
-    background: var(--white); border: 1px solid var(--gray-200); border-radius: 4px;
+    background: var(--white); border: 1px solid var(--gray-hairline); border-radius: 4px;
     min-height: 46px; padding: 2px; font-size: 0.6rem; overflow: hidden;
 }
 .annual-day-cell.empty { background: transparent; border: none; }
 .annual-day-num { font-weight: 700; font-size: 0.6rem; color: var(--gray-600); }
 .annual-teacher-chip {
     display: block; font-size: 0.5rem; line-height: 1.3; padding: 0 2px; border-radius: 2px;
-    margin-top: 1px; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-top: 1px; color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.annual-teacher-chip.status-present { background: var(--olive-700); }
-.annual-teacher-chip.status-falta { background: var(--danger-muted); }
-.annual-teacher-chip.status-licencia { background: var(--info-muted); }
-.annual-teacher-chip.status-scheduled { background: var(--warning-muted); }
+.annual-teacher-chip.status-present { background: var(--ink); }
+.annual-teacher-chip.status-falta { background: var(--gray-500); }
+.annual-teacher-chip.status-licencia { background: var(--gray-400); color: var(--ink); }
+.annual-teacher-chip.status-scheduled { background: var(--gray-600); }
 .annual-day-cell.has-entries { cursor: pointer; }
-.annual-day-cell.has-entries:hover { box-shadow: 0 0 0 2px var(--olive-600) inset; background: var(--olive-tint); }
+.annual-day-cell.has-entries:hover { box-shadow: 0 0 0 2px var(--ink) inset; background: var(--gray-50); }
 
-/* ===== Detalle de un día (nombres en grande, al hacer clic en el día) ===== */
+/* ===== Detalle de un dia (nombres en grande, al hacer clic en el dia) ===== */
 .day-detail-teacher {
     display: flex; justify-content: space-between; align-items: center; gap: 10px;
     padding: 14px 16px; border-radius: var(--radius-md); margin-bottom: 10px; cursor: pointer;
-    font-size: 1.15rem; font-weight: 700; color: white; transition: filter 0.15s ease;
+    font-size: 1.1rem; font-weight: 700; color: var(--white); transition: filter 0.15s ease;
 }
-.day-detail-teacher:hover { filter: brightness(1.08); }
+.day-detail-teacher:hover { filter: brightness(1.15); }
 .day-detail-teacher .day-detail-status {
     font-size: 0.8rem; font-weight: 600; background: rgba(255,255,255,0.25);
-    padding: 4px 12px; border-radius: 12px; white-space: nowrap;
+    padding: 4px 12px; border-radius: var(--radius-pill); white-space: nowrap;
 }
-.day-detail-teacher.status-present { background: var(--olive-700); }
-.day-detail-teacher.status-falta { background: var(--danger-muted); }
-.day-detail-teacher.status-licencia { background: var(--info-muted); }
-.day-detail-teacher.status-scheduled { background: var(--warning-muted); }
+.day-detail-teacher.status-present { background: var(--ink); }
+.day-detail-teacher.status-falta { background: var(--gray-500); }
+.day-detail-teacher.status-licencia { background: var(--gray-400); color: var(--ink); }
+.day-detail-teacher.status-scheduled { background: var(--gray-600); }
 
-.face-recognition-status { margin: 10px 0; padding: 10px; border-radius: var(--radius-md); font-weight: 600; }
-.face-recognition-status.success { background: var(--olive-tint); color: var(--olive-800); border: 1px solid #c9d6b5; }
-.face-recognition-status.error   { background: #f5e9e9; color: #5c2f2f; border: 1px solid #e2c8c8; }
-.face-recognition-status.waiting { background: var(--gray-100); color: var(--gray-800); border: 1px solid var(--gray-200); }
-.face-recognition-status.processing { background: #f4eedd; color: #6b5420; border: 1px solid #e6d8ab; }
-.face-recognition-status.warning { background: #f4eedd; color: #6b5420; border: 1px solid #e6d8ab; }
+.face-recognition-status { margin: 10px 0; padding: 12px 14px; border-radius: var(--radius-md); font-weight: 600; }
+.face-recognition-status.success { background: var(--gray-50); color: var(--ink); border: 1px solid var(--gray-hairline); }
+.face-recognition-status.error   { background: var(--gray-hairline); color: var(--ink); border: 1px solid var(--gray-border); }
+.face-recognition-status.waiting { background: var(--gray-50); color: var(--gray-600); border: 1px solid var(--gray-hairline); }
+.face-recognition-status.processing { background: var(--gray-hairline); color: var(--ink); border: 1px solid var(--gray-border); }
+.face-recognition-status.warning { background: var(--gray-hairline); color: var(--ink); border: 1px solid var(--gray-border); }
 
-.accordion-button:not(.collapsed) { background: var(--olive-tint); color: var(--olive-800); }
+.accordion-button:not(.collapsed) { background: var(--gray-50); color: var(--ink); box-shadow: none; }
 .accordion-button:focus { box-shadow: none; }
+.accordion-button::after { filter: none; }
 .accordion-body { max-height: 400px; overflow-y: auto; }
 /* La grilla semanal y el listado de docentes ya traen su propio
-   scroll interno (weekly-grid-container / table-responsive), así
-   que no conviene recortarlos a 400px como al buzón de alertas. */
+   scroll interno (weekly-grid-container / tarjetas), asi que no
+   conviene recortarlos a 400px como al buzon de alertas. */
 #teachersAccordionBody { max-height: none; overflow: visible; }
 /* Chart.js necesita un contenedor de altura fija: con
    maintainAspectRatio:false el canvas llena este alto y ancho,
    en vez de calcular una altura enorme a partir del ancho. */
 .chart-container { position: relative; height: 300px; width: 100%; }
 
-/* Bootstrap 5.3's compiled .btn-* classes bake in fixed colors and
+/* ============================================================
+   BOTONES
+   Bootstrap 5.3's compiled .btn-* classes bake in fixed colors and
    do NOT read --bs-primary/--bs-success/etc at runtime (only the
    bg-*/text-* utility classes do), so the CSS variable overrides
-   above never reached actual buttons. Force the same palette here. */
-#app .btn-primary { background-color: var(--olive-700) !important; border-color: var(--olive-700) !important; }
-#app .btn-primary:hover, #app .btn-primary:focus { background-color: var(--olive-800) !important; border-color: var(--olive-800) !important; }
-#app .btn-success { background-color: var(--olive-700) !important; border-color: var(--olive-700) !important; }
-#app .btn-success:hover, #app .btn-success:focus { background-color: var(--olive-800) !important; border-color: var(--olive-800) !important; }
-#app .btn-danger { background-color: var(--danger-muted) !important; border-color: var(--danger-muted) !important; }
-#app .btn-danger:hover, #app .btn-danger:focus { background-color: #712f2f !important; border-color: #712f2f !important; }
-#app .btn-warning { background-color: var(--warning-muted) !important; border-color: var(--warning-muted) !important; color: #fff !important; }
-#app .btn-warning:hover, #app .btn-warning:focus { background-color: #7a5e22 !important; border-color: #7a5e22 !important; color: #fff !important; }
-#app .btn-info { background-color: var(--info-muted) !important; border-color: var(--info-muted) !important; color: #fff !important; }
-#app .btn-secondary { background-color: var(--gray-600) !important; border-color: var(--gray-600) !important; }
-#app .btn-secondary:hover, #app .btn-secondary:focus { background-color: var(--gray-800) !important; border-color: var(--gray-800) !important; }
+   above never reached actual buttons. Force the same palette here.
 
-.progress { height: 18px; margin-top: 10px; background-color: var(--gray-200); }
-.progress-bar { transition: width 0.3s ease; background-color: var(--olive-700) !important; }
+   Regla de jerarquia: la accion principal de cada seccion (Guardar,
+   Ingresar, Registrar...) es negra solida. Las acciones secundarias
+   (Cancelar, Limpiar, Cerrar, iconos de accion en listas) son
+   blancas con borde negro/gris: asi no quedan varias barras negras
+   apiladas una debajo de la otra en una misma pantalla.
+============================================================ */
+#app .btn {
+    border-radius: var(--radius-md);
+    font-weight: 700;
+    transition: opacity var(--transition-base), background-color var(--transition-base), color var(--transition-base);
+}
+#app .btn-primary, #app .btn-success {
+    background-color: var(--ink) !important;
+    border-color: var(--ink) !important;
+    color: var(--white) !important;
+}
+#app .btn-primary:hover, #app .btn-primary:focus,
+#app .btn-success:hover, #app .btn-success:focus { opacity: 0.8; color: var(--white) !important; }
 
-/* ===== PESTAÑAS DEL PANEL DE ADMIN (menos scroll: todo agrupado en
-   pestañas en vez de una sola pantalla larga con 7 secciones) ===== */
+#app .btn-danger, #app .btn-warning, #app .btn-info, #app .btn-secondary {
+    background-color: var(--white) !important;
+    border-color: var(--gray-border) !important;
+    color: var(--ink) !important;
+}
+#app .btn-danger:hover, #app .btn-danger:focus,
+#app .btn-warning:hover, #app .btn-warning:focus,
+#app .btn-info:hover, #app .btn-info:focus,
+#app .btn-secondary:hover, #app .btn-secondary:focus {
+    background-color: var(--gray-hairline) !important;
+    border-color: var(--gray-border) !important;
+    color: var(--ink) !important;
+}
+
+/* Variantes "outline" de Bootstrap: mismo tratamiento blanco+borde. */
+#app .btn-outline-primary, #app .btn-outline-secondary, #app .btn-outline-success,
+#app .btn-outline-danger, #app .btn-outline-warning, #app .btn-outline-info {
+    background-color: var(--white) !important;
+    border-color: var(--gray-border) !important;
+    color: var(--ink) !important;
+}
+#app .btn-outline-primary:hover, #app .btn-outline-secondary:hover, #app .btn-outline-success:hover,
+#app .btn-outline-danger:hover, #app .btn-outline-warning:hover, #app .btn-outline-info:hover,
+#app .btn-outline-primary:focus, #app .btn-outline-secondary:focus, #app .btn-outline-success:focus,
+#app .btn-outline-danger:focus, #app .btn-outline-warning:focus, #app .btn-outline-info:focus {
+    background-color: var(--gray-hairline) !important;
+    border-color: var(--gray-border) !important;
+    color: var(--ink) !important;
+}
+
+/* Botones "grandes" de una sola accion principal por pantalla:
+   altos y con esquinas bien redondeadas, como pide el estilo Uber.
+   Los .btn-sm (iconos de accion dentro de tarjetas/listas) quedan
+   chicos y NO ocupan todo el ancho: ver regla siguiente. */
+#app .btn:not(.btn-sm):not(.btn-link) { min-height: 48px; padding: 10px 22px; border-radius: var(--radius-lg); }
+#app .btn-sm {
+    min-height: 34px;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    width: auto !important;
+    display: inline-flex !important;
+    align-items: center;
+    gap: 4px;
+}
+#app .btn-link { font-weight: 600; }
+
+/* ============================================================
+   BADGES / PILLS - sin rojo/verde/amarillo, solo negro y gris
+============================================================ */
+#app .badge {
+    border-radius: var(--radius-pill) !important;
+    font-weight: 700;
+    padding: 5px 12px;
+    font-size: 0.72rem;
+    letter-spacing: 0.01em;
+}
+#app .badge.bg-success, #app .badge.bg-primary, #app .badge.bg-info {
+    background-color: var(--ink) !important;
+    color: var(--white) !important;
+}
+#app .badge.bg-danger, #app .badge.bg-warning {
+    background-color: var(--gray-hairline) !important;
+    color: var(--ink) !important;
+    border: 1px solid var(--gray-border);
+}
+
+.progress { height: 10px; margin-top: 10px; background-color: var(--gray-hairline); border-radius: var(--radius-pill); }
+.progress-bar { transition: width 0.3s ease; background-color: var(--ink) !important; border-radius: var(--radius-pill); }
+
+/* ============================================================
+   PESTAÑAS DEL PANEL DE ADMIN: blancas con borde (chips), no
+   subrayado. La activa se invierte a negro para marcar seleccion.
+============================================================ */
 .admin-tabs {
-    border-bottom: 1px solid var(--gray-200);
-    margin-bottom: 20px;
+    border-bottom: none;
+    margin-bottom: 22px;
     flex-wrap: nowrap;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    gap: 8px;
+    padding-bottom: 4px;
 }
-.admin-tabs::-webkit-scrollbar { height: 4px; }
+.admin-tabs::-webkit-scrollbar { height: 0; }
 .admin-tabs .nav-link {
-    border: none;
-    color: var(--gray-600);
+    border: 1px solid var(--gray-border) !important;
+    background: var(--white);
+    color: var(--ink);
     font-weight: 600;
-    font-size: 0.9rem;
-    padding: 10px 16px;
+    font-size: 0.85rem;
+    padding: 10px 18px;
     white-space: nowrap;
-    border-radius: 0;
-    border-bottom: 3px solid transparent;
-    transition: color 0.3s ease, border-color 0.3s ease;
+    border-radius: var(--radius-pill) !important;
+    transition: background-color 0.2s ease, color 0.2s ease;
 }
-.admin-tabs .nav-link:hover { color: var(--olive-800); border-color: var(--olive-tint); }
+.admin-tabs .nav-link:hover { background: var(--gray-hairline); }
 .admin-tabs .nav-link.active {
-    color: var(--olive-800);
-    background: transparent;
-    border-bottom: 3px solid var(--olive-800);
+    color: var(--white) !important;
+    background: var(--ink) !important;
+    border-color: var(--ink) !important;
 }
+.admin-tabs .nav-link.active .badge { background: var(--white) !important; color: var(--ink) !important; }
 .admin-tab-content .tab-pane .form-section:first-child,
 .admin-tab-content .tab-pane .accordion:first-child { margin-top: 0 !important; }
 .alerts-list-scroll { max-height: 60vh; overflow-y: auto; }
@@ -522,10 +722,12 @@ body {
 .docente-form-accordion .accordion-body { max-height: none; overflow: visible; padding-top: 20px; }
 
 @media (max-width: 768px) {
-    .admin-tabs .nav-link { padding: 10px 12px; font-size: 0.82rem; }
+    .admin-tabs .nav-link { padding: 9px 14px; font-size: 0.8rem; }
 }
 
-/* ===== BLOQUEO POR SUSCRIPCIÓN VENCIDA (checkSuscripcion.js) ===== */
+/* ============================================================
+   BLOQUEO POR SUSCRIPCION VENCIDA (checkSuscripcion.js)
+============================================================ */
 #suscripcionVencidaOverlay {
     position: fixed; inset: 0; z-index: 100000;
     background: var(--white);
@@ -537,91 +739,251 @@ body {
 .suscripcion-vencida-card {
     max-width: 420px; width: 100%; text-align: center;
     background: var(--white);
-    border: 1px solid var(--gray-200);
+    border: 1px solid var(--gray-hairline);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-soft);
     padding: 48px 36px;
 }
-.suscripcion-vencida-icon { font-size: 3rem; color: var(--danger-muted); margin-bottom: 16px; }
-.suscripcion-vencida-card h1 { font-size: 1.6rem; font-weight: 800; color: var(--gray-800); margin-bottom: 12px; }
+.suscripcion-vencida-icon { font-size: 3rem; color: var(--ink); margin-bottom: 16px; }
+.suscripcion-vencida-card h1 { font-size: 1.5rem; font-weight: 800; color: var(--ink); margin-bottom: 12px; }
 .suscripcion-vencida-card p { color: var(--gray-600); line-height: 1.5; margin-bottom: 28px; }
 .suscripcion-vencida-btn {
     display: inline-flex; align-items: center; gap: 8px;
-    padding: 12px 28px; border-radius: var(--radius-md);
-    background: var(--olive-800); border: none; color: white; font-weight: 600;
-    text-decoration: none; transition: background 0.3s ease;
+    padding: 14px 28px; border-radius: var(--radius-pill);
+    background: var(--ink); border: none; color: var(--white); font-weight: 700;
+    text-decoration: none; transition: opacity 0.2s ease;
 }
-.suscripcion-vencida-btn:hover { background: var(--olive-900); color: white; }
+.suscripcion-vencida-btn:hover { opacity: 0.8; color: var(--white); }
 
 /* ===== ESTADO DE MODELOS DE RECONOCIMIENTO FACIAL ===== */
 .models-banner {
-    background: var(--gray-100); border: 1px solid var(--gray-200); border-radius: var(--radius-md);
-    padding: 8px 14px; font-size: 0.8rem; color: var(--gray-800); display: flex;
+    background: var(--gray-50); border: 1px solid var(--gray-hairline); border-radius: var(--radius-md);
+    padding: 8px 14px; font-size: 0.8rem; color: var(--ink); display: flex;
     align-items: center; gap: 8px; margin-bottom: 16px;
 }
-.models-banner.ok { background: var(--olive-tint); color: var(--olive-800); border-color: #c9d6b5; }
-.models-banner.error { background: #f5e9e9; color: #5c2f2f; border-color: #e2c8c8; }
+.models-banner.ok { background: var(--gray-50); color: var(--ink); border-color: var(--gray-hairline); }
+.models-banner.error { background: var(--gray-hairline); color: var(--ink); border-color: var(--gray-border); }
 .models-banner .spinner-border { width: 0.9rem; height: 0.9rem; }
 
 /* ============================================================
-   MÓVIL - ESTILO iOS
-   Botones grandes (mínimo 44px, umbral táctil recomendado por
-   Apple HIG), listado de docentes como tarjetas apiladas en vez
-   de tabla, y menú hamburguesa para la barra de acciones del
+   FORMULARIOS (global): inputs grandes y redondeados, sin foco azul
+============================================================ */
+#app .form-control, #app .form-select {
+    border: 1px solid var(--gray-border);
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+    color: var(--ink);
+    background: var(--white);
+}
+#app .form-control:focus, #app .form-select:focus {
+    border-color: var(--ink);
+    box-shadow: none;
+}
+#app label:not(.form-check-label) { font-weight: 600; color: var(--ink); font-size: 0.85rem; margin-bottom: 4px; display: inline-block; }
+#app .form-check-input:checked { background-color: var(--ink); border-color: var(--ink); }
+#app .form-check-input:focus { box-shadow: none; border-color: var(--gray-400); }
+
+/* ============================================================
+   MODALES: esquinas redondeadas, sin colores fuertes en headers
+============================================================ */
+#app .modal-content { border-radius: var(--radius-lg); border: none; box-shadow: var(--shadow-soft); }
+#app .modal-header { border-bottom: 1px solid var(--gray-hairline); }
+#app .modal-header.bg-danger { background: var(--ink) !important; color: var(--white) !important; }
+#app .modal-content.border-danger { border: 1px solid var(--gray-hairline) !important; }
+#app .modal-footer { border-top: 1px solid var(--gray-hairline); }
+
+/* ============================================================
+   LISTADO DE DOCENTES: tarjetas blancas con sombra suave (avatar,
+   nombre, datos, estado), NUNCA tabla — a cualquier ancho de
+   pantalla. Requiere <table class="ios-table"> y <td data-label="...">
+   en cada celda (ver loadTeachersTable() en script.js): no hace
+   falta tocar el JS, la transformacion es 100% CSS.
+============================================================ */
+.ios-table thead { display: none; }
+.ios-table, .ios-table tbody { display: block; width: 100%; border: none; }
+.ios-table tbody {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+}
+@media (min-width: 700px) {
+    .ios-table tbody { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1100px) {
+    .ios-table tbody { grid-template-columns: repeat(3, 1fr); }
+}
+.ios-table tr {
+    display: block;
+    background: var(--white);
+    border: 1px solid var(--gray-hairline);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    padding: 16px;
+    transition: box-shadow 0.2s ease;
+}
+.ios-table tr:hover { box-shadow: var(--shadow-soft); background: var(--white); }
+.ios-table td {
+    display: block;
+    border: none !important;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--gray-hairline) !important;
+}
+.ios-table td:last-child { border-bottom: none !important; padding-top: 12px; }
+.ios-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.66rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gray-600);
+    margin-bottom: 4px;
+}
+/* Primera celda (Foto): avatar circular grande y centrado, sin
+   etiqueta arriba, como header visual de la tarjeta. */
+.ios-table td[data-label="Foto"] { text-align: center; padding-top: 2px; border-bottom: none !important; }
+.ios-table td[data-label="Foto"]::before { display: none; }
+.ios-table td[data-label="Foto"] img { width: 64px !important; height: 64px !important; box-shadow: var(--shadow-softer); }
+/* Nombre / Docente / Titulo: la fila mas destacada de cada tarjeta
+   (docentes, licencias y eventos respectivamente). */
+.ios-table td[data-label="Nombre"],
+.ios-table td[data-label="Docente"],
+.ios-table td[data-label="Título"] { font-size: 1.02rem; font-weight: 700; }
+
+/* ============================================================
+   MOVIL - ESTILO APP NATIVA
+   Botones grandes (minimo 44px, umbral tactil recomendado por
+   Apple HIG) y menu hamburguesa para la barra de acciones del
    admin (ver el <div class="dropdown"> con .hamburger-btn en
    index.html, junto a la barra de botones que solo se ve en PC).
-   ============================================================ */
+============================================================ */
 @media (max-width: 768px) {
-    .main-container { padding: 15px; border-radius: var(--radius-md); min-height: 95vh; }
-    .dashboard-header { flex-direction: column; text-align: center; }
-    .dashboard-header h2 { margin-bottom: 15px; }
+    body { background: var(--white); }
+    .main-container { min-height: 100vh; }
+    .dashboard-header { padding-top: 12px; }
     .camera-controls .btn { margin: 5px; }
     .schedule-grid { grid-template-columns: repeat(6, 1fr); min-width: 350px; }
     .schedule-slot { min-height: 50px; font-size: 0.55rem; }
     .schedule-slot .slot-time { font-size: 0.5rem; }
 
-    /* Botones y campos con umbral táctil cómodo (44px mínimo) */
-    .btn, .form-control, .form-select { min-height: 44px; }
-    .btn-sm { min-height: 40px; padding-top: 8px; padding-bottom: 8px; }
+    /* Botones y campos con umbral tactil comodo (44px minimo) */
+    #app .btn:not(.btn-sm), #app .form-control, #app .form-select { min-height: 46px; }
 
     .hamburger-btn {
         width: 44px; height: 44px; padding: 0;
         display: flex; align-items: center; justify-content: center;
         border-radius: var(--radius-md); font-size: 1.2rem;
+        background: var(--white) !important; border: 1px solid var(--gray-border) !important; color: var(--ink) !important;
     }
-    .dropdown-menu { border-radius: var(--radius-md); box-shadow: var(--shadow-soft); border: 1px solid var(--gray-200); }
-    .dropdown-item { padding: 12px 16px; min-height: 44px; display: flex; align-items: center; gap: 8px; }
-    .dropdown-item:active, .dropdown-item.active { background: var(--olive-700); }
+    .dropdown-menu { border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); border: 1px solid var(--gray-hairline); padding: 8px; }
+    .dropdown-item { padding: 12px 14px; min-height: 44px; display: flex; align-items: center; gap: 8px; border-radius: var(--radius-sm); font-weight: 600; }
+    .dropdown-item:active, .dropdown-item.active, .dropdown-item:hover { background: var(--gray-hairline); color: var(--ink); }
 
-    /* Listado de docentes: tarjetas tipo iOS en vez de tabla.
-       Requiere <table class="ios-table"> y <td data-label="..."> en
-       cada celda (ver loadTeachersTable() en script.js). */
-    .ios-table thead { display: none; }
-    .ios-table, .ios-table tbody, .ios-table tr, .ios-table td { display: block; width: 100%; }
-    .ios-table { border: none; }
-    .ios-table tr {
-        background: var(--white);
-        border: 1px solid var(--gray-200);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-softer);
-        margin-bottom: 12px;
-        padding: 12px 16px;
-    }
-    .ios-table tbody tr:hover { background: var(--white); }
-    .ios-table td {
-        border: none !important;
-        padding: 8px 0;
-        border-bottom: 1px solid var(--gray-100) !important;
-    }
-    .ios-table td:last-child { border-bottom: none !important; padding-top: 12px; }
-    .ios-table td[data-label]::before {
-        content: attr(data-label);
-        display: block;
-        font-size: 0.7rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: var(--gray-600);
-        margin-bottom: 4px;
-    }
+    /* Tablas que no tienen su propio layout de tarjetas (.ios-table):
+       scroll horizontal en vez de romper el layout. */
+    #app table:not(.ios-table) { display: block; overflow-x: auto; white-space: nowrap; }
+
+    /* Bottom sheet: los modales bloqueantes (fichaje, confirmaciones)
+       se anclan abajo como en una app nativa. */
+    #app .modal.fade .modal-dialog { transition: transform 0.25s ease-out; }
 }
+
+/* ============================================================
+   LISTADO DE DOCENTES: fila ultra compacta (avatar 40px + nombre +
+   materia + botones actuales + flecha para entrar al detalle).
+   Se apoya en el mismo <table class="ios-table"> + data-label de
+   loadTeachersTable() (ver script.js), solo que en modo
+   "teachers-compact" se ocultan todos los campos salvo Foto/Nombre/
+   Materia/Acciones: el resto de la info (DNI, telefono, domicilio,
+   horario, contraseña, biometria, estado) se ve en la ficha
+   full-screen (#teacherDetailScreen) al tocar la fila.
+============================================================ */
+.ios-table.teachers-compact tbody { grid-template-columns: 1fr !important; gap: 10px; }
+.ios-table.teachers-compact tr {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    grid-template-rows: auto auto;
+    column-gap: 12px;
+    align-items: center;
+    padding: 10px 26px 10px 12px;
+    cursor: pointer;
+    position: relative;
+}
+.ios-table.teachers-compact tr:active { background: var(--gray-50); }
+.ios-table.teachers-compact td { padding: 0 !important; border-bottom: none !important; }
+.ios-table.teachers-compact td[data-label]::before { display: none !important; }
+
+.ios-table.teachers-compact td[data-label="Foto"] { grid-column: 1; grid-row: 1 / 3; text-align: left; }
+.ios-table.teachers-compact td[data-label="Foto"] img { width: 40px !important; height: 40px !important; box-shadow: none; }
+.ios-table.teachers-compact td[data-label="Nombre"] {
+    grid-column: 2; grid-row: 1;
+    font-size: 0.95rem; font-weight: 700;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ios-table.teachers-compact td[data-label="Materia"] {
+    grid-column: 2; grid-row: 2;
+    font-size: 0.78rem; font-weight: 400; color: var(--gray-600);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ios-table.teachers-compact td[data-label="Acciones"] {
+    grid-column: 3; grid-row: 1 / 3;
+    display: flex; align-items: center; gap: 4px;
+    max-width: 210px; overflow-x: auto;
+}
+.ios-table.teachers-compact td[data-label="Acciones"] .btn,
+.ios-table.teachers-compact td[data-label="Acciones"] .btn-whatsapp {
+    width: 28px; height: 28px; min-height: 0 !important; padding: 0 !important;
+    display: inline-flex !important; align-items: center; justify-content: center;
+    border-radius: 8px; font-size: 0.72rem; flex: 0 0 auto;
+}
+.ios-table.teachers-compact td[data-label="DNI"],
+.ios-table.teachers-compact td[data-label="Teléfono"],
+.ios-table.teachers-compact td[data-label="Domicilio"],
+.ios-table.teachers-compact td[data-label="Localidad"],
+.ios-table.teachers-compact td[data-label="Horario"],
+.ios-table.teachers-compact td[data-label="Contraseña"],
+.ios-table.teachers-compact td[data-label="Biometría"],
+.ios-table.teachers-compact td[data-label="Estado hoy"] { display: none !important; }
+
+/* Flecha ">" para entrar al detalle */
+.ios-table.teachers-compact tr::after {
+    content: "\203A";
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    font-size: 1.3rem; font-weight: 700; color: var(--gray-400); line-height: 1;
+    pointer-events: none;
+}
+
+/* ============================================================
+   FICHA DE DOCENTE: pantalla de detalle full-screen (tipo iOS)
+============================================================ */
+.teacher-detail-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 4px 0 18px; border-bottom: 1px solid var(--gray-hairline); margin-bottom: 24px;
+    flex-wrap: wrap; gap: 10px;
+}
+.teacher-detail-back {
+    background: none; border: none; color: var(--ink); font-weight: 700; font-size: 0.95rem;
+    display: inline-flex; align-items: center; gap: 2px; padding: 8px 6px 8px 0;
+}
+.teacher-detail-back:hover { opacity: 0.6; }
+.teacher-detail-header-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.teacher-detail-header-actions .btn {
+    width: 36px; height: 36px; min-height: 0 !important; padding: 0 !important;
+    display: inline-flex !important; align-items: center; justify-content: center;
+    border-radius: 50%;
+}
+
+.teacher-detail-body { max-width: 440px; margin: 0 auto; text-align: center; padding-bottom: 24px; }
+.teacher-detail-avatar {
+    width: 120px; height: 120px; border-radius: 50%; object-fit: cover;
+    box-shadow: var(--shadow-soft); margin-bottom: 16px; background: var(--gray-100);
+}
+.teacher-detail-name { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.01em; }
+.teacher-detail-dni { color: var(--gray-600); font-size: 0.9rem; margin-bottom: 20px; }
+.teacher-detail-info-grid { text-align: left; display: flex; flex-direction: column; gap: 14px; }
+.teacher-detail-info-row { border-bottom: 1px solid var(--gray-hairline); padding-bottom: 10px; }
+.teacher-detail-info-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--gray-600); font-weight: 700; margin-bottom: 4px; }
+.teacher-detail-info-value { font-weight: 600; }
+
+.teacher-detail-actions { max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 0 32px; }
+.teacher-detail-actions .btn { width: 100%; }

@@ -1,5 +1,6 @@
 node_modules/
 .env
+.firebase/
 ASISCAMPRO_CREDENCIALES_VIRGEN.txt
 ASISCAMPRO_VIRGEN_URL.txt
 Id_Service_gmail_js.txt

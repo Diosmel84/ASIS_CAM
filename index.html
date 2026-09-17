@@ -20,8 +20,8 @@
         <div id="loginScreen">
             <div class="login-header">
                 <img src="/logo.png" alt="ASISCAM PRO" class="institution-logo">
-                <h1><i class="bi bi-person-badge"></i> Bienvenidos</h1>
-                <p>Sistema de Control de Asistencia Docente</p>
+                <h1>ASIS-CAM</h1>
+                <p>Control de Asistencia Docente</p>
             </div>
             <div class="login-form">
                 <div id="loginModelsBanner" class="models-banner">
@@ -445,7 +445,7 @@
                                 </div>
                                 <div class="admin-table">
                                     <div class="table-responsive">
-                                        <table class="table table-striped ios-table">
+                                        <table class="table table-striped ios-table teachers-compact">
                                             <thead>
                                                 <tr><th>Foto</th><th>DNI</th><th>Nombre</th><th>Teléfono</th><th>Domicilio</th><th>Localidad</th><th>Materia</th><th>Horario</th><th>Contraseña</th><th>Biometría</th><th>Estado</th><th>Acciones</th></tr>
                                             </thead>
@@ -470,7 +470,7 @@
                     </div>
                     <button class="btn btn-primary" onclick="addLicencia()"><i class="bi bi-plus-circle"></i> Registrar Licencia</button>
                     <div class="table-responsive mt-3">
-                        <table class="table table-sm table-striped">
+                        <table class="table ios-table">
                             <thead><tr><th>Docente</th><th>Desde</th><th>Hasta</th><th>Motivo</th><th>Acciones</th></tr></thead>
                             <tbody id="licenciasTableBody"><tr><td colspan="5" class="text-center text-muted">Sin licencias registradas</td></tr></tbody>
                         </table>
@@ -483,7 +483,7 @@
                     <p class="text-muted">Los docentes convocados a un Evento Especial no generan alerta de Falta por su horario habitual en esa fecha.</p>
                     <button class="btn btn-primary mb-3" onclick="openEventoModal()"><i class="bi bi-plus-circle"></i> Nuevo Evento</button>
                     <div class="table-responsive">
-                        <table class="table table-sm table-striped">
+                        <table class="table ios-table">
                             <thead><tr><th>Título</th><th>Descripción</th><th>Fecha inicio &rarr; Fin</th><th>Escuela</th><th>Docentes</th><th>Acciones</th></tr></thead>
                             <tbody id="eventosTableBody"><tr><td colspan="6" class="text-center text-muted">Sin eventos registrados</td></tr></tbody>
                         </table>
@@ -592,6 +592,21 @@
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- ===== FICHA DE DOCENTE: vista de detalle full-screen (tipo iOS) =====
+                 Reemplaza al viejo modal "Ficha del docente": showTeacherDetail()
+                 en script.js oculta adminDashboard y muestra esta pantalla (mismo
+                 patron que showStatsScreen()/hideStatsScreen()). No agrega
+                 queries nuevas: reusa los mismos datos locales que ya calculaba
+                 el modal anterior. -->
+            <div id="teacherDetailScreen" class="hidden teacher-detail-screen">
+                <div class="teacher-detail-header">
+                    <button class="teacher-detail-back" onclick="hideTeacherFullDetail()"><i class="bi bi-chevron-left"></i> Docentes</button>
+                    <div class="teacher-detail-header-actions" id="teacherDetailHeaderActions"></div>
+                </div>
+                <div class="teacher-detail-body" id="teacherDetailFullBody"></div>
+                <div class="teacher-detail-actions" id="teacherDetailBottomActions"></div>
             </div>
 
             <!-- ===== TEACHER DASHBOARD ===== -->
@@ -798,24 +813,6 @@
         </div>
     </div>
 
-    <!-- ===== FICHA / REPORTE INDIVIDUAL DEL DOCENTE ===== -->
-    <div class="modal fade" id="teacherDetailModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="teacherDetailModalTitle"><i class="bi bi-search"></i> Ficha del docente</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body" id="teacherDetailBody"></div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-info" onclick="openCalendarFromDetail()"><i class="bi bi-calendar3"></i> Ver Calendario</button>
-                    <button type="button" class="btn btn-success" onclick="generateIndividualReport()"><i class="bi bi-file-earmark-pdf"></i> Generar Reporte</button>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- ===== DETALLE DE UN DÍA DEL CALENDARIO ANUAL (nombres en grande) ===== -->
     <div class="modal fade" id="dayDetailModal" tabindex="-1">
         <div class="modal-dialog">
@@ -988,6 +985,5 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="script.js"></script>
     <script src="src/utils/checkSuscripcion.js"></script>
-    <link rel="stylesheet" href="/css/uber-mobile-only.css">
 </body>
 </html>
