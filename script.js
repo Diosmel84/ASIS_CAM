@@ -4201,6 +4201,12 @@ function diasCorto(dias) {
     return (dias || []).map(d => abrev[d] || d).join(' ');
 }
 
+// Case-insensitive a propósito: tipo puede haber quedado guardado como
+// "Anual"/"ANUAL"/"anual" según quién la haya cargado.
+function esMateriaAnual(m) {
+    return (m.tipo || '').toUpperCase() === 'ANUAL';
+}
+
 // Normaliza el horario de una materia al formato nuevo, un horario por
 // día: [{dia, inicio, fin}]. Compatibilidad con materias viejas que
 // todavía no tienen `horarios` cargado (antes de add_horarios_por_dia_
@@ -4239,7 +4245,7 @@ function renderGrillaMaterias() {
     }
     // Anual = dura todo el año: aparece en los 2 cuatrimestres sin
     // importar en cuál se haya cargado, no se duplica en la base.
-    const filtradas = currentMaterias.filter(m => String(m.carrera_id) === String(carreraId) && m.anio === grillaAnioSeleccionado && (m.tipo === 'ANUAL' || m.cuatrimestre === grillaCuatSeleccionado));
+    const filtradas = currentMaterias.filter(m => String(m.carrera_id) === String(carreraId) && m.anio === grillaAnioSeleccionado && (esMateriaAnual(m) || m.cuatrimestre === grillaCuatSeleccionado));
     if (filtradas.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin materias cargadas para este año/cuatrimestre</td></tr>';
         return;
@@ -4250,8 +4256,8 @@ function renderGrillaMaterias() {
         const profesorNombre = profesor ? `${profesor.apellido} ${profesor.nombre}` : '<span class="text-muted">Sin asignar</span>';
         return `
             <tr>
-                <td data-label="Materia">${m.nombre}${m.tipo === 'ANUAL' ? ' <span class="badge bg-info text-dark">ANUAL</span>' : ''}</td>
-                <td data-label="Tipo">${m.tipo === 'ANUAL' ? 'Anual' : 'Cuatrimestral'}</td>
+                <td data-label="Materia">${m.nombre}${esMateriaAnual(m) ? ' <span class="badge bg-info text-dark">ANUAL</span>' : ''}</td>
+                <td data-label="Tipo">${esMateriaAnual(m) ? 'Anual' : 'Cuatrimestral'}</td>
                 <td data-label="Días y Horario">${formatoHorariosCorto(m)}</td>
                 <td data-label="Profesor Asignado">${profesorNombre}</td>
                 <td data-label="Acciones">
@@ -4323,7 +4329,7 @@ function openMateriaModal(id) {
     document.getElementById('materiaAnio').value = m ? m.anio : 1;
     document.getElementById('materiaCuatrimestre').value = m ? m.cuatrimestre : 1;
     document.getElementById('materiaNombre').value = m ? m.nombre : '';
-    document.getElementById('materiaTipo').value = m ? m.tipo : 'ANUAL';
+    document.getElementById('materiaTipo').value = m ? (esMateriaAnual(m) ? 'ANUAL' : 'CUATRIMESTRAL') : 'ANUAL';
     (m ? materiaHorarios(m) : []).forEach(h => {
         const diaSinTilde = diaMateriaSinTilde(h.dia);
         const chk = document.getElementById('materiaDia' + diaSinTilde);

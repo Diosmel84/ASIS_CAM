@@ -10,3 +10,7 @@ password_email_js.txt
 # no texto plano - ver config.example.js y roles.js). No se sube a git;
 # en el servidor de deploy (Netlify/Firebase) se sube a mano una vez.
 config.secrets.js
+
+# Dumps de scripts/backup.js (datos reales de carreras/materias, no
+# hace falta versionarlos - se regeneran corriendo el script).
+backups/
