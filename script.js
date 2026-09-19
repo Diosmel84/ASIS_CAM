@@ -637,7 +637,7 @@ function loadGeofenceAdminForm() {
     if (resetBtn) resetBtn.disabled = !puedeEditarGeo;
 }
 
-function saveGeofenceAdminForm() {
+async function saveGeofenceAdminForm() {
     if (!tienePermiso(currentUser.rol, 'editar_geo')) {
         showToast(mensajeSinPermiso('editar_geo'), 'error');
         logAccion('PERMISO_DENEGADO', 'Intentó guardar la geocerca de la escuela sin permiso');
@@ -649,30 +649,30 @@ function saveGeofenceAdminForm() {
     const nombreLugar = document.getElementById('geofenceName').value.trim() || DEFAULT_GEOFENCE_CONFIG.nombreLugar;
     if (!validarGeocerca('geofenceLat', 'geofenceLng')) { showToast('Marcá una ubicación en el mapa antes de guardar', 'error'); return; }
     if (!Number.isFinite(radio) || radio < 50 || radio > 500) { showToast('El radio debe estar entre 50 y 500 metros', 'error'); return; }
-    saveGeofenceConfig({
+    const resultado = await persistToSupabaseEsperando('geofence', {
         lat, lng, radio, nombreLugar,
         actualizadoPor: currentUser ? (currentUser.username || currentUser.dni || 'admin') : 'admin',
         actualizadoEn: new Date().toISOString(),
     });
     loadGeofenceAdminForm();
-    logAccion('EDITAR_GEOCERCA', `Actualizó la ubicación de fichaje a "${nombreLugar}" (${lat}, ${lng}), radio ${radio}m`);
-    showToast('✅ Ubicación de fichaje guardada', 'success');
+    if (resultado.ok) logAccion('EDITAR_GEOCERCA', `Actualizó la ubicación de fichaje a "${nombreLugar}" (${lat}, ${lng}), radio ${radio}m`);
+    toastSegunConfirmacion(resultado, '✅ Ubicación de fichaje guardada');
 }
 
-function resetGeofenceAdminForm() {
+async function resetGeofenceAdminForm() {
     if (!tienePermiso(currentUser.rol, 'editar_geo')) {
         showToast(mensajeSinPermiso('editar_geo'), 'error');
         logAccion('PERMISO_DENEGADO', 'Intentó restablecer la geocerca de la escuela sin permiso');
         return;
     }
-    saveGeofenceConfig({
+    const resultado = await persistToSupabaseEsperando('geofence', {
         ...DEFAULT_GEOFENCE_CONFIG,
         actualizadoPor: currentUser ? (currentUser.username || currentUser.dni || 'admin') : 'admin',
         actualizadoEn: new Date().toISOString(),
     });
     loadGeofenceAdminForm();
-    logAccion('EDITAR_GEOCERCA', 'Restableció la ubicación de fichaje al valor por defecto');
-    showToast('Ubicación restablecida al Colegio Secundario De San Carlos', 'info');
+    if (resultado.ok) logAccion('EDITAR_GEOCERCA', 'Restableció la ubicación de fichaje al valor por defecto');
+    toastSegunConfirmacion(resultado, 'Ubicación restablecida al Colegio Secundario De San Carlos');
 }
 
 // Atajo para cargar rápido la ubicación real (parado en la escuela,
@@ -975,6 +975,42 @@ function persistToSupabase(key, value) {
                 supabaseAvailable = true;
             }
         });
+}
+
+// Como persistToSupabase(), pero para las pocas acciones donde el
+// toast de éxito tiene que esperar la confirmación real de Supabase en
+// vez de ser optimista (ver saveCriteria()/saveGeofenceAdminForm()):
+// devuelve el resultado en vez de mostrar un toast genérico solo.
+async function persistToSupabaseEsperando(key, value) {
+    dataStore[key] = value;
+    writeLocalCache(key, value);
+    if (!sb) {
+        markPendingSync(key);
+        return { ok: false, offline: true };
+    }
+    try {
+        const { error } = await sb.from('app_data')
+            .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        if (error) throw error;
+        clearPendingSync(key);
+        supabaseAvailable = true;
+        return { ok: true };
+    } catch (error) {
+        console.error('Error guardando "' + key + '" en Supabase:', error);
+        markPendingSync(key);
+        supabaseAvailable = false;
+        return { ok: false, error };
+    }
+}
+
+function toastSegunConfirmacion({ ok, offline, error }, mensajeExito) {
+    if (ok) {
+        showToast(mensajeExito, 'success');
+    } else if (offline) {
+        showToast('Sin conexión: se guardó en este dispositivo y se sincronizará solo al reconectar.', 'warning');
+    } else {
+        showToast('No se pudo confirmar el guardado (' + describeSupabaseError(error) + '). Se guardó localmente y se sincronizará al reconectar.', 'warning');
+    }
 }
 
 function getTeachers() { return dataStore.teachers; }
@@ -2236,26 +2272,8 @@ async function saveCriteria() {
         minAttendance: parseInt(document.getElementById('minAttendance').value) || 80,
         minHours: parseInt(document.getElementById('minHours').value) || 4
     };
-    dataStore.criteria = criteria;
-    writeLocalCache('criteria', criteria);
-    if (!sb) {
-        markPendingSync('criteria');
-        showToast('Sin conexión: se guardó en este dispositivo y se sincronizará solo al reconectar.', 'warning');
-        return;
-    }
-    try {
-        const { error } = await sb.from('app_data')
-            .upsert({ key: 'criteria', value: criteria, updated_at: new Date().toISOString() }, { onConflict: 'key' });
-        if (error) throw error;
-        clearPendingSync('criteria');
-        supabaseAvailable = true;
-        showToast('Criterios guardados', 'success');
-    } catch (error) {
-        console.error('Error guardando "criteria" en Supabase:', error);
-        markPendingSync('criteria');
-        supabaseAvailable = false;
-        showToast('No se pudo confirmar el guardado (' + describeSupabaseError(error) + '). Se guardó localmente y se sincronizará al reconectar.', 'warning');
-    }
+    const resultado = await persistToSupabaseEsperando('criteria', criteria);
+    toastSegunConfirmacion(resultado, 'Criterios guardados');
 }
 
 function loadReportTeachers() {
