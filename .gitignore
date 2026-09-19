@@ -5,3 +5,8 @@ ASISCAMPRO_CREDENCIALES_VIRGEN.txt
 ASISCAMPRO_VIRGEN_URL.txt
 Id_Service_gmail_js.txt
 password_email_js.txt
+
+# Credenciales reales de Secretaria/Rector/Programador (hashes SHA-256,
+# no texto plano - ver config.example.js y roles.js). No se sube a git;
+# en el servidor de deploy (Netlify/Firebase) se sube a mano una vez.
+config.secrets.js

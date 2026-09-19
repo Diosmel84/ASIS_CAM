@@ -16,6 +16,11 @@
 <body>
 
     <div class="main-container" id="app">
+        <!-- Se muestra con display:block por roles.js si config.secrets.js
+             no está presente (ver config.example.js). -->
+        <div id="demoModeBanner" class="alert alert-warning text-center mb-3" style="display:none; border-radius:0;">
+            <i class="bi bi-exclamation-triangle"></i> MODO DEMO - Configurar config.secrets.js
+        </div>
         <!-- ===== LOGIN ===== -->
         <div id="loginScreen">
             <div class="login-header">
@@ -23,12 +28,24 @@
                 <h1>ASIS-CAM</h1>
                 <p>Control de Asistencia Docente</p>
             </div>
-            <div class="login-form">
+            <!-- Paso 1: elegir rol -->
+            <div class="login-form" id="roleSelectStep">
+                <p class="text-center text-muted mb-3">¿Cómo querés ingresar?</p>
+                <button type="button" class="btn btn-outline-dark d-block w-100 mb-2" onclick="selectRole('DOCENTE')"><i class="bi bi-person-badge"></i> Docente</button>
+                <button type="button" class="btn btn-outline-dark d-block w-100 mb-2" onclick="selectRole('SECRETARIA')"><i class="bi bi-person-workspace"></i> Secretaría</button>
+                <button type="button" class="btn btn-outline-dark d-block w-100 mb-2" onclick="selectRole('RECTOR')"><i class="bi bi-mortarboard"></i> Rector</button>
+                <button type="button" class="btn btn-outline-dark d-block w-100" onclick="selectRole('PROGRAMADOR')"><i class="bi bi-code-slash"></i> Programador</button>
+            </div>
+
+            <!-- Paso 2: usuario + contraseña del rol elegido -->
+            <div class="login-form hidden" id="credentialsStep">
+                <button type="button" class="btn btn-link btn-sm p-0 mb-2" onclick="backToRoleSelect()"><i class="bi bi-arrow-left"></i> Cambiar rol</button>
+                <p class="text-muted small mb-2">Ingresando como <strong id="selectedRoleLabel"></strong></p>
                 <div id="loginModelsBanner" class="models-banner">
                     <span class="spinner-border spinner-border-sm"></span> Cargando módulo de reconocimiento facial...
                 </div>
                 <div class="form-group">
-                    <label for="loginUser">Usuario (DNI)</label>
+                    <label for="loginUser" id="loginUserLabel">Usuario (DNI)</label>
                     <input type="text" class="form-control" id="loginUser" placeholder="Ingresa tu DNI">
                 </div>
                 <div class="form-group">
@@ -59,7 +76,7 @@
                         <p class="text-muted small">Ingresá tu usuario o DNI. Si tiene un e-mail cargado, te enviamos un link para restablecer la contraseña.</p>
                         <div class="form-group">
                             <label>Usuario o DNI</label>
-                            <input type="text" class="form-control" id="forgotUserInput" placeholder="ADMIN o tu DNI">
+                            <input type="text" class="form-control" id="forgotUserInput" placeholder="MEUDEUS o tu DNI">
                         </div>
                         <div id="forgotPasswordMsg" class="mt-2"></div>
                     </div>
@@ -146,7 +163,7 @@
                     <button class="btn btn-primary btn-sm" onclick="showStatsScreen()">
                         <i class="bi bi-graph-up-arrow"></i> Ver Estadísticas
                     </button>
-                    <button class="btn btn-secondary btn-sm" onclick="resetAdminChangePasswordForm()" data-bs-toggle="modal" data-bs-target="#adminChangePasswordModal">
+                    <button class="btn btn-secondary btn-sm" id="adminChangePasswordBtnDesktop" onclick="resetAdminChangePasswordForm()" data-bs-toggle="modal" data-bs-target="#adminChangePasswordModal">
                         <i class="bi bi-key"></i> Cambiar Contraseña
                     </button>
                 </div>
@@ -159,7 +176,7 @@
                             <li><button class="dropdown-item" onclick="showAnnualCalendar()"><i class="bi bi-calendar3"></i> Calendario Anual del Establecimiento</button></li>
                             <li><button class="dropdown-item" onclick="showFullScheduleGrid()"><i class="bi bi-grid-3x3"></i> Ver Grilla Completa de Horarios</button></li>
                             <li><button class="dropdown-item" onclick="showStatsScreen()"><i class="bi bi-graph-up-arrow"></i> Ver Estadísticas</button></li>
-                            <li><button class="dropdown-item" onclick="resetAdminChangePasswordForm()" data-bs-toggle="modal" data-bs-target="#adminChangePasswordModal"><i class="bi bi-key"></i> Cambiar Contraseña</button></li>
+                            <li id="adminChangePasswordBtnMobile"><button class="dropdown-item" onclick="resetAdminChangePasswordForm()" data-bs-toggle="modal" data-bs-target="#adminChangePasswordModal"><i class="bi bi-key"></i> Cambiar Contraseña</button></li>
                         </ul>
                     </div>
                 </div>
@@ -173,6 +190,7 @@
                     <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabEventos" type="button" role="tab"><i class="bi bi-calendar-event"></i> Eventos</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabConfiguracion" type="button" role="tab"><i class="bi bi-gear"></i> Configuracion</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabReportes" type="button" role="tab"><i class="bi bi-file-earmark-text"></i> Reportes</button></li>
+                    <li class="nav-item hidden" id="tabAuditoriaNavItem" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabAuditoria" type="button" role="tab" onclick="renderAuditoriaPanel()"><i class="bi bi-shield-lock"></i> Auditoría</button></li>
                 </ul>
                 <div class="tab-content admin-tab-content" id="adminTabsContent">
                     <div class="tab-pane fade show active" id="tabInicio" role="tabpanel">
@@ -513,9 +531,9 @@
                         <input type="range" class="form-range" id="geofenceRadius" min="50" max="500" step="10" oninput="document.getElementById('geofenceRadiusLabel').textContent = this.value; updateGeocercaCircleRadius('config');">
                     </div>
                     <div class="d-flex flex-wrap gap-2 mb-3">
-                        <button class="btn btn-primary" onclick="saveGeofenceAdminForm()"><i class="bi bi-save"></i> Guardar</button>
+                        <button class="btn btn-primary" id="geofenceSaveBtn" onclick="saveGeofenceAdminForm()"><i class="bi bi-save"></i> Guardar</button>
                         <button class="btn btn-outline-secondary" onclick="useCurrentLocationForGeofence()"><i class="bi bi-crosshair"></i> Usar mi ubicación actual</button>
-                        <button class="btn btn-outline-danger" onclick="resetGeofenceAdminForm()"><i class="bi bi-arrow-counterclockwise"></i> Restablecer a Colegio Secundario De San Carlos</button>
+                        <button class="btn btn-outline-danger" id="geofenceResetBtn" onclick="resetGeofenceAdminForm()"><i class="bi bi-arrow-counterclockwise"></i> Restablecer a Colegio Secundario De San Carlos</button>
                     </div>
                     <div class="form-group">
                         <input type="text" class="form-control" id="buscador-geocerca" placeholder="🔍 Buscar: Provincia, Localidad, Calle" autocomplete="off">
@@ -559,6 +577,40 @@
                     <button class="btn btn-success" onclick="generateReport()"><i class="bi bi-file-earmark-pdf"></i> Generar PDF</button>
                     <button class="btn btn-outline-success" onclick="generateReportExcel()"><i class="bi bi-file-earmark-excel"></i> Generar Excel</button>
                 </div>
+                    </div>
+                    <div class="tab-pane fade" id="tabAuditoria" role="tabpanel">
+                        <div class="form-section mt-3">
+                            <h4><i class="bi bi-shield-lock"></i> Panel de Auditoría</h4>
+                            <p class="text-muted">Log de todas las acciones importantes realizadas en el sistema. Solo visible para el Programador.</p>
+                            <div class="row mb-3">
+                                <div class="col-md-3"><div class="stat-card"><div class="number" id="auditoriaCountTotal">0</div><div class="label">Total</div></div></div>
+                                <div class="col-md-3"><div class="stat-card"><div class="number" id="auditoriaCountHoy">0</div><div class="label">Hoy</div></div></div>
+                                <div class="col-md-3"><div class="stat-card"><div class="number" id="auditoriaCountSemana">0</div><div class="label">Esta semana</div></div></div>
+                            </div>
+                            <div class="row g-2 mb-3">
+                                <div class="col-md-3"><input type="text" class="form-control form-control-sm" id="auditoriaFiltroUsuario" placeholder="Filtrar por usuario" oninput="filtrarAuditoria()"></div>
+                                <div class="col-md-3"><input type="text" class="form-control form-control-sm" id="auditoriaFiltroAccion" placeholder="Filtrar por acción" oninput="filtrarAuditoria()"></div>
+                                <div class="col-md-2"><input type="date" class="form-control form-control-sm" id="auditoriaFiltroDesde" onchange="filtrarAuditoria()"></div>
+                                <div class="col-md-2"><input type="date" class="form-control form-control-sm" id="auditoriaFiltroHasta" onchange="filtrarAuditoria()"></div>
+                                <div class="col-md-2"><button class="btn btn-outline-secondary btn-sm w-100" onclick="limpiarFiltrosAuditoria()">Limpiar filtros</button></div>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 mb-3">
+                                <button class="btn btn-outline-success btn-sm" onclick="exportarLogExcel()"><i class="bi bi-file-earmark-excel"></i> Exportar Excel</button>
+                                <button class="btn btn-outline-success btn-sm" onclick="exportarLogPDF()"><i class="bi bi-file-earmark-pdf"></i> Exportar PDF</button>
+                                <button class="btn btn-outline-danger btn-sm" onclick="borrarLogsConfirm()"><i class="bi bi-trash"></i> Borrar LOG</button>
+                                <button class="btn btn-outline-primary btn-sm" onclick="backupLocalStorage()"><i class="bi bi-download"></i> Backup (localStorage)</button>
+                                <button class="btn btn-outline-primary btn-sm" onclick="document.getElementById('restoreLocalStorageInput').click()"><i class="bi bi-upload"></i> Restaurar Backup</button>
+                                <input type="file" id="restoreLocalStorageInput" accept="application/json" class="hidden" onchange="restoreLocalStorageFile(this)">
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped">
+                                    <thead><tr><th>Fecha/Hora</th><th>Usuario</th><th>Acción</th><th>Detalle</th><th>Dispositivo</th><th>Ubicación</th></tr></thead>
+                                    <tbody id="auditoriaTableBody"></tbody>
+                                </table>
+                            </div>
+                            <h5 class="mt-4"><i class="bi bi-key"></i> Credenciales de acceso</h5>
+                            <div id="auditoriaCredenciales"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -682,9 +734,12 @@
                         <div class="modal-content">
                             <div class="modal-header">
                                 <h5 class="modal-title"><i class="bi bi-key"></i> Cambiar Contraseña</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                <button type="button" class="btn-close" id="changePasswordCloseBtn" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body">
+                                <div id="changePasswordForcedBanner" class="alert alert-warning hidden">
+                                    <i class="bi bi-exclamation-triangle"></i> Por seguridad, tenés que cambiar tu contraseña antes de continuar.
+                                </div>
                                 <div class="form-group">
                                     <label>Contraseña actual</label>
                                     <input type="password" class="form-control" id="currentPasswordInput" placeholder="Contraseña actual">
@@ -700,7 +755,7 @@
                                 <div id="changePasswordError" class="login-error mt-2"></div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="button" class="btn btn-secondary" id="changePasswordCancelBtn" data-bs-dismiss="modal">Cancelar</button>
                                 <button type="button" class="btn btn-primary" onclick="changeTeacherPassword()">Guardar</button>
                             </div>
                         </div>
@@ -983,6 +1038,13 @@
     <script src="libs/supabase.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- config.secrets.js no existe en el repo (ver .gitignore): si no
+         está subido a mano en este servidor, el navegador lo ignora en
+         silencio (404) y config.example.js entra en modo demo. -->
+    <script src="config.secrets.js"></script>
+    <script src="config.example.js"></script>
+    <script src="roles.js"></script>
+    <script src="auditoria.js"></script>
     <script src="script.js"></script>
     <script src="src/utils/checkSuscripcion.js"></script>
 </body>

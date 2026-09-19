@@ -19,8 +19,13 @@
 // CONFIGURACIÓN Y ESTADO GLOBAL
 // ============================================================
 const CONFIG = {
+    // Clave interna para ubicar la fila del Programador en la tabla
+    // `usuarios` de Supabase - no es el usuario de login (ver
+    // PROGRAMADOR_LOGIN_USER en roles.js) ni un secreto: no hay
+    // contraseña acá, esa vive hasheada en config.secrets.js/
+    // config.example.js (ver PROGRAMADOR_BOOTSTRAP) o, una vez creada
+    // la fila real, en Supabase.
     ADMIN_USER: 'ADMIN',
-    ADMIN_PASS: 'SantaMarta',
     LATE_LIMIT: 15,
     // Ventana, en minutos, previa a la hora de salida agendada
     // dentro de la cual "Salida" ya se considera a horario (para
@@ -102,7 +107,12 @@ async function loadAdminUsuario() {
         const cached = localStorage.getItem('sb_cache_admin_usuario');
         if (cached) { adminUsuario = JSON.parse(cached); return; }
     } catch (e) { /* ignorar caché corrupta */ }
-    adminUsuario = { usuario: CONFIG.ADMIN_USER, password: CONFIG.ADMIN_PASS, rol: 'admin', email: null, email_respaldo: null };
+    // Sin fila en Supabase ni caché todavía (primerísimo arranque):
+    // sin "id", login()/changeAdminPassword() saben que hay que
+    // validar contra el hash de arranque (PROGRAMADOR_BOOTSTRAP) en
+    // vez de comparar esta contraseña en texto plano - por eso acá no
+    // se guarda ninguna.
+    adminUsuario = { usuario: CONFIG.ADMIN_USER, password: null, rol: 'admin', email: null, email_respaldo: null };
 }
 
 // Confianza mínima (%) para aceptar una identificación y disparar el
@@ -577,9 +587,22 @@ function loadGeofenceAdminForm() {
         : '';
     document.getElementById('modoPruebaToggle').checked = !!getModoPrueba().activo;
     updateGeofenceMapPreview();
+
+    // Geocerca: exclusiva de Rector/Programador (ver MATRIZ_PERMISOS).
+    // Secretaría puede ver la pantalla pero no guardar/restablecer.
+    const puedeEditarGeo = tienePermiso(currentUser.rol, 'editar_geo');
+    const saveBtn = document.getElementById('geofenceSaveBtn');
+    const resetBtn = document.getElementById('geofenceResetBtn');
+    if (saveBtn) saveBtn.disabled = !puedeEditarGeo;
+    if (resetBtn) resetBtn.disabled = !puedeEditarGeo;
 }
 
 function saveGeofenceAdminForm() {
+    if (!tienePermiso(currentUser.rol, 'editar_geo')) {
+        showToast(mensajeSinPermiso('editar_geo'), 'error');
+        logAccion('PERMISO_DENEGADO', 'Intentó guardar la geocerca de la escuela sin permiso');
+        return;
+    }
     const lat = parseFloat(document.getElementById('geofenceLat').value);
     const lng = parseFloat(document.getElementById('geofenceLng').value);
     const radio = parseInt(document.getElementById('geofenceRadius').value, 10);
@@ -592,16 +615,23 @@ function saveGeofenceAdminForm() {
         actualizadoEn: new Date().toISOString(),
     });
     loadGeofenceAdminForm();
+    logAccion('EDITAR_GEOCERCA', `Actualizó la ubicación de fichaje a "${nombreLugar}" (${lat}, ${lng}), radio ${radio}m`);
     showToast('✅ Ubicación de fichaje guardada', 'success');
 }
 
 function resetGeofenceAdminForm() {
+    if (!tienePermiso(currentUser.rol, 'editar_geo')) {
+        showToast(mensajeSinPermiso('editar_geo'), 'error');
+        logAccion('PERMISO_DENEGADO', 'Intentó restablecer la geocerca de la escuela sin permiso');
+        return;
+    }
     saveGeofenceConfig({
         ...DEFAULT_GEOFENCE_CONFIG,
         actualizadoPor: currentUser ? (currentUser.username || currentUser.dni || 'admin') : 'admin',
         actualizadoEn: new Date().toISOString(),
     });
     loadGeofenceAdminForm();
+    logAccion('EDITAR_GEOCERCA', 'Restableció la ubicación de fichaje al valor por defecto');
     showToast('Ubicación restablecida al Colegio Secundario De San Carlos', 'info');
 }
 
@@ -687,6 +717,10 @@ const END_HOUR = 23;
 const SCHEDULE_CALENDAR_YEAR = 2026;
 
 let currentUser = null;
+// Rol elegido en el paso 1 de la pantalla de login (ROLES.DOCENTE/
+// SECRETARIA/RECTOR/PROGRAMADOR, ver roles.js), antes de escribir
+// usuario/contraseña.
+let selectedRole = null;
 let currentCamera = null;
 let capturedPhotos = [];       // dataURLs (solo para mostrar/almacenar la foto de perfil)
 let capturedDescriptors = [];  // descriptores faciales (arrays de 128 floats)
@@ -1065,32 +1099,91 @@ function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 // ============================================================
 // NAVEGACIÓN
 // ============================================================
-function login() {
+// Paso 1 del login: elige rol y pasa al paso 2 (usuario/contraseña),
+// adaptando la etiqueta del campo usuario (DNI para docente, Usuario
+// para los 3 roles de tipo admin).
+function selectRole(role) {
+    selectedRole = role;
+    document.getElementById('roleSelectStep').classList.add('hidden');
+    document.getElementById('credentialsStep').classList.remove('hidden');
+    document.getElementById('selectedRoleLabel').textContent = ROL_LABEL[role] || role;
+    document.getElementById('loginUserLabel').textContent = role === ROLES.DOCENTE ? 'Usuario (DNI)' : 'Usuario';
+    document.getElementById('loginUser').placeholder = role === ROLES.DOCENTE ? 'Ingresa tu DNI' : 'Ingresa tu usuario';
+    document.getElementById('loginUser').value = '';
+    document.getElementById('loginPass').value = '';
+    document.getElementById('loginError').style.display = 'none';
+    document.getElementById('loginUser').focus();
+}
+
+function backToRoleSelect() {
+    selectedRole = null;
+    document.getElementById('credentialsStep').classList.add('hidden');
+    document.getElementById('roleSelectStep').classList.remove('hidden');
+}
+
+async function login() {
     if (!dataLoaded || !adminUsuario) {
         showToast('Todavía se están cargando los datos, esperá un momento e intentá de nuevo', 'warning');
+        return;
+    }
+    if (!selectedRole) { showToast('Elegí un rol para continuar', 'warning'); return; }
+    if (!window.crypto || !window.crypto.subtle) {
+        // sha256Hex() necesita Web Crypto (solo disponible en HTTPS o
+        // localhost). Sin esto no hay forma segura de validar Secretaría/
+        // Rector/Programador.
+        showToast('Este navegador/conexión no permite validar credenciales de forma segura (hace falta HTTPS)', 'error');
         return;
     }
     const user = document.getElementById('loginUser').value.trim();
     const pass = document.getElementById('loginPass').value.trim();
     const errorEl = document.getElementById('loginError');
-    if (user === adminUsuario.usuario && pass === adminUsuario.password) {
-        currentUser = { role: 'admin', username: adminUsuario.usuario };
-        showDashboard();
-        return;
+    let ok = false;
+
+    if (selectedRole === ROLES.DOCENTE) {
+        const teachers = getTeachers();
+        const teacher = teachers.find(t => t.dni === user && t.password === pass);
+        if (teacher) {
+            currentUser = { role: 'teacher', rol: ROLES.DOCENTE, ...teacher };
+            logAccion('LOGIN', `Login docente DNI ${teacher.dni}`);
+            ok = true;
+        }
+    } else if (selectedRole === ROLES.PROGRAMADOR) {
+        if (user === PROGRAMADOR_LOGIN_USER) {
+            // Si ya existe una fila real en `usuarios` (Supabase o su
+            // caché local), la contraseña vigente vive ahí en texto
+            // plano - es un dato de runtime propio de esta escuela,
+            // nunca estuvo comprometido en git. Recién clonado el repo
+            // (sin esa fila todavía) se valida contra el hash de
+            // arranque de config.secrets.js/config.example.js.
+            if (adminUsuario.id) {
+                ok = pass === adminUsuario.password;
+            } else {
+                ok = await coincideHashCredencial('PROGRAMADOR_BOOTSTRAP', pass);
+            }
+        }
+        if (ok) {
+            currentUser = { role: 'admin', rol: ROLES.PROGRAMADOR, username: PROGRAMADOR_LOGIN_USER };
+            logAccion('LOGIN', 'Login PROGRAMADOR');
+        }
+    } else {
+        const usuarioEsperado = CREDENCIALES_ADMIN_USUARIO[selectedRole];
+        if (usuarioEsperado && user === usuarioEsperado && await coincideHashCredencial(selectedRole, pass)) {
+            currentUser = { role: 'admin', rol: selectedRole, username: usuarioEsperado };
+            logAccion('LOGIN', `Login ${selectedRole}`);
+            ok = true;
+        }
     }
-    const teachers = getTeachers();
-    const teacher = teachers.find(t => t.dni === user && t.password === pass);
-    if (teacher) {
-        currentUser = { role: 'teacher', ...teacher };
-        showDashboard();
-        return;
-    }
+
+    if (ok) { showDashboard(); return; }
     errorEl.style.display = 'block';
+    logAccion('LOGIN_FALLIDO', `Intento fallido - rol elegido: ${selectedRole}, usuario: ${user}`);
     setTimeout(() => errorEl.style.display = 'none', 3000);
 }
 
 function logout() {
+    if (currentUser) logAccion('LOGOUT', `Logout ${currentUser.username || currentUser.dni || ''}`);
     currentUser = null;
+    selectedRole = null;
     recognizedTeacher = null;
     isFaceVerified = false;
     stopLiveOverlay();
@@ -1098,6 +1191,8 @@ function logout() {
     stopExitWindowPoll();
     document.getElementById('dashboardScreen').classList.add('hidden');
     document.getElementById('loginScreen').classList.remove('hidden');
+    document.getElementById('credentialsStep').classList.add('hidden');
+    document.getElementById('roleSelectStep').classList.remove('hidden');
     document.getElementById('loginUser').value = '';
     document.getElementById('loginPass').value = '';
     if (currentCamera) {
@@ -1144,13 +1239,42 @@ function changeTeacherPassword() {
         return;
     }
     teachers[index].password = newPass;
+    teachers[index].debeCambiarPassword = false;
     saveTeachers(teachers);
     currentUser.password = newPass;
+    currentUser.debeCambiarPassword = false;
+    logAccion('CAMBIO_PASSWORD', `Docente DNI ${currentUser.dni} cambió su contraseña`);
 
+    unforceChangePasswordModal();
     const modal = bootstrap.Modal.getInstance(document.getElementById('changePasswordModal'));
     if (modal) modal.hide();
     resetChangePasswordForm();
     showToast('✅ Contraseña actualizada correctamente', 'success');
+}
+
+// Fuerza el modal de "Cambiar Contraseña" a abrirse sin posibilidad de
+// cerrarlo (backdrop estático, sin tecla Escape, sin botón de cierre)
+// cuando el docente todavía tiene la contraseña por defecto o recién
+// se la blanquearon. unforceChangePasswordModal() lo vuelve a dejar
+// como un modal normal una vez que la cambia.
+function forceChangePasswordModal() {
+    const modalEl = document.getElementById('changePasswordModal');
+    modalEl.setAttribute('data-bs-backdrop', 'static');
+    modalEl.setAttribute('data-bs-keyboard', 'false');
+    document.getElementById('changePasswordCloseBtn').classList.add('hidden');
+    document.getElementById('changePasswordCancelBtn').classList.add('hidden');
+    document.getElementById('changePasswordForcedBanner').classList.remove('hidden');
+    resetChangePasswordForm();
+    new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false }).show();
+}
+
+function unforceChangePasswordModal() {
+    const modalEl = document.getElementById('changePasswordModal');
+    modalEl.removeAttribute('data-bs-backdrop');
+    modalEl.removeAttribute('data-bs-keyboard');
+    document.getElementById('changePasswordCloseBtn').classList.remove('hidden');
+    document.getElementById('changePasswordCancelBtn').classList.remove('hidden');
+    document.getElementById('changePasswordForcedBanner').classList.add('hidden');
 }
 
 // ============================================================
@@ -1169,7 +1293,13 @@ async function changeAdminPassword() {
     const newPass = document.getElementById('adminNewPasswordInput').value;
     const confirm = document.getElementById('adminConfirmPasswordInput').value;
 
-    if (current !== adminUsuario.password) {
+    // Sin fila real en Supabase todavía (bootstrap, ver loadAdminUsuario()):
+    // no hay contraseña en texto plano para comparar, se valida contra
+    // el hash de arranque.
+    const currentOk = adminUsuario.id
+        ? current === adminUsuario.password
+        : await coincideHashCredencial('PROGRAMADOR_BOOTSTRAP', current);
+    if (!currentOk) {
         errorEl.textContent = 'La contraseña actual no es correcta.';
         errorEl.style.display = 'block';
         return;
@@ -1192,6 +1322,7 @@ async function changeAdminPassword() {
         return;
     }
 
+    logAccion('CAMBIO_PASSWORD', 'PROGRAMADOR cambió su contraseña');
     const modal = bootstrap.Modal.getInstance(document.getElementById('adminChangePasswordModal'));
     if (modal) modal.hide();
     resetAdminChangePasswordForm();
@@ -1275,9 +1406,11 @@ async function solicitarRecuperacionPassword() {
         msgEl.innerHTML = '<div class="login-error" style="display:block;">Ingresá tu usuario o DNI.</div>';
         return;
     }
-    if (!adminUsuario || input.toUpperCase() !== adminUsuario.usuario.toUpperCase()) {
-        // Docente u otro usuario desconocido: no vive en `usuarios`,
-        // todavía no hay autorecuperación disponible para ellos.
+    if (!adminUsuario || input.toUpperCase() !== PROGRAMADOR_LOGIN_USER.toUpperCase()) {
+        // Docente, Secretaría, Rector u otro usuario desconocido: solo
+        // el Programador (MEUDEUS) vive en `usuarios` y tiene
+        // autorecuperación por e-mail. El resto tiene contraseña fija
+        // o la cambia desde su propio panel.
         contactarSoporte();
         return;
     }
@@ -1295,7 +1428,7 @@ async function solicitarRecuperacionPassword() {
             msgEl.innerHTML = '<div class="login-error" style="display:block;">No se pudo generar el link de recuperación. Probá de nuevo.</div>';
             return;
         }
-        const enviado = await enviarEmailRecuperacion(adminUsuario.email, token, adminUsuario.usuario);
+        const enviado = await enviarEmailRecuperacion(adminUsuario.email, token, PROGRAMADOR_LOGIN_USER);
         if (enviado) {
             msgEl.innerHTML = '<div class="text-success">✅ Te enviamos un link a tu e-mail para restablecer la contraseña.</div>';
         } else {
@@ -1383,12 +1516,24 @@ function showDashboard() {
     if (currentUser.role === 'admin') {
         document.getElementById('adminDashboard').classList.remove('hidden');
         document.getElementById('teacherDashboard').classList.add('hidden');
-        document.getElementById('dashboardTitle').textContent = 'Panel de Administración';
-        document.getElementById('userRoleBadge').textContent = 'Admin';
+        document.getElementById('dashboardTitle').textContent = `Panel de ${ROL_LABEL[currentUser.rol] || 'Administración'}`;
+        document.getElementById('userRoleBadge').textContent = ROL_LABEL[currentUser.rol] || 'Admin';
         document.getElementById('userRoleBadge').className = 'badge bg-danger me-2';
+
+        // El cambio de contraseña por e-mail (recuperación) es
+        // exclusivo de PROGRAMADOR: es el único de los 3 roles admin
+        // cuya contraseña vive en la tabla `usuarios` de Supabase y se
+        // puede cambiar/recuperar. Secretaría y Rector tienen
+        // contraseña fija por hash (ver ASISCAM_CRED_HASHES en roles.js).
+        const esProgramador = currentUser.rol === ROLES.PROGRAMADOR;
+        document.getElementById('adminChangePasswordBtnDesktop').classList.toggle('hidden', !esProgramador);
+        document.getElementById('adminChangePasswordBtnMobile').classList.toggle('hidden', !esProgramador);
+        document.getElementById('tabAuditoriaNavItem').classList.toggle('hidden', !tienePermiso(currentUser.rol, 'ver_auditoria'));
+
         loadAdminDashboard();
         resetHorarioLaboralForm();
-        if (!adminUsuario.email) {
+        if (esProgramador) renderAuditoriaPanel();
+        if (esProgramador && !adminUsuario.email) {
             document.getElementById('adminEmailInput').value = '';
             document.getElementById('adminEmailError').style.display = 'none';
             new bootstrap.Modal(document.getElementById('adminEmailModal')).show();
@@ -1400,6 +1545,7 @@ function showDashboard() {
         document.getElementById('userRoleBadge').textContent = 'Docente';
         document.getElementById('userRoleBadge').className = 'badge bg-success me-2';
         loadTeacherDashboard();
+        if (currentUser.debeCambiarPassword) forceChangePasswordModal();
     }
 }
 
@@ -1740,6 +1886,12 @@ function getDomicilioCompleto(teacher) {
 }
 
 function saveTeacher() {
+    const accionPermiso = editingTeacherId ? 'editar_docente' : 'agregar_docente';
+    if (!tienePermiso(currentUser.rol, accionPermiso)) {
+        showToast(mensajeSinPermiso(accionPermiso), 'error');
+        logAccion('PERMISO_DENEGADO', `Intentó ${accionPermiso} sin permiso`);
+        return;
+    }
     const apellido = document.getElementById('regApellido').value.trim();
     const nombre = document.getElementById('regNombre').value.trim();
     const dni = document.getElementById('regDni').value.trim();
@@ -1810,6 +1962,7 @@ function saveTeacher() {
             photo, faceDescriptor, password,
         };
         saveTeachers(teachers);
+        logAccion('EDITAR_DOCENTE', `Editó al docente DNI ${dni}`);
         showToast(`✅ Docente actualizado`, 'success');
     } else {
         const newTeacher = {
@@ -1818,10 +1971,14 @@ function saveTeacher() {
             calle, numero, barrio, localidad, provincia, pais,
             materia, horario_laboral: horarioLaboralList,
             photo, faceDescriptor,
-            password, createdAt: new Date().toISOString(), active: true
+            // Contraseña por defecto (o la que haya puesto el admin):
+            // se obliga a cambiarla en el primer login (ver
+            // showDashboard()/forceChangePasswordModal()).
+            password, debeCambiarPassword: true, createdAt: new Date().toISOString(), active: true
         };
         teachers.push(newTeacher);
         saveTeachers(teachers);
+        logAccion('ALTA_DOCENTE', `Registró al docente DNI ${dni}`);
         showToast(`✅ Docente registrado. Usuario: ${dni}, Contraseña: ${password}`, 'success');
     }
 
@@ -1886,7 +2043,7 @@ function loadTeachersTable() {
                 <td data-label="Localidad">${localidadDisplay}</td>
                 <td data-label="Materia">${teacher.materia}</td>
                 <td data-label="Horario"><small>${scheduleDisplay}</small></td>
-                <td data-label="Contraseña"><span class="badge bg-info">${teacher.password}</span></td>
+                <td data-label="Contraseña"><span class="badge bg-info">${tienePermiso(currentUser.rol, 'ver_claves') ? teacher.password : '••••••'}</span></td>
                 <td data-label="Biometría">${bioBadge}</td>
                 <td data-label="Estado hoy">${status}</td>
                 <td data-label="Acciones" onclick="event.stopPropagation()">
@@ -1895,7 +2052,7 @@ function loadTeachersTable() {
                     <button class="btn btn-sm btn-info" title="Calendario ${SCHEDULE_CALENDAR_YEAR}" onclick="showTeacherCalendar('${teacher.id}')"><i class="bi bi-calendar3"></i></button>
                     <button class="btn btn-sm btn-warning" title="Fichaje manual" onclick="openManualAttendanceModal('${teacher.id}')"><i class="bi bi-fingerprint"></i></button>
                     <button class="btn btn-sm btn-secondary" title="Restablecer contraseña" onclick="resetTeacherPassword('${teacher.id}')"><i class="bi bi-key"></i></button>
-                    <button class="btn btn-sm btn-danger" title="Eliminar" onclick="deleteTeacher('${teacher.id}')"><i class="bi bi-trash"></i></button>
+                    ${tienePermiso(currentUser.rol, 'borrar') ? `<button class="btn btn-sm btn-danger" title="Eliminar" onclick="deleteTeacher('${teacher.id}')"><i class="bi bi-trash"></i></button>` : ''}
                 </td>
             </tr>
         `;
@@ -2131,6 +2288,7 @@ function generateReport() {
 
     const fileSuffix = singleTeacher ? `_${singleTeacher.dni}` : '';
     doc.save(`reporte${fileSuffix}_${from}_${to}.pdf`);
+    logAccion('EXPORTAR_REPORTE', `Exportó reporte PDF ${from} a ${to}${singleTeacher ? ' - DNI ' + singleTeacher.dni : ''}`);
     showToast('Reporte generado', 'success');
 }
 
@@ -2178,21 +2336,34 @@ function generateReportExcel() {
 
     const fileSuffix = singleTeacher ? `_${singleTeacher.dni}` : '';
     XLSX.writeFile(wb, `reporte${fileSuffix}_${from}_${to}.xlsx`);
+    logAccion('EXPORTAR_REPORTE', `Exportó reporte Excel ${from} a ${to}${singleTeacher ? ' - DNI ' + singleTeacher.dni : ''}`);
     showToast('Reporte Excel generado', 'success');
 }
 
 function deleteTeacher(id) {
+    if (!tienePermiso(currentUser.rol, 'borrar')) {
+        showToast(mensajeSinPermiso('borrar'), 'error');
+        logAccion('PERMISO_DENEGADO', 'Intentó borrar un docente sin permiso');
+        return;
+    }
     if (!confirm('¿Eliminar este docente?')) return;
     const teachers = getTeachers();
+    const teacher = teachers.find(t => t.id === id);
     saveTeachers(teachers.filter(t => t.id !== id));
     loadTeachersTable();
     updateStats();
     loadReportTeachers();
     populateTeacherSelect();
+    logAccion('BORRAR_DOCENTE', `Eliminó al docente DNI ${teacher ? teacher.dni : id}`);
     showToast('Docente eliminado', 'info');
 }
 
 function resetTeacherPassword(id) {
+    if (!tienePermiso(currentUser.rol, 'blanquear_password')) {
+        showToast(mensajeSinPermiso('blanquear_password'), 'error');
+        logAccion('PERMISO_DENEGADO', 'Intentó blanquear contraseña sin permiso');
+        return;
+    }
     const teachers = getTeachers();
     const teacher = teachers.find(t => t.id === id);
     if (!teacher) return;
@@ -2200,8 +2371,12 @@ function resetTeacherPassword(id) {
     if (input === null) return;
     const newPass = input.trim() || CONFIG.DEFAULT_PASSWORD;
     teacher.password = newPass;
+    // Al blanquear, se obliga a elegir una nueva en el próximo login
+    // (mismo mecanismo que un docente recién registrado).
+    teacher.debeCambiarPassword = true;
     saveTeachers(teachers);
     loadTeachersTable();
+    logAccion('BLANQUEO_PASSWORD', `DNI ${teacher.dni} reseteado a: ${newPass}`);
     showToast(`✅ Contraseña de ${teacher.apellido} ${teacher.nombre} restablecida a: ${newPass}`, 'success');
 }
 
@@ -2722,6 +2897,7 @@ function registerFaceEventoAttendance(type, teacher, eventoInfo, geo) {
         ...pendingGeofenceFields(geo),
     });
     saveAttendance(attendance);
+    logAccion('FICHAJE_EVENTO', `${type.toUpperCase()} evento "${eventoInfo.titulo}" - ${teacher.apellido} ${teacher.nombre} - ${time}`, geo && geo.coords ? geo.coords : null);
 
     if (document.getElementById('adminDashboard').classList.contains('hidden') === false) updateStats();
     checkFaltasEvento();
@@ -2962,6 +3138,7 @@ function registerAttendance(type, geo) {
         ...pendingGeofenceFields(geo),
     });
     saveAttendance(attendance);
+    logAccion('FICHAJE', `${typeMap[type]} - ${teacherFullName} - ${time}`, geo && geo.coords ? geo.coords : null);
 
     const needsAttention = attStatus === 'late' || type === 'early_exit';
     const warningNote = attStatus === 'late' ? ' ⚠️ Tardanza'
@@ -3088,6 +3265,11 @@ function renderManualAttendanceModalBody() {
 }
 
 function registerManualAttendance(type, categoria, eventoId) {
+    if (!tienePermiso(currentUser.rol, 'fichaje_manual')) {
+        showToast(mensajeSinPermiso('fichaje_manual'), 'error');
+        logAccion('PERMISO_DENEGADO', 'Intentó hacer un fichaje manual sin permiso');
+        return;
+    }
     categoria = categoria || 'regular';
     const teacher = getTeachers().find(t => t.id === manualAttendanceTeacherId);
     if (!teacher) { showToast('Docente no encontrado', 'error'); return; }
@@ -3152,6 +3334,7 @@ function registerManualAttendance(type, categoria, eventoId) {
     const attendance = getAttendance();
     attendance.push(record);
     saveAttendance(attendance);
+    logAccion('FICHAJE_MANUAL', `${type.toUpperCase()} manual - ${teacher.apellido} ${teacher.nombre} - ${time}`);
 
     const quien = `${teacher.apellido} ${teacher.nombre}`;
     showToast(`✅ ${typeMap[type]} registrado para ${quien} a las ${time.slice(0, 5)}`, 'success');
@@ -3284,9 +3467,15 @@ function addLicencia() {
 }
 
 function deleteLicencia(id) {
+    if (!tienePermiso(currentUser.rol, 'borrar')) {
+        showToast(mensajeSinPermiso('borrar'), 'error');
+        logAccion('PERMISO_DENEGADO', 'Intentó borrar una licencia sin permiso');
+        return;
+    }
     const licencias = getLicencias().filter(l => l.id !== id);
     saveLicenciasToStorage(licencias);
     loadLicenciasList();
+    logAccion('BORRAR_LICENCIA', `Eliminó la licencia ${id}`);
     showToast('Licencia eliminada', 'info');
 }
 
@@ -3304,7 +3493,7 @@ function loadLicenciasList() {
             <td data-label="Desde">${l.from}</td>
             <td data-label="Hasta">${l.to}</td>
             <td data-label="Motivo">${l.motivo}</td>
-            <td data-label="Acciones"><button class="btn btn-sm btn-danger" title="Eliminar" onclick="deleteLicencia('${l.id}')"><i class="bi bi-trash"></i></button></td>
+            <td data-label="Acciones">${tienePermiso(currentUser.rol, 'borrar') ? `<button class="btn btn-sm btn-danger" title="Eliminar" onclick="deleteLicencia('${l.id}')"><i class="bi bi-trash"></i></button>` : ''}</td>
         </tr>
     `).join('');
 }
@@ -3538,7 +3727,7 @@ async function loadEventosEspeciales() {
                     <td data-label="Acciones">
                         <button class="btn btn-sm btn-info" title="Ver" onclick="viewEvento(${ev.id})"><i class="bi bi-eye"></i></button>
                         <button class="btn btn-sm btn-primary" title="Editar" onclick="editEvento(${ev.id})"><i class="bi bi-pencil"></i></button>
-                        <button class="btn btn-sm btn-danger" title="Eliminar" onclick="deleteEvento(${ev.id})"><i class="bi bi-trash"></i></button>
+                        ${tienePermiso(currentUser.rol, 'borrar') ? `<button class="btn btn-sm btn-danger" title="Eliminar" onclick="deleteEvento(${ev.id})"><i class="bi bi-trash"></i></button>` : ''}
                     </td>
                 </tr>`;
         }).join('');
@@ -3560,6 +3749,7 @@ function openEventoModal() {
     document.getElementById('eventoHoraSalida').value = '';
     document.getElementById('eventoLugar').value = '';
     document.getElementById('eventoTieneGeocerca').checked = false;
+    document.getElementById('eventoTieneGeocerca').disabled = !tienePermiso(currentUser.rol, 'editar_geo');
     document.getElementById('eventoGeocercaLat').value = '';
     document.getElementById('eventoGeocercaLng').value = '';
     document.getElementById('eventoGeocercaRadio').value = 150;
@@ -3583,6 +3773,7 @@ async function editEvento(idEvento) {
     document.getElementById('eventoHoraSalida').value = (ev.hora_salida || '').slice(0, 5);
     document.getElementById('eventoLugar').value = ev.direccion_evento || '';
     document.getElementById('eventoTieneGeocerca').checked = !!ev.tiene_geocerca;
+    document.getElementById('eventoTieneGeocerca').disabled = !tienePermiso(currentUser.rol, 'editar_geo');
     document.getElementById('eventoGeocercaLat').value = ev.geocerca_lat ?? '';
     document.getElementById('eventoGeocercaLng').value = ev.geocerca_lng ?? '';
     document.getElementById('eventoGeocercaRadio').value = ev.geocerca_radio || 150;
@@ -3711,6 +3902,11 @@ async function saveEvento() {
     const direccionEvento = document.getElementById('eventoLugar').value.trim();
     const tieneGeocerca = document.getElementById('eventoTieneGeocerca').checked;
 
+    if (tieneGeocerca && !tienePermiso(currentUser.rol, 'editar_geo')) {
+        showToast(mensajeSinPermiso('editar_geo'), 'error');
+        logAccion('PERMISO_DENEGADO', 'Intentó crear geocerca de evento sin permiso');
+        return;
+    }
     if (!titulo) { showToast('El título es obligatorio', 'error'); return; }
     if (!fecha) { showToast('La fecha es obligatoria', 'error'); return; }
     if (!horaEntrada || !horaSalida) { showToast('Completá la hora de entrada y de salida', 'error'); return; }
@@ -3824,6 +4020,11 @@ async function saveEvento() {
 }
 
 async function deleteEvento(idEvento) {
+    if (!tienePermiso(currentUser.rol, 'borrar')) {
+        showToast(mensajeSinPermiso('borrar'), 'error');
+        logAccion('PERMISO_DENEGADO', 'Intentó borrar un evento especial sin permiso');
+        return;
+    }
     if (!confirm('¿Eliminar este evento especial? Esta acción no se puede deshacer.')) return;
     try {
         // Primero los vínculos con docentes (por si la FK no tiene cascade),
@@ -3836,6 +4037,7 @@ async function deleteEvento(idEvento) {
         const alerts = getAlerts().filter(a => a.eventoId !== idEvento);
         saveAlerts(alerts);
 
+        logAccion('BORRAR_EVENTO', `Eliminó el evento especial ${idEvento}`);
         showToast('Evento eliminado', 'info');
         loadEventosEspeciales();
         loadEventoConvocatoriasPorDocente();
@@ -4104,7 +4306,7 @@ function showTeacherDetail(teacherId) {
         <button class="btn btn-sm btn-secondary" title="Fichaje manual" onclick="openManualAttendanceModal('${teacher.id}')"><i class="bi bi-fingerprint"></i></button>
         <button class="btn btn-sm btn-success" title="Generar reporte PDF" onclick="generateIndividualReport('${teacher.id}')"><i class="bi bi-file-earmark-pdf"></i></button>
         <button class="btn btn-sm btn-secondary" title="Restablecer contraseña" onclick="resetTeacherPassword('${teacher.id}')"><i class="bi bi-key"></i></button>
-        <button class="btn btn-sm btn-danger" title="Eliminar" onclick="deleteTeacher('${teacher.id}')"><i class="bi bi-trash"></i></button>
+        ${tienePermiso(currentUser.rol, 'borrar') ? `<button class="btn btn-sm btn-danger" title="Eliminar" onclick="deleteTeacher('${teacher.id}')"><i class="bi bi-trash"></i></button>` : ''}
     `;
 
     document.getElementById('teacherDetailFullBody').innerHTML = `
