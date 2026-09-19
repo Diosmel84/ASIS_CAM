@@ -2225,14 +2225,37 @@ function loadCriteria() {
     document.getElementById('minHours').value = criteria.minHours;
 }
 
-function saveCriteria() {
+// A diferencia de saveCriteriaToStorage()/persistToSupabase() (que
+// guardan optimista: local ya, Supabase en segundo plano, sin avisar
+// éxito), acá el toast de éxito espera la confirmación real de
+// Supabase a propósito - se llama solo al clickear "Guardar", nunca
+// en un onchange de los inputs.
+async function saveCriteria() {
     const criteria = {
         lateLimit: parseInt(document.getElementById('lateLimit').value) || 15,
         minAttendance: parseInt(document.getElementById('minAttendance').value) || 80,
         minHours: parseInt(document.getElementById('minHours').value) || 4
     };
-    saveCriteriaToStorage(criteria);
-    showToast('Criterios guardados', 'success');
+    dataStore.criteria = criteria;
+    writeLocalCache('criteria', criteria);
+    if (!sb) {
+        markPendingSync('criteria');
+        showToast('Sin conexión: se guardó en este dispositivo y se sincronizará solo al reconectar.', 'warning');
+        return;
+    }
+    try {
+        const { error } = await sb.from('app_data')
+            .upsert({ key: 'criteria', value: criteria, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        if (error) throw error;
+        clearPendingSync('criteria');
+        supabaseAvailable = true;
+        showToast('Criterios guardados', 'success');
+    } catch (error) {
+        console.error('Error guardando "criteria" en Supabase:', error);
+        markPendingSync('criteria');
+        supabaseAvailable = false;
+        showToast('No se pudo confirmar el guardado (' + describeSupabaseError(error) + '). Se guardó localmente y se sincronizará al reconectar.', 'warning');
+    }
 }
 
 function loadReportTeachers() {
