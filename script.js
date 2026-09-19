@@ -1608,7 +1608,7 @@ function showDashboard() {
 
         loadAdminDashboard();
         resetHorarioLaboralForm();
-        if (esProgramador) renderAuditoriaPanel();
+        if (esProgramador) cargarLogsAuditoria().then(renderAuditoriaPanel);
         if (esProgramador && !adminUsuario.email) {
             document.getElementById('adminEmailInput').value = '';
             document.getElementById('adminEmailError').style.display = 'none';

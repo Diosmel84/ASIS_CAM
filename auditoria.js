@@ -1,17 +1,26 @@
 // ============================================================
 // ASISCAM PRO - Log de auditoría (solo visible para MEUDEUS/PROGRAMADOR)
 // auditoria.js - Script clásico (igual que roles.js/script.js).
-// Guarda cada acción importante en localStorage (key "asiscam_logs"),
-// 100% offline, sin depender de Supabase. Se carga antes que
-// script.js en index.html para que logAccion() ya exista cuando
-// login()/saveTeacher()/etc. la llamen.
+//
+// Fuente principal: tabla `auditoria_logs` de Supabase (ver
+// add_tabla_auditoria_logs.sql) - así se ve el mismo historial desde
+// cualquier dispositivo/navegador. localStorage (key "asiscam_logs")
+// queda como respaldo: si no hay conexión, logAccion() igual guarda
+// ahí y el panel lo usa como fallback para no mostrar "vacío".
+//
+// Se carga antes que script.js en index.html para que logAccion() ya
+// exista cuando login()/saveTeacher()/etc. la llamen.
 // ============================================================
 
 const AUDIT_LOG_KEY = 'asiscam_logs';
-// Techo de seguridad para que el log no crezca sin límite en
-// localStorage (que tiene un cupo chico, ~5-10MB según navegador).
-// Al superarlo se descartan los registros más viejos.
+// Techo de cuántos registros se traen/guardan de una. Al superarlo se
+// quedan los más recientes (Supabase puede tener más en el historico).
 const AUDIT_LOG_MAX = 5000;
+
+// null = todavía no se cargó nada de Supabase en esta sesión (recién
+// abierta la app). Una vez que cargarLogsAuditoria() corre al menos
+// una vez, queda con el array real (aunque esté vacío).
+let auditLogsCache = null;
 
 function formatFechaHoraLog(date) {
     const d = date || new Date();
@@ -19,7 +28,7 @@ function formatFechaHoraLog(date) {
     return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-function getLogs() {
+function getLogsBackupLocal() {
     try {
         return JSON.parse(localStorage.getItem(AUDIT_LOG_KEY) || '[]');
     } catch (e) {
@@ -27,8 +36,44 @@ function getLogs() {
     }
 }
 
+function guardarLogsBackupLocal(logs) {
+    try {
+        localStorage.setItem(AUDIT_LOG_KEY, JSON.stringify(logs));
+    } catch (e) { /* localStorage lleno o deshabilitado: no hay más respaldo posible */ }
+}
+
+// Devuelve lo último cargado (Supabase si ya se pudo, si no el
+// respaldo local). Sincrónico a propósito: lo usan varias funciones
+// (contadores, filtros, export) que no esperan una promesa - por eso
+// cargarLogsAuditoria() se llama ANTES, al abrir el panel.
+function getLogs() {
+    return auditLogsCache !== null ? auditLogsCache : getLogsBackupLocal();
+}
+
 function clearLogs() {
-    localStorage.setItem(AUDIT_LOG_KEY, '[]');
+    guardarLogsBackupLocal([]);
+    auditLogsCache = [];
+}
+
+// Trae el historial real desde Supabase (los últimos AUDIT_LOG_MAX,
+// del más viejo al más nuevo) y de paso refresca el respaldo local con
+// ese mismo valor. Si Supabase no responde, cae al respaldo local sin
+// romper el panel. Se llama al entrar a la pestaña "Auditoría" y justo
+// después de loguearse como Programador (ver index.html/script.js).
+async function cargarLogsAuditoria() {
+    if (typeof sb !== 'undefined' && sb) {
+        try {
+            const { data, error } = await sb.from('auditoria_logs')
+                .select('*').order('timestamp', { ascending: false }).limit(AUDIT_LOG_MAX);
+            if (error) throw error;
+            auditLogsCache = (data || []).slice().reverse();
+            guardarLogsBackupLocal(auditLogsCache);
+            return;
+        } catch (e) {
+            console.error('No se pudo traer el log de auditoría desde Supabase, se usa el respaldo local:', e);
+        }
+    }
+    auditLogsCache = getLogsBackupLocal();
 }
 
 // currentUser/adminUsuario viven en script.js (cargado después de este
@@ -49,10 +94,30 @@ function logAccion(accion, detalle, ubicacion) {
             plataforma: navigator.platform,
             ubicacion: ubicacion || null,
         };
-        const logs = getLogs();
-        logs.push(entry);
-        if (logs.length > AUDIT_LOG_MAX) logs.splice(0, logs.length - AUDIT_LOG_MAX);
-        localStorage.setItem(AUDIT_LOG_KEY, JSON.stringify(logs));
+
+        // Respaldo local: sincrónico, nunca depende de la red (para
+        // que un fichaje/login nunca se demore ni falle por esto).
+        const logsLocal = getLogsBackupLocal();
+        logsLocal.push(entry);
+        if (logsLocal.length > AUDIT_LOG_MAX) logsLocal.splice(0, logsLocal.length - AUDIT_LOG_MAX);
+        guardarLogsBackupLocal(logsLocal);
+        if (auditLogsCache !== null) auditLogsCache.push(entry);
+
+        // Fuente principal: se sube en segundo plano (fire-and-forget,
+        // sin await) para no bloquear la acción real que disparó el
+        // log. Si falla (sin conexión), el registro ya quedó en el
+        // respaldo local y listo - no hay cola de reintento para
+        // logs, a diferencia de app_data, porque no es información
+        // crítica de negocio.
+        if (typeof sb !== 'undefined' && sb) {
+            sb.from('auditoria_logs').insert({
+                fecha: entry.fecha, timestamp: entry.timestamp, usuario: entry.usuario, rol: entry.rol,
+                accion: entry.accion, detalle: entry.detalle, dispositivo: entry.dispositivo,
+                plataforma: entry.plataforma, ubicacion: entry.ubicacion,
+            }).then(({ error }) => {
+                if (error) console.error('No se pudo subir el log de auditoría a Supabase (queda en el respaldo local):', error);
+            });
+        }
     } catch (e) {
         console.error('No se pudo guardar el log de auditoría', e);
     }
@@ -85,17 +150,29 @@ function getLogsFiltrados() {
     }).slice().reverse();
 }
 
+function hayFiltrosActivosAuditoria() {
+    return ['auditoriaFiltroUsuario', 'auditoriaFiltroAccion', 'auditoriaFiltroDesde', 'auditoriaFiltroHasta']
+        .some(id => (document.getElementById(id)?.value || '').trim() !== '');
+}
+
 function renderAuditoriaPanel() {
     const tbody = document.getElementById('auditoriaTableBody');
     if (!tbody) return;
     const totalEl = document.getElementById('auditoriaCountTotal');
     const hoyEl = document.getElementById('auditoriaCountHoy');
     const semanaEl = document.getElementById('auditoriaCountSemana');
-    if (totalEl) totalEl.textContent = getLogs().length;
+    const totalLogs = getLogs().length;
+    if (totalEl) totalEl.textContent = totalLogs;
     if (hoyEl) hoyEl.textContent = contarAccionesHoy();
     if (semanaEl) semanaEl.textContent = contarAccionesSemana();
 
     const logs = getLogsFiltrados();
+    const infoEl = document.getElementById('auditoriaFiltroInfo');
+    if (infoEl) {
+        infoEl.textContent = hayFiltrosActivosAuditoria()
+            ? `Filtros activos - Mostrando ${logs.length} de ${totalLogs} eventos`
+            : '';
+    }
     if (logs.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Sin registros</td></tr>';
     } else {
@@ -147,17 +224,22 @@ function renderCredencialesPanel() {
 
 function filtrarAuditoria() { renderAuditoriaPanel(); }
 
+// "Recargar" de verdad: además de limpiar los 4 inputs, vuelve a traer
+// el historial completo desde Supabase (no solo re-renderiza lo que
+// ya había en memoria).
 function limpiarFiltrosAuditoria() {
     ['auditoriaFiltroUsuario', 'auditoriaFiltroAccion', 'auditoriaFiltroDesde', 'auditoriaFiltroHasta'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
-    renderAuditoriaPanel();
+    cargarLogsAuditoria().then(renderAuditoriaPanel);
 }
 
-function exportarLogExcel() {
-    const logs = getLogsFiltrados();
-    if (logs.length === 0) { showToast('No hay registros para exportar', 'warning'); return; }
+// sufijoArchivo/sufijoAccion se usan para diferenciar el backup
+// automático de borrarLogsConfirm() (exporta TODO, sin filtro) del
+// export manual de "Exportar Excel" (respeta el filtro activo).
+function exportarLogsAExcel(logs, sufijoArchivo, sufijoAccion) {
+    if (logs.length === 0) { showToast('No hay registros para exportar', 'warning'); return false; }
     const rows = logs.map(l => ({
         Fecha: l.fecha, Usuario: l.usuario, Rol: l.rol, Accion: l.accion, Detalle: l.detalle || '',
         Dispositivo: l.dispositivo || '', Plataforma: l.plataforma || '',
@@ -167,9 +249,13 @@ function exportarLogExcel() {
     const ws = XLSX.utils.json_to_sheet(rows);
     ws['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 40 }, { wch: 30 }, { wch: 14 }, { wch: 20 }];
     XLSX.utils.book_append_sheet(wb, ws, 'Auditoria');
-    XLSX.writeFile(wb, `asiscam_auditoria_${new Date().toISOString().split('T')[0]}.xlsx`);
-    logAccion('EXPORTAR_LOG', `Exportó ${logs.length} registro(s) a Excel`);
-    renderAuditoriaPanel();
+    XLSX.writeFile(wb, `asiscam_auditoria${sufijoArchivo || ''}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    logAccion('EXPORTAR_LOG', `Exportó ${logs.length} registro(s) a Excel${sufijoAccion || ''}`);
+    return true;
+}
+
+function exportarLogExcel() {
+    if (exportarLogsAExcel(getLogsFiltrados(), '', '')) renderAuditoriaPanel();
 }
 
 function exportarLogPDF() {
@@ -192,13 +278,27 @@ function exportarLogPDF() {
     renderAuditoriaPanel();
 }
 
-function borrarLogsConfirm() {
-    if (!confirm('¿Borrar TODO el log de auditoría? Esta acción no se puede deshacer.')) return;
-    const cantidad = getLogs().length;
+async function borrarLogsConfirm() {
+    if (!confirm('¿Seguro que querés borrar TODO el log de auditoría (todos los dispositivos, no solo lo filtrado)? Se descarga un backup automático con TODO el historial antes de borrar. Esta acción no se puede deshacer.')) return;
+
+    const todos = getLogs();
+    const cantidad = todos.length;
+    // Backup de TODO el historial (sin filtro), no lo que esté
+    // filtrado en pantalla en ese momento - es la última copia antes
+    // de un borrado irreversible.
+    if (cantidad > 0) exportarLogsAExcel(todos, '_backup_antes_de_borrar', ' (backup automático antes de borrar)');
+
     clearLogs();
+    if (typeof sb !== 'undefined' && sb) {
+        const { error } = await sb.from('auditoria_logs').delete().gt('id', 0);
+        if (error) {
+            console.error('No se pudo borrar el log de auditoría en Supabase:', error);
+            showToast('Se borró local, pero no se pudo borrar en Supabase (' + describeSupabaseError(error) + ')', 'warning');
+        }
+    }
     logAccion('BORRAR_LOG', `Borró ${cantidad} registro(s) del log de auditoría`);
     renderAuditoriaPanel();
-    showToast('Log de auditoría borrado', 'info');
+    showToast('Log de auditoría borrado (backup descargado antes)', 'info');
 }
 
 function backupLocalStorage() {
