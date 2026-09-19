@@ -115,6 +115,46 @@ async function loadAdminUsuario() {
     adminUsuario = { usuario: CONFIG.ADMIN_USER, password: null, rol: 'admin', email: null, email_respaldo: null };
 }
 
+// Hashes SHA-256 de Secretaría (ADMIN1) y Rector (ADMIN2): viven en
+// filas de la misma tabla `usuarios` de Supabase que ya usaba
+// Programador (ver add_secretaria_rector_usuarios.sql), en vez de un
+// archivo aparte que habría que resubir a mano al hosting en cada
+// redeploy. window.ASISCAM_CRED_HASHES ya viene precargado por
+// roles.js con el fallback de config.secrets.js/config.example.js
+// (offline o antes de correr el SQL); acá se pisa con el valor real de
+// Supabase (o su caché) si está disponible.
+async function loadCredencialesFijas() {
+    if (!window.ASISCAM_CRED_HASHES) window.ASISCAM_CRED_HASHES = {};
+    const aplicar = (porUsuario) => {
+        let huboReal = false;
+        if (porUsuario.ADMIN1) { window.ASISCAM_CRED_HASHES.SECRETARIA = porUsuario.ADMIN1; huboReal = true; }
+        if (porUsuario.ADMIN2) { window.ASISCAM_CRED_HASHES.RECTOR = porUsuario.ADMIN2; huboReal = true; }
+        if (huboReal) {
+            window.ASISCAM_DEMO_MODE = false;
+            document.getElementById('demoModeBanner')?.style.setProperty('display', 'none');
+        }
+    };
+    if (sb) {
+        try {
+            const { data, error } = await sb.from('usuarios').select('usuario, password').in('usuario', ['ADMIN1', 'ADMIN2']);
+            if (!error && data && data.length > 0) {
+                const porUsuario = {};
+                data.forEach(row => { porUsuario[row.usuario] = row.password; });
+                aplicar(porUsuario);
+                localStorage.setItem('sb_cache_cred_hashes', JSON.stringify(porUsuario));
+                return;
+            }
+            if (error) console.error('No se pudieron cargar los hashes de Secretaría/Rector desde Supabase:', describeSupabaseError(error));
+        } catch (e) {
+            console.error('No se pudieron cargar los hashes de Secretaría/Rector desde Supabase', e);
+        }
+    }
+    try {
+        const cached = localStorage.getItem('sb_cache_cred_hashes');
+        if (cached) aplicar(JSON.parse(cached));
+    } catch (e) { /* ignorar caché corrupta */ }
+}
+
 // Confianza mínima (%) para aceptar una identificación y disparar el
 // fichaje obligatorio. face-api.js no da un "% de confianza" nativo,
 // solo una distancia euclidiana entre descriptores, así que la
@@ -4745,6 +4785,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     loadFaceApiModels();
     await loadAllData();
     await loadAdminUsuario();
+    await loadCredencialesFijas();
     await checkResetTokenFromUrl();
     const criteria = getCriteria();
     saveCriteriaToStorage(criteria);
