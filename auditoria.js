@@ -138,6 +138,8 @@ function getLogsFiltrados() {
     const accion = (document.getElementById('auditoriaFiltroAccion')?.value || '').trim().toLowerCase();
     const desde = document.getElementById('auditoriaFiltroDesde')?.value || '';
     const hasta = document.getElementById('auditoriaFiltroHasta')?.value || '';
+    const soloFueraDeItuzaingo = document.getElementById('auditoriaFiltroFueraItuzaingo')?.checked;
+    const soloFakeGps = document.getElementById('auditoriaFiltroFakeGps')?.checked;
     return getLogs().filter(l => {
         if (usuario && !(l.usuario || '').toLowerCase().includes(usuario)) return false;
         if (accion && !(l.accion || '').toLowerCase().includes(accion)) return false;
@@ -146,24 +148,42 @@ function getLogsFiltrados() {
             if (desde && fechaLog < desde) return false;
             if (hasta && fechaLog > hasta) return false;
         }
+        // Aproximado por texto de la dirección ya resuelta (Nominatim),
+        // no por límites administrativos reales - no tenemos esa data.
+        if (soloFueraDeItuzaingo && (l.ubicacion?.direccion || '').toLowerCase().includes('ituzaingó')) return false;
+        if (soloFakeGps && !l.ubicacion?.fakeGpsSospechoso) return false;
         return true;
     }).slice().reverse();
 }
 
 // HTML de la celda "Ubicación": link a Google Maps con la dirección
-// aproximada como texto (o las coordenadas si no hay dirección),
-// "-" si el log no tiene ubicación (login sin permiso GPS ni IP, o
-// acciones que nunca la piden, como guardar una materia).
+// aproximada como texto (o "GPS: lat,lon (pendiente sync)" con badge
+// amarillo si todavía no se resolvió la dirección), "-" si el log no
+// tiene ubicación en absoluto (login sin permiso GPS ni IP, o acciones
+// que nunca la piden, como guardar una materia). Tooltip con el
+// detalle completo (lat/lon/precisión/IP).
 function celdaUbicacionLog(l) {
     if (!l.ubicacion || l.ubicacion.lat == null) return '-';
     const lat = Number(l.ubicacion.lat), lng = Number(l.ubicacion.lng);
-    const texto = l.ubicacion.direccion || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-    return `<a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener">${texto}</a>`;
+    const tienedireccion = !!l.ubicacion.direccion;
+    const texto = tienedireccion ? l.ubicacion.direccion : `GPS: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    const pendienteBadge = tienedireccion ? '' : ' <span class="badge bg-warning text-dark">pendiente sync</span>';
+    const fakeGpsBadge = l.ubicacion.fakeGpsSospechoso ? ' <span class="badge bg-danger" title="Heurística débil, no es detección real de GPS falso">POSIBLE UBICACIÓN FALSA</span>' : '';
+    const tooltip = [
+        `Lat/Lon: ${lat}, ${lng}`,
+        l.ubicacion.precision != null ? `Precisión: ${l.ubicacion.precision}m` : null,
+        l.ubicacion.ip ? `IP: ${l.ubicacion.ip}` : null,
+        l.ubicacion.fuente ? `Fuente: ${l.ubicacion.fuente === 'gps' ? 'GPS del dispositivo' : 'aproximada por IP'}` : null,
+    ].filter(Boolean).join(' · ');
+    return `<a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener" title="${tooltip}"><i class="bi bi-geo-alt-fill"></i> ${texto}</a>${pendienteBadge}${fakeGpsBadge}`;
 }
 
 function hayFiltrosActivosAuditoria() {
-    return ['auditoriaFiltroUsuario', 'auditoriaFiltroAccion', 'auditoriaFiltroDesde', 'auditoriaFiltroHasta']
+    const textoActivo = ['auditoriaFiltroUsuario', 'auditoriaFiltroAccion', 'auditoriaFiltroDesde', 'auditoriaFiltroHasta']
         .some(id => (document.getElementById(id)?.value || '').trim() !== '');
+    const checkActivo = ['auditoriaFiltroFueraItuzaingo', 'auditoriaFiltroFakeGps']
+        .some(id => document.getElementById(id)?.checked);
+    return textoActivo || checkActivo;
 }
 
 function renderAuditoriaPanel() {
@@ -243,6 +263,10 @@ function limpiarFiltrosAuditoria() {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
+    ['auditoriaFiltroFueraItuzaingo', 'auditoriaFiltroFakeGps'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.checked = false;
+    });
     cargarLogsAuditoria().then(renderAuditoriaPanel);
 }
 
@@ -256,11 +280,13 @@ function exportarLogsAExcel(logs, sufijoArchivo, sufijoAccion) {
         Dispositivo: l.dispositivo || '', Plataforma: l.plataforma || '',
         Ubicacion: l.ubicacion && l.ubicacion.lat != null ? `${l.ubicacion.lat}, ${l.ubicacion.lng}` : '',
         Direccion: l.ubicacion?.direccion || '',
+        PrecisionM: l.ubicacion?.precision ?? '',
         IP: l.ubicacion?.ip || '',
+        FakeGpsSospechoso: l.ubicacion?.fakeGpsSospechoso ? 'SI' : '',
     }));
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 40 }, { wch: 30 }, { wch: 14 }, { wch: 20 }, { wch: 26 }, { wch: 15 }];
+    ws['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 40 }, { wch: 30 }, { wch: 14 }, { wch: 20 }, { wch: 26 }, { wch: 12 }, { wch: 15 }, { wch: 12 }];
     XLSX.utils.book_append_sheet(wb, ws, 'Auditoria');
     XLSX.writeFile(wb, `asiscam_auditoria${sufijoArchivo || ''}_${new Date().toISOString().split('T')[0]}.xlsx`);
     logAccion('EXPORTAR_LOG', `Exportó ${logs.length} registro(s) a Excel${sufijoAccion || ''}`);

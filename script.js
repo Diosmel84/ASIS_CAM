@@ -330,8 +330,23 @@ async function verifyGeofence(geofenceOverride) {
     // guarda en el registro de asistencia para el reporte "ubicación
     // real vs configurada" (ver registerAttendance()/generateReport()).
     const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
-    if (distance > geofence.radio) return { ok: false, reason: 'geofence', distance, geofence, coords };
-    return { ok: true, distance, geofence, coords };
+    const precision = Number.isFinite(position.coords.accuracy) ? Math.round(position.coords.accuracy) : null;
+    const fakeGpsSospechoso = esGpsSospechoso(position.coords);
+    if (distance > geofence.radio) return { ok: false, reason: 'geofence', distance, geofence, coords, precision, fakeGpsSospechoso };
+    return { ok: true, distance, geofence, coords, precision, fakeGpsSospechoso };
+}
+
+// Heurística DÉBIL, no detección real: desde un navegador/PWA no hay
+// forma confiable de saber si el GPS es simulado (a diferencia de una
+// app nativa Android, que sí puede consultar Location.isFromMockProvider()).
+// Esto solo marca como "sospechoso" un par de señales conocidas de apps
+// de fake-GPS comunes (accuracy perfecta y redonda, o exactamente
+// Null Island 0,0) para que el admin lo revise a mano - nunca bloquea
+// el fichaje ni se usa como prueba por sí sola.
+function esGpsSospechoso(coords) {
+    if (coords.latitude === 0 && coords.longitude === 0) return true;
+    if ([1, 5, 10, 20].includes(coords.accuracy)) return true;
+    return false;
 }
 
 // Arma el {lat,lng,radio,nombreLugar} de la geocerca de UN evento
@@ -369,6 +384,20 @@ async function revalidatePendingGeofenceAttendance() {
         const distance = haversineDistanceMeters(registro.coords.lat, registro.coords.lng, geofence.lat, geofence.lng);
         registro.geofenceStatus = distance <= geofence.radio ? 'validado_dentro_de_rango' : 'validado_fuera_de_rango';
         registro.geofenceDistanciaMts = Math.round(distance);
+        // Unificado con el campo que usa el fichaje online normal (ver
+        // geoFichajeFields()), para que el Reporte de Asistencias no
+        // tenga que distinguir "vino de un fichaje offline" o no.
+        registro.fichajeLat = registro.coords.lat;
+        registro.fichajeLng = registro.coords.lng;
+        registro.fichajeDistanciaMts = Math.round(distance);
+        registro.dentroGeocerca = registro.geofenceStatus === 'validado_dentro_de_rango';
+        // hora_sync: recién ACÁ, al reconectar, se termina de confirmar
+        // la ubicación - puede ser mucho después de horaFichajeReal
+        // (=timestamp, el momento real en que tocó el botón offline).
+        // Esa diferencia es justo lo que marca el badge "DIFERIDO".
+        registro.horaFichajeReal = registro.horaFichajeReal || registro.timestamp;
+        registro.horaSync = new Date().toISOString();
+        registro.syncUbicacion = 'completo';
         changed = true;
         if (registro.geofenceStatus === 'validado_fuera_de_rango') {
             const teacher = getTeacherByNumericId(registro.teacherId);
@@ -377,8 +406,50 @@ async function revalidatePendingGeofenceAttendance() {
                     `El fichaje de ${registro.teacherName} del ${registro.date} ${registro.time} se guardó sin conexión y, al validar la ubicación al reconectar, resultó a ${Math.round(distance)}mts del punto autorizado.`);
             }
         }
+        // Dirección/IP: recién tiene sentido pedirlas acá porque esta
+        // función solo corre al reconectar (ver onReconnectSync()) -
+        // fire-and-forget, no bloquea el resto de la revalidación.
+        // Acá sí se espera (a diferencia del fichaje en vivo): esta
+        // función solo corre al reconectar, ya en segundo plano y sin
+        // nadie esperando en pantalla, así que no hay motivo para NO
+        // esperarla - y evita una condición de carrera si el 'online'
+        // dispara la revalidación de nuevo antes de que termine.
+        await completarDireccionEIp(registro.id, registro.coords.lat, registro.coords.lng, 'attendance');
     }
     if (changed) saveAttendance(attendance);
+}
+
+// Completa (en segundo plano, sin bloquear el fichaje ni la
+// revalidación) la dirección legible - Nominatim - y el IP público -
+// ipwho.is - de un registro ya guardado, una vez que hay conexión.
+// tipo: 'attendance' (busca en getAttendance()) - se deja preparado
+// para reusar con otras colecciones si hiciera falta más adelante.
+async function completarDireccionEIp(registroId, lat, lng, tipo) {
+    if (!navigator.onLine) return;
+    const [direccion, ip] = await Promise.all([
+        obtenerDireccionPorCoordenadas(lat, lng),
+        obtenerIpPublica(),
+    ]);
+    if (tipo !== 'attendance') return;
+    const attendance = getAttendance();
+    const registro = attendance.find(a => a.id === registroId);
+    if (!registro) return;
+    registro.direccionFichaje = direccion;
+    registro.ip = ip;
+    registro.horaSync = registro.horaSync || new Date().toISOString();
+    registro.syncUbicacion = 'completo';
+    saveAttendance(attendance);
+}
+
+async function obtenerIpPublica() {
+    try {
+        const res = await fetch('https://ipwho.is/');
+        const data = await res.json();
+        return (data && data.success !== false) ? (data.ip || null) : null;
+    } catch (error) {
+        console.error('No se pudo obtener la IP pública:', error);
+        return null;
+    }
 }
 
 // Campos extra que se agregan a un registro de asistencia cuando se
@@ -403,6 +474,21 @@ function geoFichajeFields(geo) {
         fichajeLat: geo.coords.lat,
         fichajeLng: geo.coords.lng,
         fichajeDistanciaMts: geo.distance != null ? Math.round(geo.distance) : null,
+        fichajePrecisionM: geo.precision != null ? geo.precision : null,
+        fichajeFakeGpsSospechoso: !!geo.fakeGpsSospechoso,
+        // dentroGeocerca: null cuando el fichaje pasó por un bypass sin
+        // geocerca real (admin/kiosco/modo prueba/evento sin geocerca) -
+        // geo.distance no existe en esos casos.
+        dentroGeocerca: geo.distance != null ? geo.distance <= (geo.geofence?.radio ?? Infinity) : null,
+        // horaSync/syncUbicacion se completan de verdad en
+        // completarDireccionEIp() (fichaje online: enseguida en
+        // segundo plano; offline: recién al reconectar, ver
+        // revalidatePendingGeofenceAttendance()) - por eso arrancan
+        // en null/'pendiente' acá, incluso para el fichaje online.
+        horaSync: null,
+        syncUbicacion: 'pendiente',
+        direccionFichaje: null,
+        ip: null,
     };
 }
 
@@ -570,7 +656,11 @@ async function obtenerUbicacionParaLog() {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
         const direccion = await obtenerDireccionPorCoordenadas(lat, lng);
-        return { lat, lng, direccion, ip: null, fuente: 'gps' };
+        return {
+            lat, lng, direccion, ip: null, fuente: 'gps',
+            precision: Number.isFinite(position.coords.accuracy) ? Math.round(position.coords.accuracy) : null,
+            fakeGpsSospechoso: esGpsSospechoso(position.coords),
+        };
     } catch (error) {
         console.error('No se pudo obtener el GPS para el log de auditoría, se intenta por IP:', error);
     }
@@ -2373,6 +2463,36 @@ function loadReportTeachers() {
 // docente puntual (no "Todos" - es el caso de generateIndividualReport(),
 // el botón "Generar Reporte" de la ficha del docente), arranca con un
 // encabezado tipo legajo: datos personales + getDomicilioCompleto().
+// Helpers compartidos por generateReport()/generateReportExcel() para
+// mostrar "ubicación real vs configurada" de cada fichaje.
+function textoDistanciaFichaje(r) {
+    if (r.fichajeDistanciaMts == null) return '-';
+    return r.dentroGeocerca === false ? `FUERA DE RANGO - ${r.fichajeDistanciaMts}m` : `EN ESCUELA - ${r.fichajeDistanciaMts}m`;
+}
+
+function minutosDiferidoFichaje(r) {
+    if (!r.horaSync || !r.horaFichajeReal) return null;
+    return Math.round((new Date(r.horaSync) - new Date(r.horaFichajeReal)) / 60000);
+}
+
+// "Diferido": fichó offline y recién se terminó de confirmar la
+// ubicación bastante después, al reconectar (ver
+// revalidatePendingGeofenceAttendance()). Con conexión normal,
+// horaSync se completa a los pocos segundos - nunca da diferido.
+function esFichajeDiferido(r) {
+    const min = minutosDiferidoFichaje(r);
+    return min != null && min > 15;
+}
+
+// Link de Google Maps con 2 pines (escuela y fichaje) y la línea de
+// distancia entre ambos: es el esquema público de "Cómo llegar" de
+// Google Maps (origen -> destino) - no existe una URL más simple que
+// dibuje una línea entre 2 puntos sin usar su API de mapas embebida.
+function linkMapaFichaje(r, geofence) {
+    if (r.fichajeLat == null) return null;
+    return `https://www.google.com/maps/dir/?api=1&origin=${geofence.lat},${geofence.lng}&destination=${r.fichajeLat},${r.fichajeLng}`;
+}
+
 function generateReport() {
     const from = document.getElementById('reportFrom').value;
     const to = document.getElementById('reportTo').value;
@@ -2465,10 +2585,14 @@ function generateReport() {
                 // estándar (helvetica) no las renderiza, quedan vacías
                 // o rotas - mismo motivo por el que el resto de este
                 // reporte tampoco usa ninguno.
-                const ubicacionTag = r.fichajeLat != null
-                    ? `  |  Ubicación: ${r.fichajeLat.toFixed(5)}, ${r.fichajeLng.toFixed(5)} (a ${r.fichajeDistanciaMts}mts de la geocerca)`
+                const ubicacionTexto = r.direccionFichaje || (r.fichajeLat != null ? `${r.fichajeLat.toFixed(5)}, ${r.fichajeLng.toFixed(5)}` : null);
+                const ubicacionTag = ubicacionTexto ? `  |  ${ubicacionTexto} (${textoDistanciaFichaje(r)})` : '';
+                const diferidoMin = minutosDiferidoFichaje(r);
+                const diferidoTag = esFichajeDiferido(r)
+                    ? `  |  DIFERIDO: fichó ${r.time} pero sincronizó ${new Date(r.horaSync).toLocaleTimeString('es-AR').slice(0, 5)} (${diferidoMin}min después)`
                     : '';
-                doc.text(`${r.date} ${r.time}  |  ${typeMap[r.type] || r.type}${categoriaTag}  |  ${r.status}${ubicacionTag}`, marginX + 10, y);
+                const fakeGpsTag = r.fichajeFakeGpsSospechoso ? '  |  POSIBLE UBICACIÓN FALSA' : '';
+                doc.text(`${r.date} ${r.time}  |  ${typeMap[r.type] || r.type}${categoriaTag}  |  ${r.status}${ubicacionTag}${diferidoTag}${fakeGpsTag}`, marginX + 10, y);
                 y += 13;
             });
         y += 12;
@@ -2498,11 +2622,13 @@ function generateReportExcel() {
     teachers.forEach(t => teacherMap[t.id] = t);
     const typeMap = { entry: 'ENTRADA', exit: 'SALIDA', early_exit: 'SALIDA ANTES DE TIEMPO' };
 
+    const geofenceReporte = getGeofenceConfig();
     const rows = filtered
         .slice()
         .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
         .map(r => {
             const teacher = teacherMap[r.teacherId];
+            const diferidoMin = minutosDiferidoFichaje(r);
             return {
                 Fecha: r.date,
                 Hora: r.time,
@@ -2513,23 +2639,35 @@ function generateReportExcel() {
                 Tipo: typeMap[r.type] || r.type,
                 Estado: r.status || '-',
                 Evento: r.categoria === 'evento' ? (r.eventoTitulo || r.eventoId) : '',
-                UbicacionFichaje: r.fichajeLat != null ? `${r.fichajeLat}, ${r.fichajeLng}` : '',
-                DistanciaGeocercaMts: r.fichajeDistanciaMts != null ? r.fichajeDistanciaMts : '',
+                Ubicacion: r.direccionFichaje || '',
+                LatLon: r.fichajeLat != null ? `${r.fichajeLat}, ${r.fichajeLng}` : '',
+                Distancia: textoDistanciaFichaje(r),
+                DentroFuera: r.dentroGeocerca == null ? '' : (r.dentroGeocerca ? 'DENTRO' : 'FUERA'),
+                HoraReal: r.horaFichajeReal ? new Date(r.horaFichajeReal).toLocaleTimeString('es-AR').slice(0, 5) : '',
+                HoraSync: r.horaSync ? new Date(r.horaSync).toLocaleTimeString('es-AR').slice(0, 5) : (r.syncUbicacion === 'pendiente' ? 'pendiente' : ''),
+                DiferenciaMin: diferidoMin != null ? diferidoMin : '',
+                Diferido: esFichajeDiferido(r) ? 'SI' : '',
+                IP: r.ip || '',
+                FakeGpsSospechoso: r.fichajeFakeGpsSospechoso ? 'SI' : '',
+                LinkMapa: linkMapaFichaje(r, geofenceReporte) || '',
             };
         });
 
-    const geofenceReporte = getGeofenceConfig();
     const singleTeacher = teacherId !== 'all' ? teacherMap[teacherId] : null;
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 16 }, { wch: 16 }, { wch: 10 }, { wch: 18 }, { wch: 22 }, { wch: 12 }, { wch: 20 }, { wch: 24 }, { wch: 16 }];
+    ws['!cols'] = [
+        { wch: 12 }, { wch: 8 }, { wch: 16 }, { wch: 16 }, { wch: 10 }, { wch: 18 }, { wch: 22 }, { wch: 12 }, { wch: 20 },
+        { wch: 26 }, { wch: 20 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 15 }, { wch: 12 }, { wch: 45 },
+    ];
     // Fila de referencia con la geocerca configurada, para poder
     // comparar a ojo contra UbicacionFichaje/DistanciaGeocercaMts de
     // cada fila de arriba.
     XLSX.utils.sheet_add_json(ws, [{
         Fecha: '', Hora: '', Apellido: '', Nombre: '', DNI: '', Materia: '', Tipo: '', Estado: '', Evento: '',
-        UbicacionFichaje: `Geocerca configurada: ${geofenceReporte.nombreLugar} (${geofenceReporte.lat}, ${geofenceReporte.lng})`,
-        DistanciaGeocercaMts: `Radio: ${geofenceReporte.radio}m`,
+        Ubicacion: `Geocerca configurada: ${geofenceReporte.nombreLugar}`,
+        LatLon: `${geofenceReporte.lat}, ${geofenceReporte.lng}`,
+        Distancia: `Radio: ${geofenceReporte.radio}m`,
     }], { skipHeader: true, origin: -1 });
     XLSX.utils.book_append_sheet(wb, ws, 'Asistencia');
 
@@ -3082,11 +3220,13 @@ function registerFaceEventoAttendance(type, teacher, eventoInfo, geo) {
     }
 
     const attendance = getAttendance();
+    const attendanceId = Date.now().toString();
     attendance.push({
-        id: Date.now().toString(),
+        id: attendanceId,
         teacherId: teacher.id,
         teacherName: `${teacher.apellido} ${teacher.nombre}`,
         date, time, type, status: attStatus, timestamp: now.toISOString(),
+        horaFichajeReal: now.toISOString(),
         categoria: 'evento',
         eventoId: eventoInfo.id,
         eventoTitulo: eventoInfo.titulo,
@@ -3098,6 +3238,7 @@ function registerFaceEventoAttendance(type, teacher, eventoInfo, geo) {
     });
     saveAttendance(attendance);
     logAccion('FICHAJE_EVENTO', `${type.toUpperCase()} evento "${eventoInfo.titulo}" - ${teacher.apellido} ${teacher.nombre} - ${time}`, geo && geo.coords ? geo.coords : null);
+    if (geo && geo.coords && navigator.onLine) completarDireccionEIp(attendanceId, geo.coords.lat, geo.coords.lng, 'attendance');
 
     if (document.getElementById('adminDashboard').classList.contains('hidden') === false) updateStats();
     checkFaltasEvento();
@@ -3329,17 +3470,22 @@ function registerAttendance(type, geo) {
 
     const typeMap = { 'entry': 'ENTRADA', 'exit': 'SALIDA', 'early_exit': 'SALIDA ANTES DE TIEMPO' };
     const attendance = getAttendance();
+    const attendanceId = Date.now().toString();
     attendance.push({
-        id: Date.now().toString(),
+        id: attendanceId,
         teacherId: recognizedTeacher.id,
         teacherName: `${recognizedTeacher.apellido} ${recognizedTeacher.nombre}`,
         date, time, type, status: attStatus, timestamp: now.toISOString(),
+        horaFichajeReal: now.toISOString(),
         categoria: 'regular',
         ...pendingGeofenceFields(geo),
         ...geoFichajeFields(geo),
     });
     saveAttendance(attendance);
     logAccion('FICHAJE', `${typeMap[type]} - ${teacherFullName} - ${time}`, geo && geo.coords ? geo.coords : null);
+    // Dirección/IP en segundo plano: si hay conexión ahora mismo (no
+    // pasó por el bypass offline), no hace falta esperar a reconectar.
+    if (geo && geo.coords && navigator.onLine) completarDireccionEIp(attendanceId, geo.coords.lat, geo.coords.lng, 'attendance');
 
     const needsAttention = attStatus === 'late' || type === 'early_exit';
     const warningNote = attStatus === 'late' ? ' ⚠️ Tardanza'

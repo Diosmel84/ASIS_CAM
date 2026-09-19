@@ -641,6 +641,16 @@
                                 <div class="col-md-2"><input type="date" class="form-control form-control-sm" id="auditoriaFiltroHasta" onchange="filtrarAuditoria()"></div>
                                 <div class="col-md-2"><button class="btn btn-outline-secondary btn-sm w-100" onclick="limpiarFiltrosAuditoria()">Limpiar filtros</button></div>
                             </div>
+                            <div class="d-flex flex-wrap gap-3 mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="auditoriaFiltroFueraItuzaingo" onchange="filtrarAuditoria()">
+                                    <label class="form-check-label small" for="auditoriaFiltroFueraItuzaingo">Solo fuera de Ituzaingó</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="auditoriaFiltroFakeGps" onchange="filtrarAuditoria()">
+                                    <label class="form-check-label small" for="auditoriaFiltroFakeGps">Solo Fake GPS sospechoso</label>
+                                </div>
+                            </div>
                             <div id="auditoriaFiltroInfo" class="small text-warning fw-semibold mb-2"></div>
                             <div class="d-flex flex-wrap gap-2 mb-3">
                                 <button class="btn btn-outline-success btn-sm" onclick="exportarLogExcel()"><i class="bi bi-file-earmark-excel"></i> Exportar Excel</button>
