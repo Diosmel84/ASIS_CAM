@@ -548,8 +548,8 @@
                             </ul>
                             <div class="table-responsive" id="grillaMateriasPrintArea">
                                 <table class="table ios-table">
-                                    <thead><tr><th>Materia</th><th>Tipo</th><th>Días</th><th>Horario</th><th>Profesor Asignado</th><th>Acciones</th></tr></thead>
-                                    <tbody id="grillaMateriasTableBody"><tr><td colspan="6" class="text-center text-muted">Elegí una carrera</td></tr></tbody>
+                                    <thead><tr><th>Materia</th><th>Tipo</th><th>Días y Horario</th><th>Profesor Asignado</th><th>Acciones</th></tr></thead>
+                                    <tbody id="grillaMateriasTableBody"><tr><td colspan="5" class="text-center text-muted">Elegí una carrera</td></tr></tbody>
                                 </table>
                             </div>
                             <button class="btn btn-outline-secondary btn-sm" onclick="window.print()"><i class="bi bi-printer"></i> Imprimir esta grilla</button>
@@ -1059,23 +1059,21 @@
                         </select>
                     </div>
                     <div class="form-group mt-2">
-                        <label class="required-field">Días</label>
+                        <label class="required-field">Días (tildá un día para cargarle su horario)</label>
                         <div class="d-flex flex-wrap gap-3">
-                            <div class="form-check"><input class="form-check-input" type="checkbox" id="materiaDiaLunes" value="Lunes"><label class="form-check-label" for="materiaDiaLunes">Lunes</label></div>
-                            <div class="form-check"><input class="form-check-input" type="checkbox" id="materiaDiaMartes" value="Martes"><label class="form-check-label" for="materiaDiaMartes">Martes</label></div>
-                            <div class="form-check"><input class="form-check-input" type="checkbox" id="materiaDiaMiercoles" value="Miércoles"><label class="form-check-label" for="materiaDiaMiercoles">Miércoles</label></div>
-                            <div class="form-check"><input class="form-check-input" type="checkbox" id="materiaDiaJueves" value="Jueves"><label class="form-check-label" for="materiaDiaJueves">Jueves</label></div>
-                            <div class="form-check"><input class="form-check-input" type="checkbox" id="materiaDiaViernes" value="Viernes"><label class="form-check-label" for="materiaDiaViernes">Viernes</label></div>
-                            <div class="form-check"><input class="form-check-input" type="checkbox" id="materiaDiaSabado" value="Sábado"><label class="form-check-label" for="materiaDiaSabado">Sábado</label></div>
-                            <div class="form-check"><input class="form-check-input" type="checkbox" id="materiaDiaDomingo" value="Domingo"><label class="form-check-label" for="materiaDiaDomingo">Domingo</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="materiaDiaLunes" value="Lunes" onchange="toggleMateriaHorarioDia('Lunes', this.checked)"><label class="form-check-label" for="materiaDiaLunes">Lunes</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="materiaDiaMartes" value="Martes" onchange="toggleMateriaHorarioDia('Martes', this.checked)"><label class="form-check-label" for="materiaDiaMartes">Martes</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="materiaDiaMiercoles" value="Miércoles" onchange="toggleMateriaHorarioDia('Miercoles', this.checked)"><label class="form-check-label" for="materiaDiaMiercoles">Miércoles</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="materiaDiaJueves" value="Jueves" onchange="toggleMateriaHorarioDia('Jueves', this.checked)"><label class="form-check-label" for="materiaDiaJueves">Jueves</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="materiaDiaViernes" value="Viernes" onchange="toggleMateriaHorarioDia('Viernes', this.checked)"><label class="form-check-label" for="materiaDiaViernes">Viernes</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="materiaDiaSabado" value="Sábado" onchange="toggleMateriaHorarioDia('Sabado', this.checked)"><label class="form-check-label" for="materiaDiaSabado">Sábado</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="materiaDiaDomingo" value="Domingo" onchange="toggleMateriaHorarioDia('Domingo', this.checked)"><label class="form-check-label" for="materiaDiaDomingo">Domingo</label></div>
                         </div>
                     </div>
-                    <div class="row mt-2">
-                        <div class="col-md-6">
-                            <div class="form-group"><label class="required-field">Hora de inicio</label><input type="time" class="form-control" id="materiaHoraInicio"></div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group"><label class="required-field">Hora de fin</label><input type="time" class="form-control" id="materiaHoraFin"></div>
+                    <div class="form-group mt-2">
+                        <label class="required-field">Horario por día</label>
+                        <div id="materiaHorariosPorDia">
+                            <span class="text-muted small">Tildá un día arriba para cargarle su horario.</span>
                         </div>
                     </div>
                     <div class="form-group mt-2">

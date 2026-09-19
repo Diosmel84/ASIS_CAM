@@ -4201,6 +4201,26 @@ function diasCorto(dias) {
     return (dias || []).map(d => abrev[d] || d).join(' ');
 }
 
+// Normaliza el horario de una materia al formato nuevo, un horario por
+// día: [{dia, inicio, fin}]. Compatibilidad con materias viejas que
+// todavía no tienen `horarios` cargado (antes de add_horarios_por_dia_
+// materias.sql: un solo hora_inicio/hora_fin para todos los `dias`) -
+// se arma el mismo array al vuelo a partir de esas columnas.
+function materiaHorarios(m) {
+    if (Array.isArray(m.horarios) && m.horarios.length > 0) return m.horarios;
+    return (m.dias || []).map(dia => ({
+        dia,
+        inicio: (m.hora_inicio || '').slice(0, 5),
+        fin: (m.hora_fin || '').slice(0, 5),
+    }));
+}
+
+// "Lun 18:00-19:20 | Mié 20:00-21:30" - usado en la grilla, el
+// checklist del docente y la impresión (misma tabla).
+function formatoHorariosCorto(m) {
+    return materiaHorarios(m).map(h => `${diasCorto([h.dia])} ${h.inicio}-${h.fin}`).join(' | ');
+}
+
 function seleccionarAnioCuatGrilla(anio, cuat, btnEl) {
     grillaAnioSeleccionado = anio;
     grillaCuatSeleccionado = cuat;
@@ -4214,12 +4234,12 @@ function renderGrillaMaterias() {
     if (!tbody) return;
     const carreraId = document.getElementById('grillaMateriasCarrera')?.value;
     if (!carreraId) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Elegí una carrera</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Elegí una carrera</td></tr>';
         return;
     }
     const filtradas = currentMaterias.filter(m => String(m.carrera_id) === String(carreraId) && m.anio === grillaAnioSeleccionado && m.cuatrimestre === grillaCuatSeleccionado);
     if (filtradas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Sin materias cargadas para este año/cuatrimestre</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin materias cargadas para este año/cuatrimestre</td></tr>';
         return;
     }
     const puedeBorrar = tienePermiso(currentUser.rol, 'borrar');
@@ -4230,8 +4250,7 @@ function renderGrillaMaterias() {
             <tr>
                 <td data-label="Materia">${m.nombre}</td>
                 <td data-label="Tipo">${m.tipo === 'ANUAL' ? 'Anual' : 'Cuatrimestral'}</td>
-                <td data-label="Días">${diasCorto(m.dias)}</td>
-                <td data-label="Horario">${(m.hora_inicio || '').slice(0, 5)} - ${(m.hora_fin || '').slice(0, 5)}</td>
+                <td data-label="Días y Horario">${formatoHorariosCorto(m)}</td>
                 <td data-label="Profesor Asignado">${profesorNombre}</td>
                 <td data-label="Acciones">
                     <button class="btn btn-sm btn-primary" title="Editar" onclick="editMateria(${m.id})"><i class="bi bi-pencil"></i></button>
@@ -4249,6 +4268,35 @@ function populateMateriaProfesorSelect(selectedTeacherId) {
     sel.value = selectedTeacherId || '';
 }
 
+// Fila dinámica "Lunes: [inicio] - [fin]" que aparece/desaparece al
+// tildar/destildar el checkbox de ese día (ver onchange en
+// index.html). inicioPrefill/finPrefill se usan al editar una materia
+// existente, para no perder el horario que ya tenía cargado ese día.
+function toggleMateriaHorarioDia(diaSinTilde, checked, inicioPrefill, finPrefill) {
+    const cont = document.getElementById('materiaHorariosPorDia');
+    if (!cont) return;
+    const filaId = 'materiaHorarioFila_' + diaSinTilde;
+    if (!checked) {
+        document.getElementById(filaId)?.remove();
+        return;
+    }
+    if (document.getElementById(filaId)) return;
+    const fila = document.createElement('div');
+    fila.id = filaId;
+    fila.className = 'row g-2 align-items-end mb-2';
+    fila.innerHTML = `
+        <div class="col-4"><span class="fw-semibold">${diaMateriaLabel(diaSinTilde)}</span></div>
+        <div class="col-4">
+            <label class="form-label small mb-1 text-muted">Inicio</label>
+            <input type="time" class="form-control form-control-sm" id="materiaHorarioInicio_${diaSinTilde}" value="${inicioPrefill || ''}">
+        </div>
+        <div class="col-4">
+            <label class="form-label small mb-1 text-muted">Fin</label>
+            <input type="time" class="form-control form-control-sm" id="materiaHorarioFin_${diaSinTilde}" value="${finPrefill || ''}">
+        </div>`;
+    cont.appendChild(fila);
+}
+
 function openMateriaModal(id) {
     const accionPermiso = id ? 'editar_docente' : 'agregar_docente';
     if (!tienePermiso(currentUser.rol, accionPermiso)) {
@@ -4263,6 +4311,7 @@ function openMateriaModal(id) {
         const el = document.getElementById('materiaDia' + d);
         if (el) el.checked = false;
     });
+    document.getElementById('materiaHorariosPorDia').innerHTML = '';
     populateCarrerasSelects();
 
     const m = id ? currentMaterias.find(x => x.id === id) : null;
@@ -4273,11 +4322,11 @@ function openMateriaModal(id) {
     document.getElementById('materiaCuatrimestre').value = m ? m.cuatrimestre : 1;
     document.getElementById('materiaNombre').value = m ? m.nombre : '';
     document.getElementById('materiaTipo').value = m ? m.tipo : 'ANUAL';
-    document.getElementById('materiaHoraInicio').value = m ? (m.hora_inicio || '').slice(0, 5) : '';
-    document.getElementById('materiaHoraFin').value = m ? (m.hora_fin || '').slice(0, 5) : '';
-    (m ? m.dias || [] : []).forEach(dia => {
-        const el = document.getElementById('materiaDia' + diaMateriaSinTilde(dia));
-        if (el) el.checked = true;
+    (m ? materiaHorarios(m) : []).forEach(h => {
+        const diaSinTilde = diaMateriaSinTilde(h.dia);
+        const chk = document.getElementById('materiaDia' + diaSinTilde);
+        if (chk) chk.checked = true;
+        toggleMateriaHorarioDia(diaSinTilde, true, h.inicio, h.fin);
     });
     const profesorAsignado = m && m.profesor_id ? materiaProfesorPorDocenteId[m.profesor_id] : null;
     populateMateriaProfesorSelect(profesorAsignado ? profesorAsignado.id : '');
@@ -4298,15 +4347,23 @@ async function saveMateria() {
     const cuatrimestre = parseInt(document.getElementById('materiaCuatrimestre').value, 10);
     const nombre = document.getElementById('materiaNombre').value.trim();
     const tipo = document.getElementById('materiaTipo').value;
-    const horaInicio = document.getElementById('materiaHoraInicio').value;
-    const horaFin = document.getElementById('materiaHoraFin').value;
-    const dias = DIAS_MATERIA_IDS.filter(d => document.getElementById('materiaDia' + d)?.checked).map(diaMateriaLabel);
+    const diasTildados = DIAS_MATERIA_IDS.filter(d => document.getElementById('materiaDia' + d)?.checked);
 
     if (!carreraId) { showToast('Elegí una carrera', 'error'); return; }
     if (!nombre) { showToast('El nombre de la materia es obligatorio', 'error'); return; }
-    if (dias.length === 0) { showToast('Marcá al menos un día', 'error'); return; }
-    if (!horaInicio || !horaFin) { showToast('Completá hora de inicio y fin', 'error'); return; }
-    if (horaFin <= horaInicio) { showToast('La hora de fin debe ser posterior a la de inicio', 'error'); return; }
+    if (diasTildados.length === 0) { showToast('Marcá al menos un día', 'error'); return; }
+
+    // Un horario por día (ver toggleMateriaHorarioDia): cada día
+    // tildado tiene que tener su propia fila con inicio/fin cargados.
+    const horarios = [];
+    for (const diaSinTilde of diasTildados) {
+        const label = diaMateriaLabel(diaSinTilde);
+        const inicio = document.getElementById('materiaHorarioInicio_' + diaSinTilde)?.value;
+        const fin = document.getElementById('materiaHorarioFin_' + diaSinTilde)?.value;
+        if (!inicio || !fin) { showToast(`Completá el horario de ${label}`, 'error'); return; }
+        if (fin <= inicio) { showToast(`En ${label}, la hora de fin debe ser posterior a la de inicio`, 'error'); return; }
+        horarios.push({ dia: label, inicio, fin });
+    }
 
     let profesorId = null;
     const teacherIdSeleccionado = document.getElementById('materiaProfesor').value;
@@ -4315,7 +4372,10 @@ async function saveMateria() {
         if (teacher) profesorId = await syncTeacherToDocenteTable(teacher);
     }
 
-    const payload = { carrera_id: carreraId, nombre, anio, cuatrimestre, tipo, dias, hora_inicio: horaInicio, hora_fin: horaFin, profesor_id: profesorId, escuela_id: ESCUELA_ID };
+    // dias se sigue guardando (por compatibilidad con quien todavía lea
+    // esa columna vieja), pero para mostrar la materia ya no se usa -
+    // eso ahora sale de `horarios` (ver materiaHorarios()).
+    const payload = { carrera_id: carreraId, nombre, anio, cuatrimestre, tipo, horarios, dias: horarios.map(h => h.dia), profesor_id: profesorId, escuela_id: ESCUELA_ID };
     try {
         if (editingMateriaId) {
             const { error } = await sb.from('materias').update(payload).eq('id', editingMateriaId);
@@ -4377,7 +4437,7 @@ function renderMateriasDocenteChecklist(teacherId) {
         return `
             <div class="form-check">
                 <input class="form-check-input" type="checkbox" id="materiaChk_${m.id}" data-materia-id="${m.id}" ${asignadoAEste ? 'checked' : ''}>
-                <label class="form-check-label" for="materiaChk_${m.id}">${carreraNombre} | ${m.anio}° Año | ${m.nombre} (${diasCorto(m.dias)} ${(m.hora_inicio || '').slice(0, 5)}-${(m.hora_fin || '').slice(0, 5)})${etiquetaOtro}</label>
+                <label class="form-check-label" for="materiaChk_${m.id}">${carreraNombre} | ${m.anio}° Año | ${m.nombre} (${formatoHorariosCorto(m)})${etiquetaOtro}</label>
             </div>`;
     }).join('');
 }
