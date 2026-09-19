@@ -150,6 +150,17 @@ function getLogsFiltrados() {
     }).slice().reverse();
 }
 
+// HTML de la celda "Ubicación": link a Google Maps con la dirección
+// aproximada como texto (o las coordenadas si no hay dirección),
+// "-" si el log no tiene ubicación (login sin permiso GPS ni IP, o
+// acciones que nunca la piden, como guardar una materia).
+function celdaUbicacionLog(l) {
+    if (!l.ubicacion || l.ubicacion.lat == null) return '-';
+    const lat = Number(l.ubicacion.lat), lng = Number(l.ubicacion.lng);
+    const texto = l.ubicacion.direccion || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    return `<a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener">${texto}</a>`;
+}
+
 function hayFiltrosActivosAuditoria() {
     return ['auditoriaFiltroUsuario', 'auditoriaFiltroAccion', 'auditoriaFiltroDesde', 'auditoriaFiltroHasta']
         .some(id => (document.getElementById(id)?.value || '').trim() !== '');
@@ -186,7 +197,7 @@ function renderAuditoriaPanel() {
                 <td>${l.accion}</td>
                 <td><small>${l.detalle || ''}</small></td>
                 <td><small>${(l.dispositivo || '').slice(0, 70)}</small></td>
-                <td><small>${l.ubicacion && l.ubicacion.lat != null ? `${Number(l.ubicacion.lat).toFixed(4)}, ${Number(l.ubicacion.lng).toFixed(4)}` : '-'}</small></td>
+                <td><small>${celdaUbicacionLog(l)}</small></td>
             </tr>
         `).join('');
     }
@@ -244,10 +255,12 @@ function exportarLogsAExcel(logs, sufijoArchivo, sufijoAccion) {
         Fecha: l.fecha, Usuario: l.usuario, Rol: l.rol, Accion: l.accion, Detalle: l.detalle || '',
         Dispositivo: l.dispositivo || '', Plataforma: l.plataforma || '',
         Ubicacion: l.ubicacion && l.ubicacion.lat != null ? `${l.ubicacion.lat}, ${l.ubicacion.lng}` : '',
+        Direccion: l.ubicacion?.direccion || '',
+        IP: l.ubicacion?.ip || '',
     }));
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 40 }, { wch: 30 }, { wch: 14 }, { wch: 20 }];
+    ws['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 40 }, { wch: 30 }, { wch: 14 }, { wch: 20 }, { wch: 26 }, { wch: 15 }];
     XLSX.utils.book_append_sheet(wb, ws, 'Auditoria');
     XLSX.writeFile(wb, `asiscam_auditoria${sufijoArchivo || ''}_${new Date().toISOString().split('T')[0]}.xlsx`);
     logAccion('EXPORTAR_LOG', `Exportó ${logs.length} registro(s) a Excel${sufijoAccion || ''}`);
@@ -268,9 +281,12 @@ function exportarLogPDF() {
     doc.setFontSize(9);
     let y = 65;
     logs.slice(0, 500).forEach(l => {
-        const linea = `${l.fecha} | ${l.usuario} (${l.rol}) | ${l.accion} | ${l.detalle || ''}`;
+        const ubicacionTexto = l.ubicacion && l.ubicacion.lat != null
+            ? ` | Ubicación: ${l.ubicacion.direccion || `${l.ubicacion.lat}, ${l.ubicacion.lng}`}`
+            : '';
+        const linea = `${l.fecha} | ${l.usuario} (${l.rol}) | ${l.accion} | ${l.detalle || ''}${ubicacionTexto}`;
         if (y > 780) { doc.addPage(); y = 40; }
-        doc.text(linea.slice(0, 130), 40, y);
+        doc.text(linea.slice(0, 160), 40, y);
         y += 14;
     });
     doc.save(`asiscam_auditoria_${new Date().toISOString().split('T')[0]}.pdf`);

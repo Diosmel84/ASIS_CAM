@@ -326,8 +326,12 @@ async function verifyGeofence(geofenceOverride) {
     saveLastKnownCoords(position.coords);
     const geofence = geofenceOverride || await fetchFreshAppDataValue('geofence', getGeofenceConfig);
     const distance = haversineDistanceMeters(position.coords.latitude, position.coords.longitude, geofence.lat, geofence.lng);
-    if (distance > geofence.radio) return { ok: false, reason: 'geofence', distance, geofence };
-    return { ok: true, distance, geofence };
+    // coords real del fichaje (no solo si pasó o no la geocerca): se
+    // guarda en el registro de asistencia para el reporte "ubicación
+    // real vs configurada" (ver registerAttendance()/generateReport()).
+    const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
+    if (distance > geofence.radio) return { ok: false, reason: 'geofence', distance, geofence, coords };
+    return { ok: true, distance, geofence, coords };
 }
 
 // Arma el {lat,lng,radio,nombreLugar} de la geocerca de UN evento
@@ -385,6 +389,21 @@ async function revalidatePendingGeofenceAttendance() {
 function pendingGeofenceFields(geo) {
     if (!geo || !geo.pendingGeofence) return {};
     return { geofenceStatus: 'pendiente_geocerca', offline: true, coords: geo.coords || null };
+}
+
+// Coordenadas reales de CUALQUIER fichaje con GPS (haya pasado la
+// geocerca o no, distinto del mecanismo de pendingGeofenceFields()/
+// revalidación offline) y a cuántos metros quedó del punto
+// configurado, para el reporte "ubicación real vs configurada" (ver
+// generateReport()/generateReportExcel()). Bypasses sin GPS real
+// (admin, kiosco, modo prueba) no tienen geo.coords, quedan vacíos.
+function geoFichajeFields(geo) {
+    if (!geo || !geo.coords) return {};
+    return {
+        fichajeLat: geo.coords.lat,
+        fichajeLng: geo.coords.lng,
+        fichajeDistanciaMts: geo.distance != null ? Math.round(geo.distance) : null,
+    };
 }
 
 // Modal informativo (no bloqueante como el de fichaje: acá el
@@ -515,6 +534,62 @@ async function reverseGeocodeGeocerca(key, lat, lng) {
         console.error('Error en reverse geocode:', error);
         if (el) el.textContent = 'No se pudo obtener la dirección';
     }
+}
+
+// Como reverseGeocodeGeocerca(), pero devuelve el texto en vez de
+// escribirlo en un campo del formulario de geocerca - lo usa
+// obtenerUbicacionParaLog() para armar "Ciudad, Provincia" en vez del
+// display_name completo de Nominatim (muy largo para una tabla/log).
+async function obtenerDireccionPorCoordenadas(lat, lng) {
+    try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, { headers: { 'Accept-Language': 'es' } });
+        const data = await res.json();
+        const a = data.address || {};
+        const localidad = a.city || a.town || a.village || a.suburb || a.municipality;
+        return [localidad, a.state].filter(Boolean).join(', ') || data.display_name || null;
+    } catch (error) {
+        console.error('Error en reverse geocode:', error);
+        return null;
+    }
+}
+
+// Ubicación para el log de auditoría (login de Secretaría/Rector/
+// Programador, ver login()): intenta GPS del navegador primero (más
+// preciso, pide permiso); si el usuario lo niega o no hay soporte, cae
+// a una ubicación aproximada por IP. No bloquea nada si ninguna de las
+// 2 funciona (login sigue andando igual, el log queda sin ubicación).
+//
+// ip-api.com (lo pedido originalmente) no sirve acá: su plan gratuito
+// es solo HTTP, y este sitio corre en HTTPS - el navegador lo
+// bloquearía como "contenido mixto". Se probó ipapi.co (HTTPS, pero
+// devolvió error de rate-limit en la primera prueba en vivo) y se usa
+// ipwho.is en su lugar: HTTPS, sin key, respondió bien en la prueba.
+async function obtenerUbicacionParaLog() {
+    try {
+        const position = await getCurrentPositionPromise(8000);
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const direccion = await obtenerDireccionPorCoordenadas(lat, lng);
+        return { lat, lng, direccion, ip: null, fuente: 'gps' };
+    } catch (error) {
+        console.error('No se pudo obtener el GPS para el log de auditoría, se intenta por IP:', error);
+    }
+    try {
+        const res = await fetch('https://ipwho.is/');
+        const data = await res.json();
+        if (data && data.success !== false && data.latitude != null) {
+            return {
+                lat: data.latitude,
+                lng: data.longitude,
+                direccion: [data.city, data.region].filter(Boolean).join(', ') || null,
+                ip: data.ip || null,
+                fuente: 'ip',
+            };
+        }
+    } catch (error) {
+        console.error('No se pudo obtener la ubicación por IP para el log de auditoría:', error);
+    }
+    return null;
 }
 
 async function buscarGeocercaDireccion(key, query) {
@@ -1197,6 +1272,18 @@ function backToRoleSelect() {
     document.getElementById('roleSelectStep').classList.remove('hidden');
 }
 
+// Login de Secretaría/Rector/Programador: registra el LOGIN una vez
+// que se resuelve la ubicación (GPS o IP, lo que responda primero o
+// esté disponible), sin bloquear el login en sí - showDashboard() ya
+// se llamó para cuando esto termina. Los docentes no pasan por acá:
+// ya piden GPS al fichar segundos después, pedirlo de nuevo acá sería
+// un permiso redundante y confuso.
+function registrarLoginAdminConUbicacion(detalle) {
+    obtenerUbicacionParaLog().then(ubicacion => {
+        logAccion('LOGIN', detalle, ubicacion);
+    });
+}
+
 async function login() {
     if (!dataLoaded || !adminUsuario) {
         showToast('Todavía se están cargando los datos, esperá un momento e intentá de nuevo', 'warning');
@@ -1239,13 +1326,13 @@ async function login() {
         }
         if (ok) {
             currentUser = { role: 'admin', rol: ROLES.PROGRAMADOR, username: PROGRAMADOR_LOGIN_USER };
-            logAccion('LOGIN', 'Login PROGRAMADOR');
+            registrarLoginAdminConUbicacion('Login PROGRAMADOR');
         }
     } else {
         const usuarioEsperado = CREDENCIALES_ADMIN_USUARIO[selectedRole];
         if (usuarioEsperado && user === usuarioEsperado && await coincideHashCredencial(selectedRole, pass)) {
             currentUser = { role: 'admin', rol: selectedRole, username: usuarioEsperado };
-            logAccion('LOGIN', `Login ${selectedRole}`);
+            registrarLoginAdminConUbicacion(`Login ${selectedRole}`);
             ok = true;
         }
     }
@@ -2317,6 +2404,12 @@ function generateReport() {
     doc.setFontSize(9.5);
     doc.setTextColor(111, 109, 100);
     doc.text(`Período: ${from} al ${to}  ·  Generado el ${new Date().toLocaleString('es-AR')}`, marginX, y);
+    y += 14;
+    // Ubicación configurada de la geocerca UNA sola vez acá arriba (es
+    // la misma para todo el reporte) - cada fichaje abajo solo indica a
+    // cuántos metros de este punto quedó registrado.
+    const geofenceReporte = getGeofenceConfig();
+    doc.text(`Geocerca configurada: ${geofenceReporte.nombreLugar} (${geofenceReporte.lat}, ${geofenceReporte.lng})`, marginX, y);
     y += 24;
 
     if (singleTeacher) {
@@ -2368,7 +2461,14 @@ function generateReport() {
             .forEach(r => {
                 ensureSpace(14);
                 const categoriaTag = r.categoria === 'evento' ? `  [EVENTO: ${r.eventoTitulo || r.eventoId}]` : '';
-                doc.text(`${r.date} ${r.time}  |  ${typeMap[r.type] || r.type}${categoriaTag}  |  ${r.status}`, marginX + 10, y);
+                // Sin emoji acá a propósito: jsPDF con las fuentes
+                // estándar (helvetica) no las renderiza, quedan vacías
+                // o rotas - mismo motivo por el que el resto de este
+                // reporte tampoco usa ninguno.
+                const ubicacionTag = r.fichajeLat != null
+                    ? `  |  Ubicación: ${r.fichajeLat.toFixed(5)}, ${r.fichajeLng.toFixed(5)} (a ${r.fichajeDistanciaMts}mts de la geocerca)`
+                    : '';
+                doc.text(`${r.date} ${r.time}  |  ${typeMap[r.type] || r.type}${categoriaTag}  |  ${r.status}${ubicacionTag}`, marginX + 10, y);
                 y += 13;
             });
         y += 12;
@@ -2412,14 +2512,25 @@ function generateReportExcel() {
                 Materia: teacher ? (teacher.materia || '-') : '-',
                 Tipo: typeMap[r.type] || r.type,
                 Estado: r.status || '-',
-                Evento: r.categoria === 'evento' ? (r.eventoTitulo || r.eventoId) : ''
+                Evento: r.categoria === 'evento' ? (r.eventoTitulo || r.eventoId) : '',
+                UbicacionFichaje: r.fichajeLat != null ? `${r.fichajeLat}, ${r.fichajeLng}` : '',
+                DistanciaGeocercaMts: r.fichajeDistanciaMts != null ? r.fichajeDistanciaMts : '',
             };
         });
 
+    const geofenceReporte = getGeofenceConfig();
     const singleTeacher = teacherId !== 'all' ? teacherMap[teacherId] : null;
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 16 }, { wch: 16 }, { wch: 10 }, { wch: 18 }, { wch: 22 }, { wch: 12 }, { wch: 20 }];
+    ws['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 16 }, { wch: 16 }, { wch: 10 }, { wch: 18 }, { wch: 22 }, { wch: 12 }, { wch: 20 }, { wch: 24 }, { wch: 16 }];
+    // Fila de referencia con la geocerca configurada, para poder
+    // comparar a ojo contra UbicacionFichaje/DistanciaGeocercaMts de
+    // cada fila de arriba.
+    XLSX.utils.sheet_add_json(ws, [{
+        Fecha: '', Hora: '', Apellido: '', Nombre: '', DNI: '', Materia: '', Tipo: '', Estado: '', Evento: '',
+        UbicacionFichaje: `Geocerca configurada: ${geofenceReporte.nombreLugar} (${geofenceReporte.lat}, ${geofenceReporte.lng})`,
+        DistanciaGeocercaMts: `Radio: ${geofenceReporte.radio}m`,
+    }], { skipHeader: true, origin: -1 });
     XLSX.utils.book_append_sheet(wb, ws, 'Asistencia');
 
     const fileSuffix = singleTeacher ? `_${singleTeacher.dni}` : '';
@@ -2983,6 +3094,7 @@ function registerFaceEventoAttendance(type, teacher, eventoInfo, geo) {
         eventoHoraSalida: (eventoInfo.hora_salida || '').slice(0, 5),
         salidaAnticipada,
         ...pendingGeofenceFields(geo),
+        ...geoFichajeFields(geo),
     });
     saveAttendance(attendance);
     logAccion('FICHAJE_EVENTO', `${type.toUpperCase()} evento "${eventoInfo.titulo}" - ${teacher.apellido} ${teacher.nombre} - ${time}`, geo && geo.coords ? geo.coords : null);
@@ -3224,6 +3336,7 @@ function registerAttendance(type, geo) {
         date, time, type, status: attStatus, timestamp: now.toISOString(),
         categoria: 'regular',
         ...pendingGeofenceFields(geo),
+        ...geoFichajeFields(geo),
     });
     saveAttendance(attendance);
     logAccion('FICHAJE', `${typeMap[type]} - ${teacherFullName} - ${time}`, geo && geo.coords ? geo.coords : null);
