@@ -1830,6 +1830,7 @@ function clearRegistrationForm() {
     document.getElementById('regPais').value = 'Argentina';
     document.getElementById('regPassword').value = CONFIG.DEFAULT_PASSWORD;
     resetHorarioLaboralForm();
+    renderMateriasDocenteChecklist(null);
     capturedPhotos = [];
     capturedDescriptors = [];
     renderCaptureThumbs();
@@ -1867,6 +1868,7 @@ function editTeacher(id) {
 
     horarioLaboralList = getHorarioLaboral(teacher).slice();
     renderHorarioLaboralChips();
+    renderMateriasDocenteChecklist(teacher.id);
 
     // Abre directamente "Laboral" (horarios + foto) porque es lo que
     // más se edita; el resto de los datos ya quedó cargado en sus
@@ -1925,7 +1927,7 @@ function getDomicilioCompleto(teacher) {
     return teacher.direccion || '-';
 }
 
-function saveTeacher() {
+async function saveTeacher() {
     const accionPermiso = editingTeacherId ? 'editar_docente' : 'agregar_docente';
     if (!tienePermiso(currentUser.rol, accionPermiso)) {
         showToast(mensajeSinPermiso(accionPermiso), 'error');
@@ -1992,6 +1994,7 @@ function saveTeacher() {
         faceDescriptor = averageDescriptors(capturedDescriptors);
     }
 
+    let savedTeacher;
     if (editingTeacherId) {
         const idx = teachers.findIndex(t => t.id === editingTeacherId);
         teachers[idx] = {
@@ -2001,6 +2004,7 @@ function saveTeacher() {
             horario_laboral: horarioLaboralList,
             photo, faceDescriptor, password,
         };
+        savedTeacher = teachers[idx];
         saveTeachers(teachers);
         logAccion('EDITAR_DOCENTE', `Editó al docente DNI ${dni}`);
         showToast(`✅ Docente actualizado`, 'success');
@@ -2017,10 +2021,13 @@ function saveTeacher() {
             password, debeCambiarPassword: true, createdAt: new Date().toISOString(), active: true
         };
         teachers.push(newTeacher);
+        savedTeacher = newTeacher;
         saveTeachers(teachers);
         logAccion('ALTA_DOCENTE', `Registró al docente DNI ${dni}`);
         showToast(`✅ Docente registrado. Usuario: ${dni}, Contraseña: ${password}`, 'success');
     }
+
+    await guardarMateriasAsignadasDocente(savedTeacher);
 
     clearRegistrationForm();
     loadTeachersTable();
@@ -4090,6 +4097,321 @@ async function deleteEvento(idEvento) {
 }
 
 // ============================================================
+// MATERIAS - grilla de cátedra por carrera/año/cuatrimestre
+// (tablas `carreras`/`materias`, ver add_tabla_materias.sql).
+//
+// Capa APARTE del horario_laboral de cada docente: el horario que usa
+// checkFaltas/getExitWindowInfo/registerAttendance para tardanzas,
+// faltas y fichaje no cambia ni se toca acá. Esto es solo para armar y
+// visualizar qué materia dicta cada docente en qué carrera/año/
+// cuatrimestre. Un docente puede tener 0, 1 o varias materias.
+//
+// materias.profesor_id apunta a `docentes.id` (no a teacher.id de
+// app_data - son ids distintos, ver syncTeacherToDocenteTable): por
+// eso toda esta sección resuelve el docente real vía esa función y vía
+// getTeachersByDocenteIds(), igual que ya hace el módulo de Eventos.
+// ============================================================
+let currentCarreras = [];
+let currentMaterias = [];
+let materiaProfesorPorDocenteId = {};
+let editingMateriaId = null;
+let grillaAnioSeleccionado = 1;
+let grillaCuatSeleccionado = 1;
+
+const DIAS_MATERIA_IDS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'];
+function diaMateriaLabel(diaSinTilde) {
+    return { Miercoles: 'Miércoles', Sabado: 'Sábado' }[diaSinTilde] || diaSinTilde;
+}
+function diaMateriaSinTilde(dia) {
+    return dia.normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+async function loadCarreras() {
+    if (!sb) return;
+    try {
+        const { data, error } = await sb.from('carreras').select('*').order('nombre');
+        if (error) throw error;
+        currentCarreras = data || [];
+    } catch (error) {
+        console.error('No se pudieron cargar las carreras:', error);
+    }
+    populateCarrerasSelects();
+}
+
+function populateCarrerasSelects() {
+    const opciones = currentCarreras.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+    const materiaSel = document.getElementById('materiaCarrera');
+    const grillaSel = document.getElementById('grillaMateriasCarrera');
+    if (materiaSel) {
+        const actual = materiaSel.value;
+        materiaSel.innerHTML = '<option value="">Seleccioná...</option>' + opciones;
+        if (actual) materiaSel.value = actual;
+    }
+    if (grillaSel) {
+        const actual = grillaSel.value;
+        grillaSel.innerHTML = '<option value="">Seleccioná una carrera...</option>' + opciones;
+        if (actual && currentCarreras.some(c => String(c.id) === actual)) grillaSel.value = actual;
+    }
+}
+
+async function promptNuevaCarrera() {
+    if (!tienePermiso(currentUser.rol, 'agregar_docente')) {
+        showToast(mensajeSinPermiso('agregar_docente'), 'error');
+        return;
+    }
+    const nombre = prompt('Nombre de la nueva carrera:');
+    if (!nombre || !nombre.trim()) return;
+    try {
+        const { data, error } = await sb.from('carreras').insert({ nombre: nombre.trim(), escuela_id: ESCUELA_ID }).select('*').single();
+        if (error) throw error;
+        logAccion('ALTA_CARRERA', `Creó la carrera "${data.nombre}"`);
+        await loadCarreras();
+        const materiaSel = document.getElementById('materiaCarrera');
+        if (materiaSel) materiaSel.value = data.id;
+        showToast(`✅ Carrera "${data.nombre}" creada`, 'success');
+    } catch (error) {
+        console.error('No se pudo crear la carrera:', error);
+        showToast('No se pudo crear la carrera (' + describeSupabaseError(error) + ')', 'error');
+    }
+}
+
+async function loadMaterias() {
+    if (!sb) return;
+    try {
+        const { data, error } = await sb.from('materias').select('*').order('nombre');
+        if (error) throw error;
+        currentMaterias = data || [];
+        const idsAsignados = [...new Set(currentMaterias.map(m => m.profesor_id).filter(Boolean))];
+        materiaProfesorPorDocenteId = await getTeachersByDocenteIds(idsAsignados);
+    } catch (error) {
+        console.error('No se pudieron cargar las materias:', error);
+    }
+}
+
+// Dispara la carga de carreras/materias y pinta la grilla; se llama al
+// entrar a la pestaña "Materias" (ver onclick en index.html).
+async function loadMateriasTab() {
+    await loadCarreras();
+    await loadMaterias();
+    renderGrillaMaterias();
+}
+
+function diasCorto(dias) {
+    const abrev = { Lunes: 'Lun', Martes: 'Mar', Miércoles: 'Mié', Jueves: 'Jue', Viernes: 'Vie', Sábado: 'Sáb', Domingo: 'Dom' };
+    return (dias || []).map(d => abrev[d] || d).join(' ');
+}
+
+function seleccionarAnioCuatGrilla(anio, cuat, btnEl) {
+    grillaAnioSeleccionado = anio;
+    grillaCuatSeleccionado = cuat;
+    document.querySelectorAll('.grilla-anio-cuat-btn').forEach(b => b.classList.remove('active'));
+    if (btnEl) btnEl.classList.add('active');
+    renderGrillaMaterias();
+}
+
+function renderGrillaMaterias() {
+    const tbody = document.getElementById('grillaMateriasTableBody');
+    if (!tbody) return;
+    const carreraId = document.getElementById('grillaMateriasCarrera')?.value;
+    if (!carreraId) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Elegí una carrera</td></tr>';
+        return;
+    }
+    const filtradas = currentMaterias.filter(m => String(m.carrera_id) === String(carreraId) && m.anio === grillaAnioSeleccionado && m.cuatrimestre === grillaCuatSeleccionado);
+    if (filtradas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Sin materias cargadas para este año/cuatrimestre</td></tr>';
+        return;
+    }
+    const puedeBorrar = tienePermiso(currentUser.rol, 'borrar');
+    tbody.innerHTML = filtradas.map(m => {
+        const profesor = m.profesor_id ? materiaProfesorPorDocenteId[m.profesor_id] : null;
+        const profesorNombre = profesor ? `${profesor.apellido} ${profesor.nombre}` : '<span class="text-muted">Sin asignar</span>';
+        return `
+            <tr>
+                <td data-label="Materia">${m.nombre}</td>
+                <td data-label="Tipo">${m.tipo === 'ANUAL' ? 'Anual' : 'Cuatrimestral'}</td>
+                <td data-label="Días">${diasCorto(m.dias)}</td>
+                <td data-label="Horario">${(m.hora_inicio || '').slice(0, 5)} - ${(m.hora_fin || '').slice(0, 5)}</td>
+                <td data-label="Profesor Asignado">${profesorNombre}</td>
+                <td data-label="Acciones">
+                    <button class="btn btn-sm btn-primary" title="Editar" onclick="editMateria(${m.id})"><i class="bi bi-pencil"></i></button>
+                    ${puedeBorrar ? `<button class="btn btn-sm btn-danger" title="Eliminar" onclick="deleteMateria(${m.id})"><i class="bi bi-trash"></i></button>` : ''}
+                </td>
+            </tr>`;
+    }).join('');
+}
+
+function populateMateriaProfesorSelect(selectedTeacherId) {
+    const sel = document.getElementById('materiaProfesor');
+    if (!sel) return;
+    const teachers = getTeachers().slice().sort((a, b) => a.apellido.localeCompare(b.apellido));
+    sel.innerHTML = '<option value="">Sin asignar</option>' + teachers.map(t => `<option value="${t.id}">${t.apellido} ${t.nombre}</option>`).join('');
+    sel.value = selectedTeacherId || '';
+}
+
+function openMateriaModal(id) {
+    const accionPermiso = id ? 'editar_docente' : 'agregar_docente';
+    if (!tienePermiso(currentUser.rol, accionPermiso)) {
+        showToast(mensajeSinPermiso(accionPermiso), 'error');
+        return;
+    }
+    editingMateriaId = id || null;
+    document.getElementById('materiaModalTitle').innerHTML = id
+        ? '<i class="bi bi-pencil"></i> Editar Materia'
+        : '<i class="bi bi-journal-bookmark"></i> Nueva Materia';
+    DIAS_MATERIA_IDS.forEach(d => {
+        const el = document.getElementById('materiaDia' + d);
+        if (el) el.checked = false;
+    });
+    populateCarrerasSelects();
+
+    const m = id ? currentMaterias.find(x => x.id === id) : null;
+    if (id && !m) { showToast('Materia no encontrada', 'error'); return; }
+
+    document.getElementById('materiaCarrera').value = m ? m.carrera_id : '';
+    document.getElementById('materiaAnio').value = m ? m.anio : 1;
+    document.getElementById('materiaCuatrimestre').value = m ? m.cuatrimestre : 1;
+    document.getElementById('materiaNombre').value = m ? m.nombre : '';
+    document.getElementById('materiaTipo').value = m ? m.tipo : 'ANUAL';
+    document.getElementById('materiaHoraInicio').value = m ? (m.hora_inicio || '').slice(0, 5) : '';
+    document.getElementById('materiaHoraFin').value = m ? (m.hora_fin || '').slice(0, 5) : '';
+    (m ? m.dias || [] : []).forEach(dia => {
+        const el = document.getElementById('materiaDia' + diaMateriaSinTilde(dia));
+        if (el) el.checked = true;
+    });
+    const profesorAsignado = m && m.profesor_id ? materiaProfesorPorDocenteId[m.profesor_id] : null;
+    populateMateriaProfesorSelect(profesorAsignado ? profesorAsignado.id : '');
+
+    new bootstrap.Modal(document.getElementById('materiaModal')).show();
+}
+
+function editMateria(id) { openMateriaModal(id); }
+
+async function saveMateria() {
+    const accionPermiso = editingMateriaId ? 'editar_docente' : 'agregar_docente';
+    if (!tienePermiso(currentUser.rol, accionPermiso)) {
+        showToast(mensajeSinPermiso(accionPermiso), 'error');
+        return;
+    }
+    const carreraId = Number(document.getElementById('materiaCarrera').value) || null;
+    const anio = parseInt(document.getElementById('materiaAnio').value, 10);
+    const cuatrimestre = parseInt(document.getElementById('materiaCuatrimestre').value, 10);
+    const nombre = document.getElementById('materiaNombre').value.trim();
+    const tipo = document.getElementById('materiaTipo').value;
+    const horaInicio = document.getElementById('materiaHoraInicio').value;
+    const horaFin = document.getElementById('materiaHoraFin').value;
+    const dias = DIAS_MATERIA_IDS.filter(d => document.getElementById('materiaDia' + d)?.checked).map(diaMateriaLabel);
+
+    if (!carreraId) { showToast('Elegí una carrera', 'error'); return; }
+    if (!nombre) { showToast('El nombre de la materia es obligatorio', 'error'); return; }
+    if (dias.length === 0) { showToast('Marcá al menos un día', 'error'); return; }
+    if (!horaInicio || !horaFin) { showToast('Completá hora de inicio y fin', 'error'); return; }
+    if (horaFin <= horaInicio) { showToast('La hora de fin debe ser posterior a la de inicio', 'error'); return; }
+
+    let profesorId = null;
+    const teacherIdSeleccionado = document.getElementById('materiaProfesor').value;
+    if (teacherIdSeleccionado) {
+        const teacher = getTeachers().find(t => t.id === teacherIdSeleccionado);
+        if (teacher) profesorId = await syncTeacherToDocenteTable(teacher);
+    }
+
+    const payload = { carrera_id: carreraId, nombre, anio, cuatrimestre, tipo, dias, hora_inicio: horaInicio, hora_fin: horaFin, profesor_id: profesorId, escuela_id: ESCUELA_ID };
+    try {
+        if (editingMateriaId) {
+            const { error } = await sb.from('materias').update(payload).eq('id', editingMateriaId);
+            if (error) throw error;
+            logAccion('EDITAR_MATERIA', `Editó la materia "${nombre}"`);
+        } else {
+            const { error } = await sb.from('materias').insert(payload);
+            if (error) throw error;
+            logAccion('ALTA_MATERIA', `Creó la materia "${nombre}"`);
+        }
+        bootstrap.Modal.getInstance(document.getElementById('materiaModal'))?.hide();
+        await loadMaterias();
+        renderGrillaMaterias();
+        renderMateriasDocenteChecklist(editingTeacherId);
+        showToast('✅ Materia guardada', 'success');
+    } catch (error) {
+        console.error('No se pudo guardar la materia:', error);
+        showToast('No se pudo guardar la materia (' + describeSupabaseError(error) + ')', 'error');
+    }
+}
+
+async function deleteMateria(id) {
+    if (!tienePermiso(currentUser.rol, 'borrar')) {
+        showToast(mensajeSinPermiso('borrar'), 'error');
+        logAccion('PERMISO_DENEGADO', 'Intentó borrar una materia sin permiso');
+        return;
+    }
+    if (!confirm('¿Eliminar esta materia?')) return;
+    try {
+        const { error } = await sb.from('materias').delete().eq('id', id);
+        if (error) throw error;
+        logAccion('BORRAR_MATERIA', `Eliminó la materia ${id}`);
+        await loadMaterias();
+        renderGrillaMaterias();
+        renderMateriasDocenteChecklist(editingTeacherId);
+        showToast('Materia eliminada', 'info');
+    } catch (error) {
+        console.error('No se pudo eliminar la materia:', error);
+        showToast('No se pudo eliminar la materia (' + describeSupabaseError(error) + ')', 'error');
+    }
+}
+
+// ===== Checklist "Materias asignadas" dentro del alta/edición de docente =====
+function renderMateriasDocenteChecklist(teacherId) {
+    const cont = document.getElementById('materiasDocenteChecklist');
+    if (!cont) return;
+    if (currentMaterias.length === 0) {
+        cont.innerHTML = '<span class="text-muted small">No hay materias cargadas todavía (pestaña "Materias").</span>';
+        return;
+    }
+    const carrerasPorId = {};
+    currentCarreras.forEach(c => { carrerasPorId[c.id] = c.nombre; });
+    cont.innerHTML = currentMaterias.map(m => {
+        const profesorActual = m.profesor_id ? materiaProfesorPorDocenteId[m.profesor_id] : null;
+        const asignadoAEste = !!(teacherId && profesorActual && profesorActual.id === teacherId);
+        const asignadoAOtro = !!(profesorActual && !asignadoAEste);
+        const carreraNombre = carrerasPorId[m.carrera_id] || '(carrera)';
+        const etiquetaOtro = asignadoAOtro ? ` <small class="text-muted">(hoy: ${profesorActual.apellido})</small>` : '';
+        return `
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="materiaChk_${m.id}" data-materia-id="${m.id}" ${asignadoAEste ? 'checked' : ''}>
+                <label class="form-check-label" for="materiaChk_${m.id}">${carreraNombre} | ${m.anio}° Año | ${m.nombre} (${diasCorto(m.dias)} ${(m.hora_inicio || '').slice(0, 5)}-${(m.hora_fin || '').slice(0, 5)})${etiquetaOtro}</label>
+            </div>`;
+    }).join('');
+}
+
+// Se llama al final de saveTeacher(): resuelve el docente real (ver
+// syncTeacherToDocenteTable) y aplica los checks del formulario -
+// asigna las materias tildadas y libera (profesor_id = null) las que
+// tenía este docente y ya no están tildadas.
+async function guardarMateriasAsignadasDocente(teacher) {
+    if (currentMaterias.length === 0) return;
+    const docenteId = await syncTeacherToDocenteTable(teacher);
+    if (!docenteId) return;
+    const checklist = document.getElementById('materiasDocenteChecklist');
+    const tildadas = new Set(
+        Array.from(checklist ? checklist.querySelectorAll('input[type=checkbox]:checked') : [])
+            .map(el => Number(el.dataset.materiaId))
+    );
+    const cambios = currentMaterias.filter(m => {
+        const eraDeEste = m.profesor_id === docenteId;
+        const ahoraTildada = tildadas.has(m.id);
+        return (ahoraTildada && !eraDeEste) || (!ahoraTildada && eraDeEste);
+    });
+    for (const m of cambios) {
+        const nuevoProfesorId = tildadas.has(m.id) ? docenteId : null;
+        const { error } = await sb.from('materias').update({ profesor_id: nuevoProfesorId }).eq('id', m.id);
+        if (error) console.error('No se pudo actualizar la asignación de la materia', m.id, error);
+    }
+    if (cambios.length > 0) {
+        logAccion('ASIGNAR_MATERIAS', `Actualizó materias asignadas a ${teacher.apellido} ${teacher.nombre} (${cambios.length})`);
+        await loadMaterias();
+    }
+}
+
+// ============================================================
 // CALENDARIO ANUAL (proyección del horario del docente sobre
 // todas las fechas del año) Y DETECCIÓN DE FALTAS
 // ============================================================
@@ -4793,6 +5115,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     await loadEventoConvocatoriasPorDocente();
     checkFaltas();
     checkFaltasEvento();
+    await loadCarreras();
+    await loadMaterias();
     setInterval(() => { loadEventoConvocatoriasPorDocente().then(() => { checkFaltas(); checkFaltasEvento(); }); }, 5 * 60 * 1000);
     onReconnectSync(); // sube lo pendiente y revalida geocerca de fichajes offline, por si quedaron de una sesión anterior
     showToast('Sistema iniciado', 'info');

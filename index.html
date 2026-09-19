@@ -188,6 +188,7 @@
                     <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabDocentes" type="button" role="tab"><i class="bi bi-people"></i> Docentes</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabLicencias" type="button" role="tab"><i class="bi bi-file-medical"></i> Licencias</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabEventos" type="button" role="tab"><i class="bi bi-calendar-event"></i> Eventos</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabMaterias" type="button" role="tab" onclick="loadMateriasTab()"><i class="bi bi-journal-bookmark"></i> Materias</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabConfiguracion" type="button" role="tab"><i class="bi bi-gear"></i> Configuracion</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabReportes" type="button" role="tab"><i class="bi bi-file-earmark-text"></i> Reportes</button></li>
                     <li class="nav-item hidden" id="tabAuditoriaNavItem" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabAuditoria" type="button" role="tab" onclick="renderAuditoriaPanel()"><i class="bi bi-shield-lock"></i> Auditoría</button></li>
@@ -428,6 +429,18 @@
                             </div>
                         </div>
                     </div>
+                    <!-- Materias de cátedra (carrera/año/cuatrimestre, pestaña
+                         "Materias"): capa aparte del horario laboral de arriba,
+                         que sigue siendo lo único que se usa para tardanzas y
+                         faltas. Un docente puede tener 0, 1 o varias. -->
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <label>Materias asignadas <small class="text-muted">(opcional - se gestionan en la pestaña "Materias")</small></label>
+                            <div id="materiasDocenteChecklist" class="p-2 border rounded" style="max-height:180px;overflow-y:auto;">
+                                <span class="text-muted small">No hay materias cargadas todavía.</span>
+                            </div>
+                        </div>
+                    </div>
                                     </div>
                                 </div>
                             </div>
@@ -507,6 +520,40 @@
                         </table>
                     </div>
                 </div>
+                    </div>
+                    <div class="tab-pane fade" id="tabMaterias" role="tabpanel">
+                        <div class="form-section mt-3">
+                            <h4><i class="bi bi-journal-bookmark"></i> Materias</h4>
+                            <p class="text-muted">Grilla de cátedra por carrera/año/cuatrimestre. Es independiente del horario laboral de cada docente (el que se usa para tardanzas y faltas no cambia).</p>
+                            <div class="d-flex flex-wrap gap-2 mb-3">
+                                <button class="btn btn-primary" onclick="openMateriaModal()"><i class="bi bi-plus-circle"></i> Agregar Materia</button>
+                                <button class="btn btn-outline-secondary" onclick="promptNuevaCarrera()"><i class="bi bi-mortarboard"></i> Nueva Carrera</button>
+                            </div>
+
+                            <h5 class="mt-4">Grilla</h5>
+                            <div class="row g-2 mb-2">
+                                <div class="col-md-4">
+                                    <select class="form-control" id="grillaMateriasCarrera" onchange="renderGrillaMaterias()">
+                                        <option value="">Seleccioná una carrera...</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <ul class="nav nav-pills flex-wrap gap-1 mb-3" id="grillaMateriasTabs">
+                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn active" data-anio="1" data-cuat="1" onclick="seleccionarAnioCuatGrilla(1,1,this)">1° Año - 1er Cuat</button></li>
+                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn" data-anio="1" data-cuat="2" onclick="seleccionarAnioCuatGrilla(1,2,this)">1° Año - 2do Cuat</button></li>
+                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn" data-anio="2" data-cuat="1" onclick="seleccionarAnioCuatGrilla(2,1,this)">2° Año - 1er Cuat</button></li>
+                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn" data-anio="2" data-cuat="2" onclick="seleccionarAnioCuatGrilla(2,2,this)">2° Año - 2do Cuat</button></li>
+                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn" data-anio="3" data-cuat="1" onclick="seleccionarAnioCuatGrilla(3,1,this)">3° Año - 1er Cuat</button></li>
+                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn" data-anio="3" data-cuat="2" onclick="seleccionarAnioCuatGrilla(3,2,this)">3° Año - 2do Cuat</button></li>
+                            </ul>
+                            <div class="table-responsive" id="grillaMateriasPrintArea">
+                                <table class="table ios-table">
+                                    <thead><tr><th>Materia</th><th>Tipo</th><th>Días</th><th>Horario</th><th>Profesor Asignado</th><th>Acciones</th></tr></thead>
+                                    <tbody id="grillaMateriasTableBody"><tr><td colspan="6" class="text-center text-muted">Elegí una carrera</td></tr></tbody>
+                                </table>
+                            </div>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="window.print()"><i class="bi bi-printer"></i> Imprimir esta grilla</button>
+                        </div>
                     </div>
                     <div class="tab-pane fade" id="tabConfiguracion" role="tabpanel">
                 <div class="form-section mt-4">
@@ -958,6 +1005,87 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-primary" onclick="saveEvento()"><i class="bi bi-save"></i> Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MATERIA (alta/edición) ===== -->
+    <div class="modal fade" id="materiaModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="materiaModalTitle"><i class="bi bi-journal-bookmark"></i> Nueva Materia</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="required-field">Carrera</label>
+                        <div class="d-flex gap-2">
+                            <select class="form-control" id="materiaCarrera"><option value="">Seleccioná...</option></select>
+                            <button type="button" class="btn btn-outline-secondary" title="Nueva carrera" onclick="promptNuevaCarrera()"><i class="bi bi-plus-lg"></i></button>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="required-field">Año</label>
+                                <select class="form-control" id="materiaAnio">
+                                    <option value="1">1er Año</option>
+                                    <option value="2">2do Año</option>
+                                    <option value="3">3er Año</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="required-field">Cuatrimestre</label>
+                                <select class="form-control" id="materiaCuatrimestre">
+                                    <option value="1">1er Cuatrimestre</option>
+                                    <option value="2">2do Cuatrimestre</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group mt-2">
+                        <label class="required-field">Nombre de la materia</label>
+                        <input type="text" class="form-control" id="materiaNombre" placeholder="Ej: Matemática I">
+                    </div>
+                    <div class="form-group mt-2">
+                        <label class="required-field">Tipo</label>
+                        <select class="form-control" id="materiaTipo">
+                            <option value="ANUAL">Anual</option>
+                            <option value="CUATRIMESTRAL">Cuatrimestral</option>
+                        </select>
+                    </div>
+                    <div class="form-group mt-2">
+                        <label class="required-field">Días</label>
+                        <div class="d-flex flex-wrap gap-3">
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="materiaDiaLunes" value="Lunes"><label class="form-check-label" for="materiaDiaLunes">Lunes</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="materiaDiaMartes" value="Martes"><label class="form-check-label" for="materiaDiaMartes">Martes</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="materiaDiaMiercoles" value="Miércoles"><label class="form-check-label" for="materiaDiaMiercoles">Miércoles</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="materiaDiaJueves" value="Jueves"><label class="form-check-label" for="materiaDiaJueves">Jueves</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="materiaDiaViernes" value="Viernes"><label class="form-check-label" for="materiaDiaViernes">Viernes</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="materiaDiaSabado" value="Sábado"><label class="form-check-label" for="materiaDiaSabado">Sábado</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="materiaDiaDomingo" value="Domingo"><label class="form-check-label" for="materiaDiaDomingo">Domingo</label></div>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <div class="form-group"><label class="required-field">Hora de inicio</label><input type="time" class="form-control" id="materiaHoraInicio"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group"><label class="required-field">Hora de fin</label><input type="time" class="form-control" id="materiaHoraFin"></div>
+                        </div>
+                    </div>
+                    <div class="form-group mt-2">
+                        <label>Profesor asignado <small class="text-muted">(opcional - también se puede asignar desde la ficha del docente)</small></label>
+                        <select class="form-control" id="materiaProfesor"><option value="">Sin asignar</option></select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="saveMateria()"><i class="bi bi-save"></i> Guardar</button>
                 </div>
             </div>
         </div>
