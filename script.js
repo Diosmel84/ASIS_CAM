@@ -4237,7 +4237,9 @@ function renderGrillaMaterias() {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Elegí una carrera</td></tr>';
         return;
     }
-    const filtradas = currentMaterias.filter(m => String(m.carrera_id) === String(carreraId) && m.anio === grillaAnioSeleccionado && m.cuatrimestre === grillaCuatSeleccionado);
+    // Anual = dura todo el año: aparece en los 2 cuatrimestres sin
+    // importar en cuál se haya cargado, no se duplica en la base.
+    const filtradas = currentMaterias.filter(m => String(m.carrera_id) === String(carreraId) && m.anio === grillaAnioSeleccionado && (m.tipo === 'ANUAL' || m.cuatrimestre === grillaCuatSeleccionado));
     if (filtradas.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin materias cargadas para este año/cuatrimestre</td></tr>';
         return;
@@ -4248,7 +4250,7 @@ function renderGrillaMaterias() {
         const profesorNombre = profesor ? `${profesor.apellido} ${profesor.nombre}` : '<span class="text-muted">Sin asignar</span>';
         return `
             <tr>
-                <td data-label="Materia">${m.nombre}</td>
+                <td data-label="Materia">${m.nombre}${m.tipo === 'ANUAL' ? ' <span class="badge bg-info text-dark">ANUAL</span>' : ''}</td>
                 <td data-label="Tipo">${m.tipo === 'ANUAL' ? 'Anual' : 'Cuatrimestral'}</td>
                 <td data-label="Días y Horario">${formatoHorariosCorto(m)}</td>
                 <td data-label="Profesor Asignado">${profesorNombre}</td>
