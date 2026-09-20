@@ -39,8 +39,9 @@
 // solución: normalizar cada medida contra otra distancia de la misma
 // cara (yaw = nariz-a-ojo izquierdo / nariz-a-ojo derecho, sonrisa =
 // ancho de boca / distancia entre ojos, boca abierta = separación de
-// labios / distancia entre ojos, cejas = distancia ceja-ojo /
-// distancia entre ojos). Trasladar o escalar una imagen plana no
+// labios / distancia entre ojos, cejas arriba = distancia ceja-párpado
+// / distancia entre ojos, fruncir el ceño = distancia entre cejas
+// internas / distancia entre ojos). Trasladar o escalar una imagen plana no
 // cambia esos RATIOS (las dos distancias se mueven/escalan juntas y
 // se cancelan); solo una rotación o deformación 3D real de una cara
 // los cambia. Ver computeFaceRatios().
@@ -95,7 +96,16 @@ const LIVENESS_SMILE_RATIO_DELTA = 0.15; // SMILE
 // de una base cercana a 0 con boca/cejas en reposo (un % contra ~0
 // es inestable: un cambio minúsculo ya se vería como "infinito%").
 const LIVENESS_MOUTH_OPEN_DELTA = 0.15;  // MOUTH_OPEN
-const LIVENESS_BROW_DELTA = 0.06;        // EYEBROWS_UP/FROWN
+const LIVENESS_BROW_DELTA = 0.06;        // EYEBROWS_UP (distancia ceja-párpado, sube al levantar cejas)
+// FROWN usa un ratio y un umbral DISTINTOS de EYEBROWS_UP (ver
+// LIVENESS_BROW_INNER_LEFT/RIGHT arriba): el punto de arco medio de
+// la ceja (105/334) apenas se mueve al fruncir, así que reusar el
+// mismo par y solo bajar el umbral no alcanzaba - el problema real
+// era la métrica, no el número. 0.025 es una primera estimación (más
+// chico que LIVENESS_BROW_DELTA porque el frunce mueve las cejas bastante
+// menos que levantarlas); mirá la consola (runAbsoluteRatioChallenge
+// loguea el ratio en vivo) para calibrarlo si hace falta.
+const LIVENESS_BROW_INNER_DELTA = 0.025; // FROWN (distancia entre cejas internas, baja al fruncir)
 
 const LIVENESS_BLINK_CLOSED_EAR = 0.22;  // "ojo cerrado"
 const LIVENESS_BLINK_OPEN_EAR = 0.28;    // "ojo abierto" (deja un margen contra 0.22 para que el ruido de una foto no cuente como parpadeo)
@@ -127,6 +137,13 @@ const LIVENESS_BROW_LEFT = 105;
 const LIVENESS_EYE_TOP_LEFT = 159;
 const LIVENESS_BROW_RIGHT = 334;
 const LIVENESS_EYE_TOP_RIGHT = 386;
+// Extremo interno (medial) de cada ceja, cerca de la glabela - lo que
+// el músculo corrugador junta de verdad al fruncir el ceño. Distinto
+// del arco medio (105/334) que usa EYEBROWS_UP: ese punto casi no se
+// mueve al fruncir (el frunce es sobre todo horizontal e interno, no
+// vertical), por eso FROWN necesita su propio par de landmarks.
+const LIVENESS_BROW_INNER_LEFT = 55;
+const LIVENESS_BROW_INNER_RIGHT = 285;
 const LIVENESS_LEFT_EYE = [33, 160, 158, 133, 153, 144];
 const LIVENESS_RIGHT_EYE = [362, 385, 387, 263, 373, 380];
 
@@ -237,6 +254,8 @@ function computeFaceRatios(lm, videoW, videoH) {
     const eyeTopL = px(LIVENESS_EYE_TOP_LEFT);
     const browR = px(LIVENESS_BROW_RIGHT);
     const eyeTopR = px(LIVENESS_EYE_TOP_RIGHT);
+    const browInnerL = px(LIVENESS_BROW_INNER_LEFT);
+    const browInnerR = px(LIVENESS_BROW_INNER_RIGHT);
 
     const eyeDist = livenessDist(eyeL, eyeR); // referencia de escala de la cara (invariante a acercar/alejar la foto)
     const noseToEyeL = livenessDist(nose, eyeL);
@@ -246,6 +265,7 @@ function computeFaceRatios(lm, videoW, videoH) {
     const mouthWidth = livenessDist(mouthL, mouthR);
     const lipGap = livenessDist(lipUpper, lipLower);
     const browGap = (livenessDist(browL, eyeTopL) + livenessDist(browR, eyeTopR)) / 2;
+    const browInnerGap = livenessDist(browInnerL, browInnerR);
 
     return {
         eyeDist,
@@ -259,7 +279,8 @@ function computeFaceRatios(lm, videoW, videoH) {
         // gesto, solo un cambio real de la cara.
         smile: eyeDist > 0 ? mouthWidth / eyeDist : null,
         mouthOpen: eyeDist > 0 ? lipGap / eyeDist : null,
-        brow: eyeDist > 0 ? browGap / eyeDist : null,
+        brow: eyeDist > 0 ? browGap / eyeDist : null, // EYEBROWS_UP (arco medio de la ceja vs párpado)
+        browInner: eyeDist > 0 ? browInnerGap / eyeDist : null, // FROWN (separación entre cejas internas)
     };
 }
 
@@ -577,10 +598,18 @@ async function runLivenessCheck(video, dni) {
     // en el sentido `sign` (+1 = aumenta, -1 = disminuye): para ratios
     // que parten de una base cercana a 0 en reposo (boca cerrada,
     // cejas relajadas), donde un % contra ~0 es inestable/gameable.
-    async function runAbsoluteRatioChallenge(ratioKey, baselineValue, minAbsDelta, sign, timeoutMs) {
+    // debugLabel, si se pasa, loguea el ratio en vivo (throttleado a
+    // ~400ms) para poder calibrar LIVENESS_*_DELTA mirando la consola.
+    async function runAbsoluteRatioChallenge(ratioKey, baselineValue, minAbsDelta, sign, timeoutMs, debugLabel) {
+        let lastLogAt = 0;
         const predicate = () => {
             if (!state.ratios || state.ratios[ratioKey] == null || baselineValue == null) return false;
-            return (state.ratios[ratioKey] - baselineValue) * sign > minAbsDelta;
+            const delta = (state.ratios[ratioKey] - baselineValue) * sign;
+            if (debugLabel && Date.now() - lastLogAt > 400) {
+                lastLogAt = Date.now();
+                console.log(`[liveness] ${debugLabel} ratioKey=${ratioKey} base=${baselineValue.toFixed(4)} actual=${state.ratios[ratioKey].toFixed(4)} delta(signo aplicado)=${delta.toFixed(4)} umbral=${minAbsDelta}`);
+            }
+            return delta > minAbsDelta;
         };
         const r = await waitFor(predicate, timeoutMs);
         if (r === 'multiface') return { ok: false, abort: true };
@@ -602,11 +631,18 @@ async function runLivenessCheck(video, dni) {
             case 'SMILE':
                 return runRelativeRatioChallenge('smile', baseline.smile, LIVENESS_SMILE_RATIO_DELTA, timeoutMs);
             case 'MOUTH_OPEN':
-                return runAbsoluteRatioChallenge('mouthOpen', baseline.mouthOpen, LIVENESS_MOUTH_OPEN_DELTA, 1, timeoutMs);
+                return runAbsoluteRatioChallenge('mouthOpen', baseline.mouthOpen, LIVENESS_MOUTH_OPEN_DELTA, 1, timeoutMs, 'MOUTH_OPEN');
             case 'EYEBROWS_UP':
-                return runAbsoluteRatioChallenge('brow', baseline.brow, LIVENESS_BROW_DELTA, 1, timeoutMs);
+                return runAbsoluteRatioChallenge('brow', baseline.brow, LIVENESS_BROW_DELTA, 1, timeoutMs, 'EYEBROWS_UP');
             case 'FROWN':
-                return runAbsoluteRatioChallenge('brow', baseline.brow, LIVENESS_BROW_DELTA, -1, timeoutMs);
+                // Antes reusaba el mismo ratio que EYEBROWS_UP (105/334,
+                // arco medio de la ceja) solo con el signo invertido - ese
+                // punto casi no se mueve al fruncir, por eso nunca
+                // detectaba. Ahora usa browInner (55/285, extremo interno
+                // de cada ceja, cerca de la glabela): fruncir el ceño las
+                // junta de verdad (músculo corrugador), así que esa
+                // distancia SÍ baja de forma medible.
+                return runAbsoluteRatioChallenge('browInner', baseline.browInner, LIVENESS_BROW_INNER_DELTA, -1, timeoutMs, 'FROWN');
             default:
                 return { ok: false };
         }

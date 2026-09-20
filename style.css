@@ -302,10 +302,12 @@ body {
 .btn-capture:hover, .btn-entry:hover, .btn-exit:hover, .btn-early-exit:hover { background: var(--ink); opacity: 0.8; }
 .btn-entry:disabled, .btn-exit:disabled, .btn-early-exit:disabled { opacity: 0.3; cursor: not-allowed; }
 
-/* ===== Camara del docente: mas chica y con los botones al costado
-   en vez de abajo, para que entren todos sin scroll. ===== */
+/* ===== Camara del docente: es lo PRIMERO que se ve al entrar (ver
+   el orden del DOM en index.html - #teacherDashboard), tamaño chico
+   a normal (tope 480px, centrada) y con los botones al costado en
+   vez de abajo en desktop, para que entren todos sin scroll. ===== */
 .teacher-camera-layout { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
-.teacher-camera-layout .camera-container { max-width: 260px; flex: 0 0 auto; }
+.teacher-camera-layout .camera-container { max-width: 380px; margin: 0 auto; flex: 0 0 auto; }
 .teacher-camera-layout .camera-controls {
     flex: 1 1 220px; min-width: 220px; border-radius: var(--radius-lg); text-align: left; padding: 15px;
 }
@@ -317,7 +319,9 @@ body {
     display: block; width: 100%; margin: 0 0 8px 0; padding: 14px 16px; text-align: center;
 }
 @media (max-width: 767px) {
-    .teacher-camera-layout .camera-container { max-width: 100%; }
+    /* En mobile la cámara ocupa todo el ancho disponible, con un tope
+       de 480px para que no quede gigante en tablets/phablets. */
+    .teacher-camera-layout .camera-container { max-width: 480px; width: 100%; }
 }
 
 .admin-panel { padding: 4px 0 20px; }

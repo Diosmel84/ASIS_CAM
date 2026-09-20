@@ -692,9 +692,56 @@
 
             <!-- ===== TEACHER DASHBOARD ===== -->
             <div id="teacherDashboard" class="hidden">
+                <!-- Orden a propósito (no es solo estético): en mobile, Bootstrap
+                     apila las columnas en el mismo orden del DOM. Antes "Mis Datos"
+                     iba primero y la cámara quedaba fuera de pantalla, obligando a
+                     hacer scroll para llegar a "Identificarme". La cámara + cartel
+                     de instrucciones van PRIMERO; "Mis Datos" (nombre/DNI/materia/
+                     etc.) va después, debajo de todo. -->
                 <div class="row">
                     <div class="col-md-6">
-                        <div class="card">
+                        <div id="teacherModelsBanner" class="models-banner">
+                            <span class="spinner-border spinner-border-sm"></span> Cargando módulo de reconocimiento facial...
+                        </div>
+                        <div class="teacher-camera-layout">
+                            <div class="camera-container">
+                                <video id="teacherVideo" autoplay playsinline muted></video>
+                                <canvas id="teacherOverlay" class="camera-overlay"></canvas>
+                                <div id="livenessRing" class="liveness-ring hidden"></div>
+                                <canvas id="teacherCanvas" style="display:none;"></canvas>
+                            </div>
+                            <div class="camera-controls">
+                                <div id="materiaFichajeInfo" class="mb-2"></div>
+                                <div id="fichajeContextBadges" class="mb-2 small"></div>
+                                <!-- Chips "1/N <gesto>" ... "OK": se arman en JS por cada
+                                     intento (liveness.js:livenessRenderSteps()), porque el
+                                     set de challenges es al azar (3 de 9, orden al azar). -->
+                                <div id="livenessSteps" class="liveness-steps hidden"></div>
+                                <div id="faceRecognitionStatus" class="face-recognition-status waiting">
+                                    <i class="bi bi-info-circle"></i> Esperando identificación...
+                                </div>
+                                <div class="progress" id="recognitionProgress" style="display:none;">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                                </div>
+                                <button class="btn btn-capture" onclick="detectFace()"><i class="bi bi-person-check"></i> Identificarme</button>
+                                <button class="btn btn-entry" id="btnEntrada" onclick="registerAttendance('entry')" disabled><i class="bi bi-box-arrow-in-right"></i> Entrada</button>
+                                <button class="btn btn-exit" id="btnSalida" onclick="registerAttendance('exit')" disabled><i class="bi bi-box-arrow-left"></i> Salida</button>
+                                <button class="btn btn-early-exit" id="btnRetirada" onclick="registerAttendance('early_exit')" disabled><i class="bi bi-clock-history"></i> Salir antes de tiempo</button>
+                                <small class="text-muted d-block mt-1" id="attendanceButtonsHint">Tocá "Identificarme" antes de cada registro (entrada, salida o retirada).</small>
+                                <div id="kioskAuthorizeWrap" class="mt-2 hidden">
+                                    <button class="btn btn-link btn-sm p-0" onclick="toggleKioskAuthorizeForm()"><i class="bi bi-pc-display"></i> ¿Es esta la PC de la escuela? Autorizar con código</button>
+                                    <div id="kioskAuthorizeForm" class="hidden mt-2 d-flex gap-2 align-items-center">
+                                        <input type="text" class="form-control form-control-sm" id="kioskAuthorizeCodeInput" placeholder="Código de 6 dígitos" maxlength="6" style="max-width:160px;">
+                                        <button class="btn btn-sm btn-primary" onclick="submitKioskAuthorizeCode()">Autorizar</button>
+                                    </div>
+                                </div>
+                                <div id="miUltimoFichajeBox" class="mt-2"></div>
+                                <button class="btn btn-secondary mt-2" id="teacherLogoutBtn" onclick="logout()"><i class="bi bi-box-arrow-right"></i> Salir</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card mt-3 mt-md-0">
                             <div class="card-body" id="teacherInfo">
                                 <h5><i class="bi bi-person-circle"></i> Mis Datos</h5>
                                 <div class="row mt-3">
@@ -718,47 +765,6 @@
                                         <i class="bi bi-key"></i> Cambiar Contraseña
                                     </button>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div id="teacherModelsBanner" class="models-banner">
-                            <span class="spinner-border spinner-border-sm"></span> Cargando módulo de reconocimiento facial...
-                        </div>
-                        <div class="teacher-camera-layout">
-                            <div class="camera-container">
-                                <video id="teacherVideo" autoplay playsinline muted></video>
-                                <canvas id="teacherOverlay" class="camera-overlay"></canvas>
-                                <div id="livenessRing" class="liveness-ring hidden"></div>
-                                <canvas id="teacherCanvas" style="display:none;"></canvas>
-                            </div>
-                            <div class="camera-controls">
-                                <div id="materiaFichajeInfo" class="mb-2"></div>
-                                <div id="fichajeContextBadges" class="mb-2 small"></div>
-                                <!-- Chips "1/N <gesto>" ... "OK": se arman en JS por cada
-                                     intento (liveness.js:livenessRenderSteps()), porque el
-                                     set de challenges es al azar (2 o 3, orden al azar). -->
-                                <div id="livenessSteps" class="liveness-steps hidden"></div>
-                                <div id="faceRecognitionStatus" class="face-recognition-status waiting">
-                                    <i class="bi bi-info-circle"></i> Esperando identificación...
-                                </div>
-                                <div class="progress" id="recognitionProgress" style="display:none;">
-                                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
-                                </div>
-                                <button class="btn btn-capture" onclick="detectFace()"><i class="bi bi-person-check"></i> Identificarme</button>
-                                <button class="btn btn-entry" id="btnEntrada" onclick="registerAttendance('entry')" disabled><i class="bi bi-box-arrow-in-right"></i> Entrada</button>
-                                <button class="btn btn-exit" id="btnSalida" onclick="registerAttendance('exit')" disabled><i class="bi bi-box-arrow-left"></i> Salida</button>
-                                <button class="btn btn-early-exit" id="btnRetirada" onclick="registerAttendance('early_exit')" disabled><i class="bi bi-clock-history"></i> Salir antes de tiempo</button>
-                                <small class="text-muted d-block mt-1" id="attendanceButtonsHint">Tocá "Identificarme" antes de cada registro (entrada, salida o retirada).</small>
-                                <div id="kioskAuthorizeWrap" class="mt-2 hidden">
-                                    <button class="btn btn-link btn-sm p-0" onclick="toggleKioskAuthorizeForm()"><i class="bi bi-pc-display"></i> ¿Es esta la PC de la escuela? Autorizar con código</button>
-                                    <div id="kioskAuthorizeForm" class="hidden mt-2 d-flex gap-2 align-items-center">
-                                        <input type="text" class="form-control form-control-sm" id="kioskAuthorizeCodeInput" placeholder="Código de 6 dígitos" maxlength="6" style="max-width:160px;">
-                                        <button class="btn btn-sm btn-primary" onclick="submitKioskAuthorizeCode()">Autorizar</button>
-                                    </div>
-                                </div>
-                                <div id="miUltimoFichajeBox" class="mt-2"></div>
-                                <button class="btn btn-secondary mt-2" id="teacherLogoutBtn" onclick="logout()"><i class="bi bi-box-arrow-right"></i> Salir</button>
                             </div>
                         </div>
                     </div>
