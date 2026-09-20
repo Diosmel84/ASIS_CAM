@@ -322,6 +322,39 @@ body {
     /* En mobile la cámara ocupa todo el ancho disponible, con un tope
        de 480px para que no quede gigante en tablets/phablets. */
     .teacher-camera-layout .camera-container { max-width: 480px; width: 100%; }
+    /* Gap más chico (~mt-2) entre la cámara y lo que sigue - en
+       desktop el gap de 16px entre columna de cámara y de controles
+       queda igual, no se toca acá. */
+    .teacher-camera-layout { gap: 8px; }
+
+    /* Reorden SOLO en mobile, sin tocar el layout de desktop (que no
+       usa flex-direction:column acá, así que estas reglas no le
+       aplican): 1) cámara (ya queda primera por el ancho 100% de
+       arriba), 2) bloque de ACCIÓN pegado a la cámara (botón
+       Identificarme + cartel de instrucciones + Entrada/Salida/
+       Retirada), 3) bloque de DATOS al final (Materia/Horario/Evento/
+       Kiosco/Modo prueba + acciones secundarias). */
+    .teacher-camera-layout .camera-controls {
+        display: flex;
+        flex-direction: column;
+    }
+    .teacher-camera-layout .camera-controls > #livenessSteps,
+    .teacher-camera-layout .camera-controls > #faceRecognitionStatus,
+    .teacher-camera-layout .camera-controls > #recognitionProgress,
+    .teacher-camera-layout .camera-controls > .btn-capture,
+    .teacher-camera-layout .camera-controls > .btn-entry,
+    .teacher-camera-layout .camera-controls > .btn-exit,
+    .teacher-camera-layout .camera-controls > .btn-early-exit,
+    .teacher-camera-layout .camera-controls > #attendanceButtonsHint {
+        order: 2;
+    }
+    .teacher-camera-layout .camera-controls > #materiaFichajeInfo,
+    .teacher-camera-layout .camera-controls > #fichajeContextBadges,
+    .teacher-camera-layout .camera-controls > #kioskAuthorizeWrap,
+    .teacher-camera-layout .camera-controls > #miUltimoFichajeBox,
+    .teacher-camera-layout .camera-controls > #teacherLogoutBtn {
+        order: 3;
+    }
 }
 
 /* Una vez que el modelo cargó OK, el cartel "Cargando módulo..." /

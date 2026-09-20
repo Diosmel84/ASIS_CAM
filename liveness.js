@@ -309,14 +309,31 @@ function getRandomChallenges() {
 // Dicta la consigna por voz (Web Speech API), además del cartel en
 // pantalla. Si el navegador no soporta speechSynthesis, no hace nada
 // - la consigna visual siempre es la fuente de verdad.
+//
+// El cancel() + speak() con un setTimeout(0) en el medio (en vez de
+// llamarlos uno atrás del otro, en el mismo tick) es a propósito: es
+// un bug conocido de Chrome/Android donde, si el challenge anterior
+// todavía estaba hablando (una frase larga como "Girá la cabeza a la
+// izquierda" no siempre termina antes de que arranque el próximo
+// challenge), cancelar y encolar la frase nueva EN EL MISMO TICK hace
+// que el motor de voz "trague" la locución nueva sin decir nada -
+// pasaba justo con los challenges que suelen venir después de otro en
+// el sorteo (fruncir el ceño, abrir la boca, cejas, mirar abajo),
+// nunca con el primero de la tanda. El pequeño delay le da tiempo al
+// motor a terminar de cancelar antes de encolar la frase siguiente.
 function livenessSpeak(text) {
     try {
         if (!('speechSynthesis' in window)) return;
+        console.log('[voz] dictando:', text);
         window.speechSynthesis.cancel(); // corta cualquier locución anterior en curso, para que no se solapen entre challenges
-        const utter = new SpeechSynthesisUtterance(text);
-        utter.lang = 'es-AR';
-        utter.rate = 1;
-        window.speechSynthesis.speak(utter);
+        setTimeout(() => {
+            try {
+                const utter = new SpeechSynthesisUtterance(text);
+                utter.lang = 'es-AR';
+                utter.rate = 1;
+                window.speechSynthesis.speak(utter);
+            } catch (e) { /* TTS no disponible en este navegador/dispositivo: la consigna igual se ve en pantalla */ }
+        }, 50);
     } catch (e) { /* TTS no disponible en este navegador/dispositivo: la consigna igual se ve en pantalla */ }
 }
 
