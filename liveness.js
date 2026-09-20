@@ -13,9 +13,21 @@
 // detectar "más de un rostro" sin sumar un modelo de Face Detection
 // aparte.
 //
-// Challenges (ver getRandomChallenges()): en cada fichaje se eligen
-// 2 o 3 al azar, en orden al azar, de este set:
-//   BLINK, TURN_LEFT, TURN_RIGHT, SMILE, LOOK_UP
+// Pool de 10 gestos (ver LIVENESS_CHALLENGE_TYPES): "Mirá al frente"
+// es SIEMPRE el primer paso, fijo (fija la base de todos los ratios,
+// ver computeFaceRatios) - no se sortea, porque sin un punto de
+// referencia inicial no hay contra qué medir ningún otro gesto. Los
+// otros 9 (BLINK, SMILE, TURN_LEFT, TURN_RIGHT, MOUTH_OPEN,
+// EYEBROWS_UP, LOOK_UP, LOOK_DOWN, FROWN) son el pool del que se
+// sortean 3, en orden al azar, en cada fichaje (getRandomChallenges).
+//
+// TIME-GATING: la base de CADA challenge (contra la que se mide su
+// gesto) se toma recién al mostrar su cartel, no la base original de
+// "Mirá al frente". Así, un gesto hecho ANTES del cartel (o que
+// "quedó pegado" del challenge anterior, p.ej. la cabeza todavía
+// girada del challenge anterior) no cuenta como reacción a ESTE
+// cartel - fuerza a que el movimiento ocurra DESPUÉS de la consigna,
+// dentro de sus 8s.
 //
 // IMPORTANTE - por qué los gestos se miden con RATIOS y no con
 // píxeles sueltos (fix de una vulnerabilidad real, ver historial de
@@ -24,13 +36,37 @@
 // pasaba una FOTO en otro celular con solo acercarla o correrla con
 // la mano frente a la cámara - mover o acercar una imagen plana
 // cambia esos píxeles exactamente igual que un gesto real. La
-// solución: normalizar cada medida contra otra distancia de la
-// misma cara (yaw = nariz-a-ojo izquierdo / nariz-a-ojo derecho,
-// sonrisa = ancho de boca / distancia entre ojos, etc.). Trasladar o
-// escalar una imagen plana no cambia esos RATIOS (las dos distancias
-// se mueven/escalan juntas y se cancelan); solo una rotación o
-// deformación 3D real de una cara (o un gesto real de la boca) los
-// cambia. Ver computeFaceRatios().
+// solución: normalizar cada medida contra otra distancia de la misma
+// cara (yaw = nariz-a-ojo izquierdo / nariz-a-ojo derecho, sonrisa =
+// ancho de boca / distancia entre ojos, boca abierta = separación de
+// labios / distancia entre ojos, cejas = distancia ceja-ojo /
+// distancia entre ojos). Trasladar o escalar una imagen plana no
+// cambia esos RATIOS (las dos distancias se mueven/escalan juntas y
+// se cancelan); solo una rotación o deformación 3D real de una cara
+// los cambia. Ver computeFaceRatios().
+//
+// DIRECCIÓN: TURN_LEFT/TURN_RIGHT y LOOK_UP/LOOK_DOWN aceptan el
+// cambio de ratio en cualquier sentido (no exigen el sentido exacto
+// pedido en el cartel). Es a propósito: sin espejar el video no hay
+// forma de calibrar en el servidor qué signo de yaw/pitch corresponde
+// a "izquierda" o "arriba" para TODOS los dispositivos/cámaras, y
+// exigir el sentido exacto arriesgaba dejar el challenge imposible de
+// pasar (bloqueo permanente) si el signo queda al revés en algún
+// dispositivo. Lo que importa para anti-spoofing es que haya una
+// rotación 3D real, no en qué sentido exacto. MOUTH_OPEN, EYEBROWS_UP
+// y FROWN sí son direccionales (abrir/cerrar, subir/bajar cejas): son
+// gestos locales sin ambigüedad de cámara, así que si conviene después
+// de probar en vivo se puede endurecer TURN_*/LOOK_* de la misma
+// forma - ver LIVENESS_YAW_RATIO_DELTA/LIVENESS_PITCH_RATIO_DELTA.
+//
+// VOZ: cada consigna se dicta con la Web Speech API
+// (window.speechSynthesis), además de mostrarse en pantalla. En la
+// mayoría de los navegadores de escritorio (Chrome/Edge en Windows,
+// Safari en Mac) usa una voz del propio sistema operativo, sin
+// depender de internet; en algunos Android puede recurrir a una voz
+// de red según el dispositivo. Si el navegador no soporta
+// speechSynthesis, livenessSpeak() no hace nada y la consigna se ve
+// igual en el cartel - la voz es un refuerzo, nunca el único canal.
 //
 // NOTA: a diferencia de face-api.js (modelos vendorizados en /models
 // para funcionar offline), Face Mesh se trae de un CDN - la prueba
@@ -39,19 +75,28 @@
 //
 // Fichaje guardado (ver consumeLivenessFields(), usado en
 // registerAttendance()/registerFaceEventoAttendance() de script.js):
-//   { liveness_passed: true, checks: { challenges: ['TURN_RIGHT','BLINK'],
-//     details: { TURN_RIGHT: { yaw_delta_pct: 0.31 }, BLINK: { ear_value: 0.19, valley_ms: 340 } } } }
+//   { liveness_passed: true, checks: { challenges: ['MOUTH_OPEN','TURN_RIGHT','BLINK'],
+//     details: { MOUTH_OPEN: { mouthOpen_delta: 0.21 }, TURN_RIGHT: { yaw_delta_pct: 0.31 },
+//                BLINK: { ear_value: 0.19, valley_ms: 340 } } } }
 // ============================================================
 
-const LIVENESS_CHALLENGE_TYPES = ['BLINK', 'TURN_LEFT', 'TURN_RIGHT', 'SMILE', 'LOOK_UP'];
+// Pool de 9 gestos sorteables (todo menos "Mirá al frente", que es
+// siempre el primer paso fijo - ver comentario grande arriba).
+const LIVENESS_CHALLENGE_TYPES = ['BLINK', 'SMILE', 'TURN_LEFT', 'TURN_RIGHT', 'MOUTH_OPEN', 'EYEBROWS_UP', 'LOOK_UP', 'LOOK_DOWN', 'FROWN'];
+const LIVENESS_CHALLENGE_COUNT = 3; // "pida 3 gestos aleatorios"
 const LIVENESS_CHALLENGE_TIMEOUT_MS = 8000; // por challenge, según lo pedido
-const LIVENESS_MIN_CHALLENGES = 2;
-const LIVENESS_MAX_CHALLENGES = 3;
-// Cambio relativo mínimo del ratio (ver computeFaceRatios) contra la
-// base tomada en "Mirá al frente" para contar un gesto como real.
+
+// Cambio relativo mínimo (porcentaje contra la base) para los ratios
+// que parten de un valor "normal" bien distinto de cero.
 const LIVENESS_YAW_RATIO_DELTA = 0.15;   // TURN_LEFT/TURN_RIGHT
-const LIVENESS_PITCH_RATIO_DELTA = 0.15; // LOOK_UP
+const LIVENESS_PITCH_RATIO_DELTA = 0.15; // LOOK_UP/LOOK_DOWN
 const LIVENESS_SMILE_RATIO_DELTA = 0.15; // SMILE
+// Cambio absoluto mínimo (no porcentual) para los ratios que parten
+// de una base cercana a 0 con boca/cejas en reposo (un % contra ~0
+// es inestable: un cambio minúsculo ya se vería como "infinito%").
+const LIVENESS_MOUTH_OPEN_DELTA = 0.15;  // MOUTH_OPEN
+const LIVENESS_BROW_DELTA = 0.06;        // EYEBROWS_UP/FROWN
+
 const LIVENESS_BLINK_CLOSED_EAR = 0.22;  // "ojo cerrado"
 const LIVENESS_BLINK_OPEN_EAR = 0.28;    // "ojo abierto" (deja un margen contra 0.22 para que el ruido de una foto no cuente como parpadeo)
 const LIVENESS_BLINK_VALLEY_MAX_MS = 1500; // abierto->cerrado->abierto tiene que pasar en <=1.5s
@@ -68,11 +113,7 @@ const LIVENESS_MAX_FAILS = 3;
 const LIVENESS_LOCKOUT_MS = 2 * 60 * 1000;
 const LIVENESS_LOCK_STORAGE_KEY = 'asiscam_liveness_lock';
 
-// Malla de 468 puntos de MediaPipe Face Mesh. Set de 6 puntos
-// "canónicos" que se usan en casi cualquier estimación de pose de
-// cabeza a partir de Face Mesh (nariz, mentón, comisuras de ojos y
-// de boca) + el mapeo estándar de 6 puntos por ojo para la fórmula
-// EAR (Eye Aspect Ratio, Soukupová & Čech).
+// Malla de 468 puntos de MediaPipe Face Mesh.
 const LIVENESS_NOSE_TIP = 1;
 const LIVENESS_CHIN = 152;
 const LIVENESS_FOREHEAD = 10;
@@ -80,25 +121,53 @@ const LIVENESS_EYE_OUTER_LEFT = 33;
 const LIVENESS_EYE_OUTER_RIGHT = 263;
 const LIVENESS_MOUTH_LEFT = 61;
 const LIVENESS_MOUTH_RIGHT = 291;
+const LIVENESS_MOUTH_UPPER_INNER = 13;
+const LIVENESS_MOUTH_LOWER_INNER = 14;
+const LIVENESS_BROW_LEFT = 105;
+const LIVENESS_EYE_TOP_LEFT = 159;
+const LIVENESS_BROW_RIGHT = 334;
+const LIVENESS_EYE_TOP_RIGHT = 386;
 const LIVENESS_LEFT_EYE = [33, 160, 158, 133, 153, 144];
 const LIVENESS_RIGHT_EYE = [362, 385, 387, 263, 373, 380];
 
-// Consignas en pantalla (voseo, cortas, para que entren bien en el
-// cartel que titila - ver .face-recognition-status.liveness-prompt
-// en style.css) y etiqueta corta para el chip de progreso.
-const LIVENESS_CHALLENGE_PROMPT = {
-    BLINK: '<i class="bi bi-eye"></i> Parpadeá',
-    TURN_LEFT: '<i class="bi bi-arrow-left"></i> Girá la cabeza a la izquierda',
-    TURN_RIGHT: '<i class="bi bi-arrow-right"></i> Girá la cabeza a la derecha',
-    SMILE: '<i class="bi bi-emoji-smile"></i> Sonreí',
-    LOOK_UP: '<i class="bi bi-arrow-up"></i> Mirá hacia arriba',
+// Consignas en pantalla (voseo, cortas, para el cartel que titila -
+// ver .face-recognition-status.liveness-prompt en style.css) y para
+// dictar por voz (texto plano, sin el ícono). FRONT no es un
+// challenge sorteable, es el paso fijo inicial.
+const LIVENESS_PROMPT_TEXT = {
+    FRONT: 'Mirá al frente',
+    BLINK: 'Parpadeá',
+    SMILE: 'Sonreí',
+    TURN_LEFT: 'Girá la cabeza a la izquierda',
+    TURN_RIGHT: 'Girá la cabeza a la derecha',
+    MOUTH_OPEN: 'Abrí la boca',
+    EYEBROWS_UP: 'Levantá las cejas',
+    LOOK_UP: 'Mirá hacia arriba',
+    LOOK_DOWN: 'Mirá hacia abajo',
+    FROWN: 'Fruncí el ceño',
+};
+const LIVENESS_PROMPT_ICON = {
+    FRONT: 'bi-person-bounding-box',
+    BLINK: 'bi-eye',
+    SMILE: 'bi-emoji-smile',
+    TURN_LEFT: 'bi-arrow-left',
+    TURN_RIGHT: 'bi-arrow-right',
+    MOUTH_OPEN: 'bi-emoji-astonished',
+    EYEBROWS_UP: 'bi-emoji-surprise',
+    LOOK_UP: 'bi-arrow-up',
+    LOOK_DOWN: 'bi-arrow-down',
+    FROWN: 'bi-emoji-frown',
 };
 const LIVENESS_CHALLENGE_CHIP_LABEL = {
     BLINK: 'Parpadeo',
+    SMILE: 'Sonreír',
     TURN_LEFT: 'Girar izq.',
     TURN_RIGHT: 'Girar der.',
-    SMILE: 'Sonreír',
+    MOUTH_OPEN: 'Abrir boca',
+    EYEBROWS_UP: 'Cejas arriba',
     LOOK_UP: 'Mirar arriba',
+    LOOK_DOWN: 'Mirar abajo',
+    FROWN: 'Fruncir ceño',
 };
 
 let faceMeshInstance = null;
@@ -148,11 +217,10 @@ function computeEAR(landmarks, eyeIdx, videoW, videoH) {
     return horizontal > 0 ? vertical / horizontal : 0;
 }
 
-// Todas las medidas "de gesto" (yaw/pitch/sonrisa) como RATIOS entre
-// dos distancias de la propia cara, nunca como un desplazamiento en
-// píxeles sueltos: eso es lo que hace que mover o acercar una foto
-// no alcance para simular un gesto (ver comentario grande arriba del
-// archivo). videoW/videoH solo se usan para pasar los landmarks
+// Todas las medidas "de gesto" (yaw/pitch/sonrisa/boca/cejas) como
+// RATIOS entre dos distancias de la propia cara, nunca como un
+// desplazamiento en píxeles sueltos (ver comentario grande arriba
+// del archivo). videoW/videoH solo se usan para pasar los landmarks
 // normalizados (0-1) a píxeles antes de medir distancias.
 function computeFaceRatios(lm, videoW, videoH) {
     const px = (i) => livenessLandmarkPx(lm[i], videoW, videoH);
@@ -163,6 +231,12 @@ function computeFaceRatios(lm, videoW, videoH) {
     const eyeR = px(LIVENESS_EYE_OUTER_RIGHT);
     const mouthL = px(LIVENESS_MOUTH_LEFT);
     const mouthR = px(LIVENESS_MOUTH_RIGHT);
+    const lipUpper = px(LIVENESS_MOUTH_UPPER_INNER);
+    const lipLower = px(LIVENESS_MOUTH_LOWER_INNER);
+    const browL = px(LIVENESS_BROW_LEFT);
+    const eyeTopL = px(LIVENESS_EYE_TOP_LEFT);
+    const browR = px(LIVENESS_BROW_RIGHT);
+    const eyeTopR = px(LIVENESS_EYE_TOP_RIGHT);
 
     const eyeDist = livenessDist(eyeL, eyeR); // referencia de escala de la cara (invariante a acercar/alejar la foto)
     const noseToEyeL = livenessDist(nose, eyeL);
@@ -170,6 +244,8 @@ function computeFaceRatios(lm, videoW, videoH) {
     const noseToForehead = livenessDist(nose, forehead);
     const noseToChin = livenessDist(nose, chin);
     const mouthWidth = livenessDist(mouthL, mouthR);
+    const lipGap = livenessDist(lipUpper, lipLower);
+    const browGap = (livenessDist(browL, eyeTopL) + livenessDist(browR, eyeTopR)) / 2;
 
     return {
         eyeDist,
@@ -178,10 +254,12 @@ function computeFaceRatios(lm, videoW, videoH) {
         // no cambia esta relación, solo una rotación real lo hace.
         yaw: noseToEyeR > 0 ? noseToEyeL / noseToEyeR : null,
         pitch: noseToChin > 0 ? noseToForehead / noseToChin : null,
-        // sonrisa normalizada contra el ancho de ojos: así acercar la
-        // foto (que agranda TODO por igual, boca incluida) no cuenta
-        // como sonrisa, solo un ensanchamiento real de la boca.
+        // sonrisa/boca/cejas normalizadas contra el ancho de ojos: así
+        // acercar la foto (que agranda TODO por igual) no cuenta como
+        // gesto, solo un cambio real de la cara.
         smile: eyeDist > 0 ? mouthWidth / eyeDist : null,
+        mouthOpen: eyeDist > 0 ? lipGap / eyeDist : null,
+        brow: eyeDist > 0 ? browGap / eyeDist : null,
     };
 }
 
@@ -196,13 +274,36 @@ function shuffleArray(arr) {
     return a;
 }
 
-// 2 o 3 challenges al azar, en orden al azar. Se llama una vez por
-// cada intento de fichaje (cada detectFace() -> runLivenessCheck()),
-// así que dos intentos seguidos casi nunca piden lo mismo en el
-// mismo orden.
+// 3 challenges al azar, en orden al azar, de entre los 9 del pool
+// (ver LIVENESS_CHALLENGE_TYPES - "Mirá al frente" no se sortea, es
+// siempre el primer paso). Se llama una vez por cada intento de
+// fichaje (cada detectFace() -> runLivenessCheck()), así que dos
+// intentos seguidos casi nunca piden lo mismo en el mismo orden; si
+// un challenge falla, se corta el intento entero y el PRÓXIMO
+// intento vuelve a sortear 3 nuevos desde cero.
 function getRandomChallenges() {
-    const n = Math.random() < 0.5 ? LIVENESS_MIN_CHALLENGES : LIVENESS_MAX_CHALLENGES;
-    return shuffleArray(LIVENESS_CHALLENGE_TYPES).slice(0, n);
+    return shuffleArray(LIVENESS_CHALLENGE_TYPES).slice(0, LIVENESS_CHALLENGE_COUNT);
+}
+
+// Dicta la consigna por voz (Web Speech API), además del cartel en
+// pantalla. Si el navegador no soporta speechSynthesis, no hace nada
+// - la consigna visual siempre es la fuente de verdad.
+function livenessSpeak(text) {
+    try {
+        if (!('speechSynthesis' in window)) return;
+        window.speechSynthesis.cancel(); // corta cualquier locución anterior en curso, para que no se solapen entre challenges
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = 'es-AR';
+        utter.rate = 1;
+        window.speechSynthesis.speak(utter);
+    } catch (e) { /* TTS no disponible en este navegador/dispositivo: la consigna igual se ve en pantalla */ }
+}
+
+// Muestra Y dictá una consigna (cartel titilando + voz) en un solo
+// paso - se usa tanto para "Mirá al frente" como para cada challenge.
+function livenessPrompt(type) {
+    livenessSetStatus(`<i class="bi ${LIVENESS_PROMPT_ICON[type]}"></i> ${LIVENESS_PROMPT_TEXT[type]}`, 'liveness-prompt');
+    livenessSpeak(LIVENESS_PROMPT_TEXT[type]);
 }
 
 // ===== UI: anillo guía + pasos dinámicos (ver #livenessRing y
@@ -359,10 +460,12 @@ function findBlinkValley(history) {
 }
 
 // ============================================================
-// Driver principal: "Mirá al frente" -> 2 o 3 challenges al azar,
+// Driver principal: "Mirá al frente" (fijo) -> 3 challenges al azar,
 // en orden al azar (ver getRandomChallenges()), 8s de margen cada
-// uno. Devuelve { passed: true, checks } o { passed: false, reason }.
-// video es el <video id="teacherVideo"> ya en vivo.
+// uno, cada uno con su propia base tomada al mostrar su cartel
+// (time-gating). Devuelve { passed: true, checks } o
+// { passed: false, reason }. video es el <video id="teacherVideo">
+// ya en vivo.
 // ============================================================
 async function runLivenessCheck(video, dni) {
     let faceMesh;
@@ -454,10 +557,10 @@ async function runLivenessCheck(video, dni) {
         return { ok: false };
     }
 
-    // Gesto medido como cambio relativo de un ratio contra su base
-    // (ver computeFaceRatios): invariante a que el atacante acerque o
-    // traslade una foto, a diferencia de un desplazamiento en píxeles.
-    async function runRatioChallenge(ratioKey, baselineValue, minDeltaPct, timeoutMs) {
+    // Gesto medido como cambio RELATIVO (%) de un ratio contra su
+    // base: para ratios que parten de un valor bien distinto de 0
+    // (yaw/pitch/smile, todos ~0.7-1.3 en reposo).
+    async function runRelativeRatioChallenge(ratioKey, baselineValue, minDeltaPct, timeoutMs) {
         const predicate = () => {
             if (!state.ratios || state.ratios[ratioKey] == null || !baselineValue) return false;
             const current = state.ratios[ratioKey];
@@ -470,35 +573,53 @@ async function runLivenessCheck(video, dni) {
         return { ok: true, detail: { [`${ratioKey}_delta_pct`]: Number(((current - baselineValue) / baselineValue).toFixed(2)) } };
     }
 
+    // Gesto medido como cambio ABSOLUTO de un ratio contra su base,
+    // en el sentido `sign` (+1 = aumenta, -1 = disminuye): para ratios
+    // que parten de una base cercana a 0 en reposo (boca cerrada,
+    // cejas relajadas), donde un % contra ~0 es inestable/gameable.
+    async function runAbsoluteRatioChallenge(ratioKey, baselineValue, minAbsDelta, sign, timeoutMs) {
+        const predicate = () => {
+            if (!state.ratios || state.ratios[ratioKey] == null || baselineValue == null) return false;
+            return (state.ratios[ratioKey] - baselineValue) * sign > minAbsDelta;
+        };
+        const r = await waitFor(predicate, timeoutMs);
+        if (r === 'multiface') return { ok: false, abort: true };
+        if (r === 'timeout') return { ok: false };
+        const current = state.ratios[ratioKey];
+        return { ok: true, detail: { [`${ratioKey}_delta`]: Number((current - baselineValue).toFixed(3)) } };
+    }
+
     async function runChallenge(type, baseline, timeoutMs) {
         switch (type) {
             case 'BLINK':
                 return runBlinkChallenge(timeoutMs);
             case 'TURN_LEFT':
             case 'TURN_RIGHT':
-                // Igual que antes: acepta el giro en cualquier sentido - la
-                // cámara no está espejada, así que "izquierda/derecha" en
-                // pantalla no siempre coincide con la anatómica de quien
-                // gira. Lo que importa es que el ratio de yaw cambie de
-                // verdad (giro real en 3D), no en qué sentido.
-                return runRatioChallenge('yaw', baseline.yaw, LIVENESS_YAW_RATIO_DELTA, timeoutMs);
+                return runRelativeRatioChallenge('yaw', baseline.yaw, LIVENESS_YAW_RATIO_DELTA, timeoutMs);
             case 'LOOK_UP':
-                return runRatioChallenge('pitch', baseline.pitch, LIVENESS_PITCH_RATIO_DELTA, timeoutMs);
+            case 'LOOK_DOWN':
+                return runRelativeRatioChallenge('pitch', baseline.pitch, LIVENESS_PITCH_RATIO_DELTA, timeoutMs);
             case 'SMILE':
-                return runRatioChallenge('smile', baseline.smile, LIVENESS_SMILE_RATIO_DELTA, timeoutMs);
+                return runRelativeRatioChallenge('smile', baseline.smile, LIVENESS_SMILE_RATIO_DELTA, timeoutMs);
+            case 'MOUTH_OPEN':
+                return runAbsoluteRatioChallenge('mouthOpen', baseline.mouthOpen, LIVENESS_MOUTH_OPEN_DELTA, 1, timeoutMs);
+            case 'EYEBROWS_UP':
+                return runAbsoluteRatioChallenge('brow', baseline.brow, LIVENESS_BROW_DELTA, 1, timeoutMs);
+            case 'FROWN':
+                return runAbsoluteRatioChallenge('brow', baseline.brow, LIVENESS_BROW_DELTA, -1, timeoutMs);
             default:
                 return { ok: false };
         }
     }
 
     try {
-        // ===== Mirá al frente: fija los ratios base y de paso chequea
-        // que la cara no esté sospechosamente quieta (ver
-        // LIVENESS_STATIC_MOVE_EPSILON_PX) =====
+        // ===== Mirá al frente (fijo, no se sortea): fija los ratios
+        // base y de paso chequea que la cara no esté sospechosamente
+        // quieta (ver LIVENESS_STATIC_MOVE_EPSILON_PX) =====
         livenessSetRing(null);
         const ring = document.getElementById('livenessRing');
         if (ring) ring.classList.remove('hidden');
-        livenessSetStatus('<i class="bi bi-person-bounding-box"></i> Mirá al frente', 'liveness-prompt');
+        livenessPrompt('FRONT');
 
         let r = await waitFor(() => state.noseX != null && state.ratios != null, LIVENESS_FACE_WAIT_TIMEOUT_MS);
         if (r === 'multiface') throw new Error(abortReason);
@@ -522,18 +643,21 @@ async function runLivenessCheck(video, dni) {
             }
         }
         if (!state.ratios) throw new Error('❌ Se perdió el rostro. Ubicate frente a la cámara con buena iluminación.');
-        const baseline = { yaw: state.ratios.yaw, pitch: state.ratios.pitch, smile: state.ratios.smile };
 
-        // ===== Challenges al azar (Nivel 2: orden/set imprevisible,
-        // no sirve un video grabado de un fichaje anterior) =====
+        // ===== 3 challenges al azar (Nivel 2: pool de 9, orden
+        // imprevisible - no sirve un video grabado de un fichaje
+        // anterior). Cada uno toma su PROPIA base recién al mostrar
+        // su cartel (time-gating: ver comentario grande arriba). =====
         const challenges = getRandomChallenges();
         livenessRenderSteps(challenges);
         const details = {};
         for (let i = 0; i < challenges.length; i++) {
             const type = challenges[i];
+            if (!state.ratios) throw new Error('❌ Se perdió el rostro. Ubicate frente a la cámara con buena iluminación.');
+            const challengeBaseline = { ...state.ratios };
             livenessSetActiveStepIndex(i);
-            livenessSetStatus(LIVENESS_CHALLENGE_PROMPT[type], 'liveness-prompt');
-            const result = await runChallenge(type, baseline, LIVENESS_CHALLENGE_TIMEOUT_MS);
+            livenessPrompt(type);
+            const result = await runChallenge(type, challengeBaseline, LIVENESS_CHALLENGE_TIMEOUT_MS);
             if (!result.ok) {
                 if (result.abort) throw new Error(abortReason);
                 throw new Error(`❌ Prueba de vida fallida - posible foto (${LIVENESS_CHALLENGE_CHIP_LABEL[type]} no detectado a tiempo)`);
@@ -551,6 +675,7 @@ async function runLivenessCheck(video, dni) {
     } finally {
         running = false;
         try { faceMesh.onResults(() => {}); } catch (e) { /* instancia ya liberada */ }
+        try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) { /* no soportado */ }
         setTimeout(livenessReset, 600); // deja ver el anillo verde/rojo un instante antes de ocultarlo
     }
 }
