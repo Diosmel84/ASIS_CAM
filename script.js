@@ -37,9 +37,13 @@ const CONFIG = {
     DEFAULT_PASSWORD: '123456',
     // Distancia euclidiana máxima entre descriptores faciales para
     // considerar que son la misma persona. face-api.js/dlib recomienda
-    // ~0.6 como límite superior razonable (99%+ en LFW); usamos un poco
-    // menos estricto que 0.5 para tolerar variaciones de luz en vivo.
-    FACE_MATCH_THRESHOLD: 0.55,
+    // ~0.6 como límite superior razonable (99%+ en LFW). Bajado de 0.55
+    // a 0.5 (más estricto - defensa en profundidad junto con la prueba
+    // de vida, ver liveness.js): la vulnerabilidad real que dejaba
+    // pasar una foto no era este umbral (la foto ERA del docente
+    // registrado, así que el descriptor coincidía igual), sino la
+    // prueba de vida en sí, pero no cuesta nada endurecer también acá.
+    FACE_MATCH_THRESHOLD: 0.5,
     MIN_CAPTURES: 3,
     // Cuántos frames en vivo se promedian al identificar a alguien,
     // para no depender de un único frame que puede salir borroso.
