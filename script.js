@@ -1793,10 +1793,11 @@ function showDashboard() {
         document.getElementById('adminChangePasswordBtnDesktop').classList.toggle('hidden', !esProgramador);
         document.getElementById('adminChangePasswordBtnMobile').classList.toggle('hidden', !esProgramador);
         document.getElementById('tabAuditoriaNavItem').classList.toggle('hidden', !tienePermiso(currentUser.rol, 'ver_auditoria'));
+        document.getElementById('tabReportesNavItem').classList.toggle('hidden', !tienePermiso(currentUser.rol, 'ver_reportes'));
 
         loadAdminDashboard();
         resetHorarioLaboralForm();
-        if (esProgramador) cargarLogsAuditoria().then(renderAuditoriaPanel);
+        if (tienePermiso(currentUser.rol, 'ver_auditoria')) cargarLogsAuditoria().then(renderAuditoriaPanel);
         if (esProgramador && !adminUsuario.email) {
             document.getElementById('adminEmailInput').value = '';
             document.getElementById('adminEmailError').style.display = 'none';
@@ -2400,13 +2401,18 @@ function loadAlerts() {
     const alerts = getAlerts().slice().sort((a, b) => new Date(b.date) - new Date(a.date));
     const container = document.getElementById('alertsList');
     if (alerts.length === 0) { container.innerHTML = '<p class="text-muted">No hay alertas pendientes</p>'; return; }
+    const puedeJustificar = tienePermiso(currentUser.rol, 'justificar_alerta');
+    const puedeBorrarAlerta = tienePermiso(currentUser.rol, 'borrar');
     container.innerHTML = alerts.map((alert) => {
         const isJustified = alert.justified || false;
+        const isPendienteRectoria = !isJustified && alert.justification === 'pendiente_aprobacion_rectoria';
         const isEarlyExit = alert.type === 'Salida Anticipada';
         const isDenied = isJustified && alert.justification === 'injustificada';
 
         let badgeClass, badgeText;
-        if (isEarlyExit) {
+        if (isPendienteRectoria) {
+            badgeClass = 'badge-unjustified'; badgeText = 'Enviada a Rectoría';
+        } else if (isEarlyExit) {
             if (!isJustified) { badgeClass = 'badge-unjustified'; badgeText = 'Pendiente'; }
             else if (isDenied) { badgeClass = 'badge-unjustified'; badgeText = 'Injustificada'; }
             else { badgeClass = 'badge-justified'; badgeText = 'Justificada'; }
@@ -2415,22 +2421,36 @@ function loadAlerts() {
             badgeText = isJustified ? 'Justificado' : 'Injustificado';
         }
 
+        // Justificar/Injustificar una alerta es exclusivo de Rector
+        // (justificar_alerta en MATRIZ_PERMISOS) - incluye las que
+        // Secretaría ya mandó a aprobación, Rector sigue viendo sus
+        // botones de resolución para esas. Secretaría solo puede
+        // mandarla a aprobación de Rectoría (un único botón, que
+        // desaparece una vez enviada); Programador no interactúa acá.
         let justificationOptions = '';
         if (!isJustified) {
-            justificationOptions = isEarlyExit ? `
-                <div class="mt-2">
-                    <button class="btn btn-sm btn-success" onclick="justifyAlert('${alert.id}', 'justificada')"><i class="bi bi-check-circle"></i> Justificada</button>
-                    <button class="btn btn-sm btn-danger" onclick="justifyAlert('${alert.id}', 'injustificada')"><i class="bi bi-x-circle"></i> Injustificada</button>
-                </div>` : `
-                <div class="mt-2">
-                    <button class="btn btn-sm btn-success" onclick="justifyAlert('${alert.id}', 'enfermedad')"><i class="bi bi-heart"></i> Enfermedad</button>
-                    <button class="btn btn-sm btn-primary" onclick="justifyAlert('${alert.id}', 'personal')"><i class="bi bi-person"></i> Personal</button>
-                    <button class="btn btn-sm btn-secondary" onclick="justifyAlert('${alert.id}', 'otro')"><i class="bi bi-three-dots"></i> Otro</button>
-                </div>`;
+            if (puedeJustificar) {
+                justificationOptions = isEarlyExit ? `
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-success" onclick="justifyAlert('${alert.id}', 'justificada')"><i class="bi bi-check-circle"></i> Justificada</button>
+                        <button class="btn btn-sm btn-danger" onclick="justifyAlert('${alert.id}', 'injustificada')"><i class="bi bi-x-circle"></i> Injustificada</button>
+                    </div>` : `
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-success" onclick="justifyAlert('${alert.id}', 'enfermedad')"><i class="bi bi-heart"></i> Enfermedad</button>
+                        <button class="btn btn-sm btn-primary" onclick="justifyAlert('${alert.id}', 'personal')"><i class="bi bi-person"></i> Personal</button>
+                        <button class="btn btn-sm btn-secondary" onclick="justifyAlert('${alert.id}', 'otro')"><i class="bi bi-three-dots"></i> Otro</button>
+                    </div>`;
+            } else if (currentUser.rol === ROLES.SECRETARIA && !isPendienteRectoria) {
+                justificationOptions = `
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-outline-primary" onclick="justifyAlert('${alert.id}', 'pendiente_aprobacion_rectoria')"><i class="bi bi-send"></i> Enviar a Rectoría</button>
+                    </div>`;
+            }
         }
 
         const resolutionLabel = alert.justification === 'justificada' ? 'Justificada'
             : alert.justification === 'injustificada' ? 'Injustificada'
+            : alert.justification === 'pendiente_aprobacion_rectoria' ? 'Enviada a Rectoría, pendiente de resolución'
             : alert.justification;
 
         return `
@@ -2443,7 +2463,7 @@ function loadAlerts() {
                     </div>
                     <div>
                         <span class="text-muted">${new Date(alert.date).toLocaleString()}</span>
-                        <button class="btn btn-sm btn-link text-danger" title="Eliminar alerta" onclick="dismissAlert('${alert.id}')"><i class="bi bi-x-circle"></i></button>
+                        ${puedeBorrarAlerta ? `<button class="btn btn-sm btn-link text-danger" title="Eliminar alerta" onclick="dismissAlert('${alert.id}')"><i class="bi bi-x-circle"></i></button>` : ''}
                     </div>
                 </div>
                 <p class="mt-2">${alert.message}</p>
@@ -2459,14 +2479,34 @@ function updateAlertCount() {
     document.getElementById('alertCount').textContent = alerts.filter(a => !a.justified).length;
 }
 
+// reason === 'pendiente_aprobacion_rectoria' es el único valor que
+// puede setear alguien SIN el permiso justificar_alerta (Secretaría,
+// ver loadAlerts()): no resuelve la alerta, solo la marca para que
+// Rector la vea y decida. Cualquier otro valor (resolución real)
+// requiere el permiso.
 function justifyAlert(id, reason) {
+    const esEnvioARectoria = reason === 'pendiente_aprobacion_rectoria';
+    if (!esEnvioARectoria && !tienePermiso(currentUser.rol, 'justificar_alerta')) {
+        showToast(mensajeSinPermiso('justificar_alerta'), 'error');
+        logAccion('PERMISO_DENEGADO', 'Intentó justificar/injustificar una alerta sin permiso');
+        return;
+    }
+    if (esEnvioARectoria && currentUser.rol !== ROLES.SECRETARIA && !tienePermiso(currentUser.rol, 'justificar_alerta')) {
+        showToast(mensajeSinPermiso('justificar_alerta'), 'error');
+        logAccion('PERMISO_DENEGADO', 'Intentó enviar una alerta a aprobación de Rectoría sin permiso');
+        return;
+    }
     const alerts = getAlerts();
     const alert = alerts.find(a => a.id === id);
     if (alert) {
-        alert.justified = true;
+        alert.justified = !esEnvioARectoria;
         alert.justification = reason;
         saveAlerts(alerts);
         loadAlerts();
+        if (esEnvioARectoria) {
+            showToast('📨 Alerta enviada a Rectoría para su resolución', 'info');
+            return;
+        }
         const msg = alert.type === 'Salida Anticipada'
             ? (reason === 'justificada' ? '✅ Salida anticipada justificada' : '❌ Salida anticipada marcada como injustificada')
             : 'Ausencia justificada como: ' + reason;
@@ -2475,6 +2515,11 @@ function justifyAlert(id, reason) {
 }
 
 function dismissAlert(id) {
+    if (!tienePermiso(currentUser.rol, 'borrar')) {
+        showToast(mensajeSinPermiso('borrar'), 'error');
+        logAccion('PERMISO_DENEGADO', 'Intentó borrar una alerta sin permiso');
+        return;
+    }
     if (!confirm('¿Eliminar esta alerta? Esta acción no se puede deshacer.')) return;
     const alerts = getAlerts().filter(a => a.id !== id);
     saveAlerts(alerts);
@@ -2545,6 +2590,11 @@ function linkMapaFichaje(r, geofence) {
 }
 
 function generateReport() {
+    if (!tienePermiso(currentUser.rol, 'ver_reportes')) {
+        showToast(mensajeSinPermiso('ver_reportes'), 'error');
+        logAccion('PERMISO_DENEGADO', 'Intentó generar un reporte PDF sin permiso');
+        return;
+    }
     const from = document.getElementById('reportFrom').value;
     const to = document.getElementById('reportTo').value;
     const teacherId = document.getElementById('reportTeacher').value;
@@ -2643,7 +2693,8 @@ function generateReport() {
                     ? `  |  DIFERIDO: fichó ${r.time} pero sincronizó ${new Date(r.horaSync).toLocaleTimeString('es-AR').slice(0, 5)} (${diferidoMin}min después)`
                     : '';
                 const fakeGpsTag = r.fichajeFakeGpsSospechoso ? '  |  POSIBLE UBICACIÓN FALSA' : '';
-                doc.text(`${r.date} ${r.time}  |  ${typeMap[r.type] || r.type}${categoriaTag}  |  ${r.status}${ubicacionTag}${diferidoTag}${fakeGpsTag}`, marginX + 10, y);
+                const corregidoTag = r.corregidoPorDocente ? '  |  CORREGIDO POR EL DOCENTE' : '';
+                doc.text(`${r.date} ${r.time}  |  ${typeMap[r.type] || r.type}${categoriaTag}  |  ${r.status}${ubicacionTag}${diferidoTag}${fakeGpsTag}${corregidoTag}`, marginX + 10, y);
                 y += 13;
             });
         y += 12;
@@ -2659,6 +2710,11 @@ function generateReport() {
 // planilla .xlsx (una fila por fichaje) en vez de PDF. Usa SheetJS
 // (libs/xlsx.full.min.js, autohospedado) para no depender de internet.
 function generateReportExcel() {
+    if (!tienePermiso(currentUser.rol, 'exportar_reportes')) {
+        showToast(mensajeSinPermiso('exportar_reportes'), 'error');
+        logAccion('PERMISO_DENEGADO', 'Intentó exportar un reporte a Excel sin permiso');
+        return;
+    }
     const from = document.getElementById('reportFrom').value;
     const to = document.getElementById('reportTo').value;
     const teacherId = document.getElementById('reportTeacher').value;
@@ -2700,6 +2756,7 @@ function generateReportExcel() {
                 Diferido: esFichajeDiferido(r) ? 'SI' : '',
                 IP: r.ip || '',
                 FakeGpsSospechoso: r.fichajeFakeGpsSospechoso ? 'SI' : '',
+                CorregidoPorDocente: r.corregidoPorDocente ? 'SI' : '',
                 LinkMapa: linkMapaFichaje(r, geofenceReporte) || '',
             };
         });
@@ -2921,12 +2978,17 @@ function submitKioskAuthorizeCode() {
 // independiente: la cátedra completa de hoy no bloquea ni habilita
 // el fichaje de un evento, y viceversa (cada evento convocado tiene
 // su propio estado de ingreso/salida).
+// corregidoPorDocente excluido a propósito: un fichaje que el propio
+// docente corrigió dentro de los 10 minutos (ver corregirPropioFichaje())
+// queda guardado para auditoría, pero deja de contar como fichaje real
+// en todos lados (acá, faltas, ventana de salida) - el docente puede
+// volver a fichar bien.
 function hasEntryToday(teacherId, categoria, eventoId) {
     categoria = categoria || 'regular';
     const todayStr = new Date().toISOString().split('T')[0];
     return getAttendance().some(a => a.teacherId === teacherId && a.type === 'entry' && a.date === todayStr &&
         (a.categoria || 'regular') === categoria &&
-        (categoria !== 'evento' || a.eventoId === eventoId));
+        (categoria !== 'evento' || a.eventoId === eventoId) && !a.corregidoPorDocente);
 }
 
 // Habilita/deshabilita los botones de Entrada/Salida/Retirada según
@@ -3037,6 +3099,57 @@ function updateTeacherInfo() {
         document.getElementById('teacherSchedule').textContent = scheduleDisplay;
         document.getElementById('teacherPhoto').src = currentUser.photo;
     }
+    renderMiUltimoFichaje();
+}
+
+// Corrección propia de fichaje (RBAC docente): el docente puede
+// deshacer su propio último fichaje dentro de los 10 minutos de
+// registrado (típico "toqué el botón equivocado"), sin necesitar al
+// admin. No lo borra: lo marca corregidoPorDocente (ver
+// hasEntryToday()/hasExitToday(), que lo excluyen) para que quede en
+// el historial/auditoría.
+const CORRECCION_PROPIA_VENTANA_MS = 10 * 60 * 1000;
+
+function puedeCorregirFichaje(record) {
+    return !!record && !!currentUser && currentUser.role === 'teacher' && record.teacherId === currentUser.id &&
+        (record.categoria || 'regular') === 'regular' && !record.corregidoPorDocente &&
+        (Date.now() - new Date(record.timestamp).getTime()) <= CORRECCION_PROPIA_VENTANA_MS;
+}
+
+const TIPO_FICHAJE_LABEL = { entry: 'Entrada', exit: 'Salida', early_exit: 'Salida antes de tiempo' };
+
+function renderMiUltimoFichaje() {
+    const box = document.getElementById('miUltimoFichajeBox');
+    if (!box || !currentUser || currentUser.role !== 'teacher') return;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const propios = getAttendance().filter(a => a.teacherId === currentUser.id && a.date === todayStr && (a.categoria || 'regular') === 'regular');
+    if (propios.length === 0) { box.innerHTML = ''; return; }
+    const ultimo = propios.slice().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+    if (!puedeCorregirFichaje(ultimo)) { box.innerHTML = ''; return; }
+    const minutosRestantes = Math.max(1, Math.ceil((CORRECCION_PROPIA_VENTANA_MS - (Date.now() - new Date(ultimo.timestamp).getTime())) / 60000));
+    box.innerHTML = `
+        <small class="text-muted d-block mb-1">Último fichaje: ${TIPO_FICHAJE_LABEL[ultimo.type] || ultimo.type} a las ${ultimo.time}</small>
+        <button class="btn btn-outline-warning btn-sm" onclick="corregirPropioFichaje('${ultimo.id}')">
+            <i class="bi bi-arrow-counterclockwise"></i> Corregir mi último fichaje (quedan ${minutosRestantes} min)
+        </button>`;
+}
+
+function corregirPropioFichaje(id) {
+    const attendance = getAttendance();
+    const record = attendance.find(a => a.id === id);
+    if (!puedeCorregirFichaje(record)) {
+        showToast('Ya no podés corregir este fichaje (pasaron los 10 minutos o no es tuyo)', 'error');
+        renderMiUltimoFichaje();
+        return;
+    }
+    if (!confirm(`¿Corregir tu fichaje de ${TIPO_FICHAJE_LABEL[record.type] || record.type} de las ${record.time}? Vas a poder volver a identificarte y fichar de nuevo.`)) return;
+    record.corregidoPorDocente = true;
+    record.corregidoEn = new Date().toISOString();
+    saveAttendance(attendance);
+    logAccion('CORRECCION_PROPIA_FICHAJE', `${currentUser.apellido} ${currentUser.nombre} corrigió su propio fichaje de ${TIPO_FICHAJE_LABEL[record.type] || record.type} (${record.time})`);
+    showToast('✅ Fichaje corregido. Ya podés volver a identificarte y fichar de nuevo.', 'success');
+    renderMiUltimoFichaje();
+    updateAttendanceButtonsState();
 }
 
 async function detectFace() {
@@ -3576,6 +3689,7 @@ function registerAttendance(type, geo) {
     // Dirección/IP en segundo plano: si hay conexión ahora mismo (no
     // pasó por el bypass offline), no hace falta esperar a reconectar.
     if (geo && geo.coords && navigator.onLine) completarDireccionEIp(attendanceId, geo.coords.lat, geo.coords.lng, 'attendance');
+    renderMiUltimoFichaje();
 
     const needsAttention = attStatus === 'late' || type === 'early_exit';
     const warningNote = attStatus === 'late' ? ' ⚠️ Tardanza'
@@ -3619,7 +3733,7 @@ function hasExitToday(teacherId, categoria, eventoId) {
     const todayStr = new Date().toISOString().split('T')[0];
     return getAttendance().some(a => a.teacherId === teacherId && (a.type === 'exit' || a.type === 'early_exit') && a.date === todayStr &&
         (a.categoria || 'regular') === categoria &&
-        (categoria !== 'evento' || a.eventoId === eventoId));
+        (categoria !== 'evento' || a.eventoId === eventoId) && !a.corregidoPorDocente);
 }
 
 function openManualAttendanceModal(teacherId) {
@@ -5507,7 +5621,7 @@ function showTeacherDetail(teacherId) {
 
     document.getElementById('teacherDetailHeaderActions').innerHTML = `
         <button class="btn btn-sm btn-secondary" title="Fichaje manual" onclick="openManualAttendanceModal('${teacher.id}')"><i class="bi bi-fingerprint"></i></button>
-        <button class="btn btn-sm btn-success" title="Generar reporte PDF" onclick="generateIndividualReport('${teacher.id}')"><i class="bi bi-file-earmark-pdf"></i></button>
+        ${tienePermiso(currentUser.rol, 'ver_reportes') ? `<button class="btn btn-sm btn-success" title="Generar reporte PDF" onclick="generateIndividualReport('${teacher.id}')"><i class="bi bi-file-earmark-pdf"></i></button>` : ''}
         <button class="btn btn-sm btn-secondary" title="Restablecer contraseña" onclick="resetTeacherPassword('${teacher.id}')"><i class="bi bi-key"></i></button>
         ${tienePermiso(currentUser.rol, 'borrar') ? `<button class="btn btn-sm btn-danger" title="Eliminar" onclick="deleteTeacher('${teacher.id}')"><i class="bi bi-trash"></i></button>` : ''}
     `;

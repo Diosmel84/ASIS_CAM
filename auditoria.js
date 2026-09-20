@@ -409,7 +409,20 @@ function renderAuditoriaPanel() {
             </tr>
         `).join('');
     }
-    renderCredencialesPanel();
+
+    // Auditoría de Rector es solo lectura (ver_auditoria sin
+    // gestionar_auditoria/ver_claves): se le ocultan los controles
+    // destructivos/técnicos (borrar log, backup/restore) y el panel de
+    // credenciales, que sigue siendo exclusivo de Programador.
+    const puedeGestionar = tienePermiso(currentUser.rol, 'gestionar_auditoria');
+    const puedeBackupRestore = tienePermiso(currentUser.rol, 'backup_restore');
+    const puedeVerClaves = tienePermiso(currentUser.rol, 'ver_claves');
+    document.getElementById('auditoriaBorrarLogBtn')?.classList.toggle('hidden', !puedeGestionar);
+    document.getElementById('auditoriaBackupBtn')?.classList.toggle('hidden', !puedeBackupRestore);
+    document.getElementById('auditoriaRestoreBtn')?.classList.toggle('hidden', !puedeBackupRestore);
+    document.getElementById('auditoriaCredencialesSection')?.classList.toggle('hidden', !puedeVerClaves);
+
+    if (puedeVerClaves) renderCredencialesPanel();
 }
 
 // Desde que Secretaría/Rector/Programador(bootstrap) se validan por
@@ -518,6 +531,11 @@ function exportarLogPDF() {
 }
 
 async function borrarLogsConfirm() {
+    if (!tienePermiso(currentUser.rol, 'gestionar_auditoria')) {
+        showToast(mensajeSinPermiso('gestionar_auditoria'), 'error');
+        logAccion('PERMISO_DENEGADO', 'Intentó borrar el log de auditoría sin permiso');
+        return;
+    }
     if (!confirm('¿Seguro que querés borrar TODO el log de auditoría (todos los dispositivos, no solo lo filtrado)? Se descarga un backup automático con TODO el historial antes de borrar. Esta acción no se puede deshacer.')) return;
 
     const todos = getLogs();
@@ -541,6 +559,11 @@ async function borrarLogsConfirm() {
 }
 
 function backupLocalStorage() {
+    if (!tienePermiso(currentUser.rol, 'backup_restore')) {
+        showToast(mensajeSinPermiso('backup_restore'), 'error');
+        logAccion('PERMISO_DENEGADO', 'Intentó descargar un backup sin permiso');
+        return;
+    }
     const data = {};
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
@@ -560,6 +583,12 @@ function backupLocalStorage() {
 }
 
 function restoreLocalStorageFile(inputEl) {
+    if (!tienePermiso(currentUser.rol, 'backup_restore')) {
+        showToast(mensajeSinPermiso('backup_restore'), 'error');
+        logAccion('PERMISO_DENEGADO', 'Intentó restaurar un backup sin permiso');
+        inputEl.value = '';
+        return;
+    }
     const file = inputEl.files && inputEl.files[0];
     if (!file) return;
     if (!confirm('¿Restaurar este backup? Esto REEMPLAZA todos los datos guardados localmente (docentes, asistencias, configuración) y recarga la página. Esta acción no se puede deshacer.')) {

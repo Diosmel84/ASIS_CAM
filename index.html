@@ -190,7 +190,7 @@
                     <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabEventos" type="button" role="tab"><i class="bi bi-calendar-event"></i> Eventos</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabMaterias" type="button" role="tab" onclick="loadMateriasTab()"><i class="bi bi-journal-bookmark"></i> Materias</button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabConfiguracion" type="button" role="tab"><i class="bi bi-gear"></i> Configuracion</button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabReportes" type="button" role="tab"><i class="bi bi-file-earmark-text"></i> Reportes</button></li>
+                    <li class="nav-item" id="tabReportesNavItem" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabReportes" type="button" role="tab"><i class="bi bi-file-earmark-text"></i> Reportes</button></li>
                     <li class="nav-item hidden" id="tabAuditoriaNavItem" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabAuditoria" type="button" role="tab" onclick="cargarLogsAuditoria().then(renderAuditoriaPanel)"><i class="bi bi-shield-lock"></i> Auditoría</button></li>
                 </ul>
                 <div class="tab-content admin-tab-content" id="adminTabsContent">
@@ -565,7 +565,7 @@
                     <div class="tab-pane fade" id="tabAuditoria" role="tabpanel">
                         <div class="form-section mt-3">
                             <h4><i class="bi bi-shield-lock"></i> Panel de Auditoría</h4>
-                            <p class="text-muted">Log de todas las acciones importantes realizadas en el sistema. Solo visible para el Programador.</p>
+                            <p class="text-muted">Log de todas las acciones importantes realizadas en el sistema. Rector: solo lectura. Programador: acceso técnico completo.</p>
                             <div class="row mb-3">
                                 <div class="col-md-3"><div class="stat-card"><div class="number" id="auditoriaCountTotal">0</div><div class="label">Total</div></div></div>
                                 <div class="col-md-3"><div class="stat-card"><div class="number" id="auditoriaCountHoy">0</div><div class="label">Hoy</div></div></div>
@@ -592,9 +592,9 @@
                             <div class="d-flex flex-wrap gap-2 mb-3">
                                 <button class="btn btn-outline-success btn-sm" onclick="exportarLogExcel()"><i class="bi bi-file-earmark-excel"></i> Exportar Excel</button>
                                 <button class="btn btn-outline-success btn-sm" onclick="exportarLogPDF()"><i class="bi bi-file-earmark-pdf"></i> Exportar PDF</button>
-                                <button class="btn btn-outline-danger btn-sm" onclick="borrarLogsConfirm()"><i class="bi bi-trash"></i> Borrar LOG</button>
-                                <button class="btn btn-outline-primary btn-sm" onclick="backupLocalStorage()"><i class="bi bi-download"></i> Backup (localStorage)</button>
-                                <button class="btn btn-outline-primary btn-sm" onclick="document.getElementById('restoreLocalStorageInput').click()"><i class="bi bi-upload"></i> Restaurar Backup</button>
+                                <button class="btn btn-outline-danger btn-sm" id="auditoriaBorrarLogBtn" onclick="borrarLogsConfirm()"><i class="bi bi-trash"></i> Borrar LOG</button>
+                                <button class="btn btn-outline-primary btn-sm" id="auditoriaBackupBtn" onclick="backupLocalStorage()"><i class="bi bi-download"></i> Backup (localStorage)</button>
+                                <button class="btn btn-outline-primary btn-sm" id="auditoriaRestoreBtn" onclick="document.getElementById('restoreLocalStorageInput').click()"><i class="bi bi-upload"></i> Restaurar Backup</button>
                                 <input type="file" id="restoreLocalStorageInput" accept="application/json" class="hidden" onchange="restoreLocalStorageFile(this)">
                             </div>
                             <div class="table-responsive">
@@ -603,8 +603,10 @@
                                     <tbody id="auditoriaTableBody"></tbody>
                                 </table>
                             </div>
-                            <h5 class="mt-4"><i class="bi bi-key"></i> Credenciales de acceso</h5>
-                            <div id="auditoriaCredenciales"></div>
+                            <div id="auditoriaCredencialesSection">
+                                <h5 class="mt-4"><i class="bi bi-key"></i> Credenciales de acceso</h5>
+                                <div id="auditoriaCredenciales"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -718,6 +720,7 @@
                                         <button class="btn btn-sm btn-primary" onclick="submitKioskAuthorizeCode()">Autorizar</button>
                                     </div>
                                 </div>
+                                <div id="miUltimoFichajeBox" class="mt-2"></div>
                                 <button class="btn btn-secondary mt-2" id="teacherLogoutBtn" onclick="logout()"><i class="bi bi-box-arrow-right"></i> Salir</button>
                             </div>
                         </div>

@@ -74,8 +74,14 @@ const MATRIZ_PERMISOS = {
     editar_docente: [ROLES.SECRETARIA, ROLES.RECTOR, ROLES.PROGRAMADOR],
     blanquear_password: [ROLES.SECRETARIA, ROLES.RECTOR, ROLES.PROGRAMADOR],
     fichaje_manual: [ROLES.SECRETARIA, ROLES.RECTOR, ROLES.PROGRAMADOR],
-    ver_reportes: [ROLES.SECRETARIA, ROLES.RECTOR, ROLES.PROGRAMADOR],
-    exportar_reportes: [ROLES.SECRETARIA, ROLES.RECTOR, ROLES.PROGRAMADOR],
+    // Exclusivo Rector: Secretaría solo puede mandar una alerta a
+    // aprobación de Rectoría (ver justifyAlert() en script.js), nunca
+    // resolverla ella misma; Programador tampoco justifica.
+    justificar_alerta: [ROLES.RECTOR],
+    // Reportes/PDF: exclusivo Rector (Secretaría no reporta, Programador
+    // no ve datos reales sin autorización de Rectoría).
+    ver_reportes: [ROLES.RECTOR],
+    exportar_reportes: [ROLES.RECTOR],
     // Solo Rector y Programador pueden borrar (docentes, licencias,
     // eventos) y tocar el punto geográfico (geocerca de la escuela o
     // de un evento especial).
@@ -83,7 +89,9 @@ const MATRIZ_PERMISOS = {
     editar_geo: [ROLES.RECTOR, ROLES.PROGRAMADOR],
     // Exclusivo Programador.
     ver_claves: [ROLES.PROGRAMADOR],
-    ver_auditoria: [ROLES.PROGRAMADOR],
+    // Auditoría: Rector y Programador la leen; solo Programador puede
+    // borrar/gestionar el log (ver gestionar_auditoria).
+    ver_auditoria: [ROLES.RECTOR, ROLES.PROGRAMADOR],
     gestionar_auditoria: [ROLES.PROGRAMADOR],
     backup_restore: [ROLES.PROGRAMADOR],
 };
