@@ -356,8 +356,25 @@
                         <div class="col-12">
                             <label class="required-field">Materias asignadas</label>
                             <p class="text-muted small mb-1">El horario de tardanzas/faltas sale de acá, no se carga a mano en la ficha del docente. Para editar horarios, andá a la pestaña "Materias".</p>
+                            <div id="materiasDocenteChips" class="mb-2">
+                                <span class="text-muted small">Todavía no tiene ninguna materia asignada.</span>
+                            </div>
+                            <div class="row g-2 mb-2">
+                                <div class="col-md-6">
+                                    <label class="form-label small mb-1 text-muted">Carrera</label>
+                                    <select class="form-control form-control-sm" id="materiaAsignarCarrera" onchange="onCambioCarreraAsignar(this.value)">
+                                        <option value="">Seleccioná...</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small mb-1 text-muted">Año</label>
+                                    <select class="form-control form-control-sm" id="materiaAsignarAnio" onchange="onCambioAnioAsignar(this.value)" disabled>
+                                        <option value="">Elegí una carrera primero</option>
+                                    </select>
+                                </div>
+                            </div>
                             <div id="materiasDocenteChecklist" class="p-2 border rounded" style="max-height:180px;overflow-y:auto;">
-                                <span class="text-muted small">No hay materias cargadas todavía.</span>
+                                <span class="text-muted small">Elegí carrera y año para ver sus materias.</span>
                             </div>
                         </div>
                     </div>

@@ -2281,6 +2281,12 @@ async function saveTeacher() {
     }
 
     await guardarMateriasAsignadasDocente(savedTeacher);
+    // Fuerza a que la próxima vez que se abra el formulario (edición u
+    // otro alta) vuelva a inicializar la selección desde cero, en vez
+    // de arrastrar lo que se acababa de tildar acá - sin esto, crear un
+    // docente nuevo y enseguida abrir "Registrar Nuevo Docente" de
+    // nuevo mostraría las materias del que se acaba de guardar.
+    materiasSeleccionDocenteIdActual = undefined;
 
     clearRegistrationForm();
     loadTeachersTable();
@@ -4814,43 +4820,144 @@ async function deleteMateria(id) {
     }
 }
 
-// ===== Checklist "Materias asignadas" dentro del alta/edición de docente =====
+// ===== "Materias asignadas" dentro del alta/edición de docente: chips
+// (ya asignadas, con X para sacarlas) + filtro en cascada Carrera ->
+// Año -> checklist (para agregar nuevas), en vez de listar las 10+
+// materias sueltas de un tirón. Una única fuente de verdad en memoria
+// (materiasSeleccionadasDocenteIds); los chips y el checklist filtrado
+// son 2 vistas de lo mismo, se resincronizan solas al tocar cualquiera
+// de las dos. Se confirma recién al guardar el docente (ver
+// guardarMateriasAsignadasDocente()), no al tocar la X o el checkbox.
+let materiasSeleccionadasDocenteIds = new Set();
+// undefined = todavía no se inicializó nunca en esta sesión. Distinto
+// de null (que sí es un valor válido: "docente nuevo, sin id todavía") -
+// así, si saveMateria()/deleteMateria() vuelven a llamar a
+// renderMateriasDocenteChecklist() con el MISMO editingTeacherId de
+// antes (solo refrescando datos), no se pierde lo que ya se había
+// tildado sin guardar todavía.
+let materiasSeleccionDocenteIdActual;
+let materiaAsignarCarreraFiltro = '';
+let materiaAsignarAnioFiltro = '';
+
 function renderMateriasDocenteChecklist(teacherId) {
-    const cont = document.getElementById('materiasDocenteChecklist');
-    if (!cont) return;
+    if (materiasSeleccionDocenteIdActual !== teacherId) {
+        materiasSeleccionDocenteIdActual = teacherId;
+        materiasSeleccionadasDocenteIds = new Set(getMateriasDeDocente(teacherId).map(m => m.id));
+        materiaAsignarCarreraFiltro = '';
+        materiaAsignarAnioFiltro = '';
+    }
     if (currentMaterias.length === 0) {
-        cont.innerHTML = '<span class="text-muted small">No hay materias cargadas todavía (pestaña "Materias").</span>';
+        const chips = document.getElementById('materiasDocenteChips');
+        if (chips) chips.innerHTML = '<span class="text-muted small">No hay materias cargadas todavía (pestaña "Materias").</span>';
+        const cont = document.getElementById('materiasDocenteChecklist');
+        if (cont) cont.innerHTML = '';
         return;
     }
+    renderMateriasDocenteChips();
+    poblarSelectCarreraAsignar();
+    poblarSelectAnioAsignar();
+    renderMateriasDocenteFiltrado();
+}
+
+function renderMateriasDocenteChips() {
+    const cont = document.getElementById('materiasDocenteChips');
+    if (!cont) return;
     const carrerasPorId = {};
     currentCarreras.forEach(c => { carrerasPorId[c.id] = c.nombre; });
-    cont.innerHTML = currentMaterias.map(m => {
+    const seleccionadas = currentMaterias.filter(m => materiasSeleccionadasDocenteIds.has(m.id));
+    if (seleccionadas.length === 0) {
+        cont.innerHTML = '<span class="text-muted small">Todavía no tiene ninguna materia asignada.</span>';
+        return;
+    }
+    cont.innerHTML = seleccionadas.map(m => `
+        <span class="badge bg-secondary me-1 mb-1 p-2">
+            ${m.nombre} <small>[${carrerasPorId[m.carrera_id] || '?'} - ${m.anio}° Año]</small>
+            <button type="button" class="btn-close btn-close-white ms-1" style="font-size:0.55rem;vertical-align:middle;" onclick="quitarMateriaSeleccionadaDocente(${m.id})" aria-label="Quitar ${m.nombre}"></button>
+        </span>`).join('');
+}
+
+function quitarMateriaSeleccionadaDocente(materiaId) {
+    materiasSeleccionadasDocenteIds.delete(materiaId);
+    renderMateriasDocenteChips();
+    renderMateriasDocenteFiltrado();
+}
+
+function poblarSelectCarreraAsignar() {
+    const sel = document.getElementById('materiaAsignarCarrera');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Seleccioná...</option>' +
+        currentCarreras.map(c => `<option value="${c.id}" ${String(c.id) === String(materiaAsignarCarreraFiltro) ? 'selected' : ''}>${c.nombre}</option>`).join('');
+}
+
+function onCambioCarreraAsignar(carreraId) {
+    materiaAsignarCarreraFiltro = carreraId;
+    materiaAsignarAnioFiltro = '';
+    poblarSelectAnioAsignar();
+    renderMateriasDocenteFiltrado();
+}
+
+// Año: deshabilitado hasta elegir carrera, y solo lista los años que
+// realmente tienen materias cargadas en ESA carrera (pedido explícito),
+// no los 3 siempre.
+function poblarSelectAnioAsignar() {
+    const sel = document.getElementById('materiaAsignarAnio');
+    if (!sel) return;
+    if (!materiaAsignarCarreraFiltro) {
+        sel.innerHTML = '<option value="">Elegí una carrera primero</option>';
+        sel.disabled = true;
+        return;
+    }
+    const anios = [...new Set(currentMaterias.filter(m => String(m.carrera_id) === String(materiaAsignarCarreraFiltro)).map(m => m.anio))].sort((a, b) => a - b);
+    sel.disabled = false;
+    sel.innerHTML = '<option value="">Seleccioná...</option>' +
+        anios.map(a => `<option value="${a}" ${String(a) === String(materiaAsignarAnioFiltro) ? 'selected' : ''}>${a}° Año</option>`).join('');
+}
+
+function onCambioAnioAsignar(anio) {
+    materiaAsignarAnioFiltro = anio;
+    renderMateriasDocenteFiltrado();
+}
+
+function renderMateriasDocenteFiltrado() {
+    const cont = document.getElementById('materiasDocenteChecklist');
+    if (!cont) return;
+    if (!materiaAsignarCarreraFiltro || !materiaAsignarAnioFiltro) {
+        cont.innerHTML = '<span class="text-muted small">Elegí carrera y año para ver sus materias.</span>';
+        return;
+    }
+    const filtradas = currentMaterias.filter(m => String(m.carrera_id) === String(materiaAsignarCarreraFiltro) && m.anio === Number(materiaAsignarAnioFiltro));
+    if (filtradas.length === 0) {
+        cont.innerHTML = '<span class="text-muted small">No hay materias cargadas para ese año de esa carrera.</span>';
+        return;
+    }
+    cont.innerHTML = filtradas.map(m => {
+        const seleccionada = materiasSeleccionadasDocenteIds.has(m.id);
         const profesorActual = m.profesor_id ? materiaProfesorPorDocenteId[m.profesor_id] : null;
-        const asignadoAEste = !!(teacherId && profesorActual && profesorActual.id === teacherId);
-        const asignadoAOtro = !!(profesorActual && !asignadoAEste);
-        const carreraNombre = carrerasPorId[m.carrera_id] || '(carrera)';
+        const asignadoAOtro = !!(profesorActual && profesorActual.id !== materiasSeleccionDocenteIdActual && !seleccionada);
         const etiquetaOtro = asignadoAOtro ? ` <small class="text-muted">(hoy: ${profesorActual.apellido})</small>` : '';
         return `
             <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="materiaChk_${m.id}" data-materia-id="${m.id}" ${asignadoAEste ? 'checked' : ''}>
-                <label class="form-check-label" for="materiaChk_${m.id}">${carreraNombre} | ${m.anio}° Año | ${m.nombre} (${formatoHorariosCorto(m)})${etiquetaOtro}</label>
+                <input class="form-check-input" type="checkbox" id="materiaChk_${m.id}" onchange="toggleMateriaSeleccionadaDocente(${m.id}, this.checked)" ${seleccionada ? 'checked' : ''}>
+                <label class="form-check-label" for="materiaChk_${m.id}">${m.nombre} (${formatoHorariosCorto(m)})${etiquetaOtro}</label>
             </div>`;
     }).join('');
 }
 
+function toggleMateriaSeleccionadaDocente(materiaId, checked) {
+    if (checked) materiasSeleccionadasDocenteIds.add(materiaId);
+    else materiasSeleccionadasDocenteIds.delete(materiaId);
+    renderMateriasDocenteChips();
+}
+
 // Se llama al final de saveTeacher(): resuelve el docente real (ver
-// syncTeacherToDocenteTable) y aplica los checks del formulario -
+// syncTeacherToDocenteTable) y aplica materiasSeleccionadasDocenteIds -
 // asigna las materias tildadas y libera (profesor_id = null) las que
-// tenía este docente y ya no están tildadas.
+// tenía este docente y ya no están en la selección.
 async function guardarMateriasAsignadasDocente(teacher) {
     if (currentMaterias.length === 0) return;
     const docenteId = await syncTeacherToDocenteTable(teacher);
     if (!docenteId) return;
-    const checklist = document.getElementById('materiasDocenteChecklist');
-    const tildadas = new Set(
-        Array.from(checklist ? checklist.querySelectorAll('input[type=checkbox]:checked') : [])
-            .map(el => Number(el.dataset.materiaId))
-    );
+    const tildadas = materiasSeleccionadasDocenteIds;
     const cambios = currentMaterias.filter(m => {
         const eraDeEste = m.profesor_id === docenteId;
         const ahoraTildada = tildadas.has(m.id);
