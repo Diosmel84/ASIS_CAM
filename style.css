@@ -324,6 +324,36 @@ body {
     .teacher-camera-layout .camera-container { max-width: 480px; width: 100%; }
 }
 
+/* Una vez que el modelo cargó OK, el cartel "Cargando módulo..." /
+   "listo" ya no aporta nada y solo empuja la cámara hacia abajo en
+   mobile - se oculta apenas queda en estado .ok. Sigue visible
+   mientras carga (sin clase extra) y si hay error (.error), que sí
+   importa ver. Acotado a #teacherModelsBanner: no toca el banner del
+   login ni el del registro de docente, que tienen otro layout.
+   (setModelsBanner() en script.js solo cambia texto/clase, nunca lo
+   oculta - el ocultamiento es puramente visual, vía CSS). */
+#teacherModelsBanner.ok { display: none; }
+
+@media (max-width: 767px) {
+    /* .dashboard-header es compartido con el panel de Rector/
+       Secretaría (no tocar su tamaño ahí) - acá se lo achica SOLO
+       cuando el que está visible es el dashboard del docente, para
+       que la cámara quede "pegada" al header en mobile sin scroll. */
+    #dashboardScreen:has(#teacherDashboard:not(.hidden)) {
+        padding-top: 10px;
+    }
+    #dashboardScreen:has(#teacherDashboard:not(.hidden)) .dashboard-header {
+        padding: 0 0 8px;
+        margin-bottom: 10px;
+    }
+    #dashboardScreen:has(#teacherDashboard:not(.hidden)) .dashboard-brand .dashboard-logo {
+        height: 24px;
+    }
+    #dashboardScreen:has(#teacherDashboard:not(.hidden)) .dashboard-header h2 {
+        font-size: 1.05rem;
+    }
+}
+
 .admin-panel { padding: 4px 0 20px; }
 
 /* ============================================================
