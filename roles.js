@@ -87,6 +87,8 @@ const MATRIZ_PERMISOS = {
     // de un evento especial).
     borrar: [ROLES.RECTOR, ROLES.PROGRAMADOR],
     editar_geo: [ROLES.RECTOR, ROLES.PROGRAMADOR],
+    // Exclusivo Rector: umbrales del semáforo de puntualidad (Inicio).
+    editar_criterios_puntualidad: [ROLES.RECTOR],
     // Exclusivo Programador.
     ver_claves: [ROLES.PROGRAMADOR],
     // Auditoría: Rector y Programador la leen; solo Programador puede

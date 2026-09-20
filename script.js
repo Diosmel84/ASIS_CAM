@@ -1205,7 +1205,14 @@ function getCriteria() {
     return {
         lateLimit: criteria.lateLimit || CONFIG.LATE_LIMIT,
         minAttendance: criteria.minAttendance || CONFIG.MIN_ATTENDANCE,
-        minHours: criteria.minHours || CONFIG.MIN_HOURS
+        minHours: criteria.minHours || CONFIG.MIN_HOURS,
+        // Criterios de puntualidad (semáforo de "Docentes que deberían
+        // presentarse hoy" en Inicio, ver getDocentesEsperadosHoy()):
+        // minutos desde la hora asignada, cada uno el techo del
+        // anterior. Defaults 10/15/20 pedidos explícitamente.
+        limitePresenteMin: criteria.limitePresenteMin ?? 10,
+        limiteTardanzaMin: criteria.limiteTardanzaMin ?? 15,
+        limiteMediaFaltaMin: criteria.limiteMediaFaltaMin ?? 20,
     };
 }
 function saveCriteriaToStorage(criteria) { dataStore.criteria = criteria; persistToSupabase('criteria', criteria); }
@@ -2394,6 +2401,7 @@ function updateStats() {
     document.getElementById('presentToday').textContent = presentTeachers.size;
     document.getElementById('absentToday').textContent = teachers.filter(t => !presentTeachers.has(t.id)).length;
     document.getElementById('lateToday').textContent = todayAttendance.filter(a => a.status === 'late').length;
+    renderDocentesEsperadosHoy();
 }
 
 function loadAlerts() {
@@ -2532,6 +2540,7 @@ function loadCriteria() {
     document.getElementById('lateLimit').value = criteria.lateLimit;
     document.getElementById('minAttendance').value = criteria.minAttendance;
     document.getElementById('minHours').value = criteria.minHours;
+    loadCriteriosPuntualidad();
 }
 
 // A diferencia de saveCriteriaToStorage()/persistToSupabase() (que
@@ -2539,14 +2548,80 @@ function loadCriteria() {
 // éxito), acá el toast de éxito espera la confirmación real de
 // Supabase a propósito - se llama solo al clickear "Guardar", nunca
 // en un onchange de los inputs.
+// Parte de getCriteria() (spread primero): así este botón nunca pisa
+// los criterios de puntualidad guardados por guardarCriteriosPuntualidad()
+// (y viceversa) - son 2 secciones/botones separados sobre el mismo
+// objeto criteria en Supabase.
 async function saveCriteria() {
     const criteria = {
+        ...getCriteria(),
         lateLimit: parseInt(document.getElementById('lateLimit').value) || 15,
         minAttendance: parseInt(document.getElementById('minAttendance').value) || 80,
         minHours: parseInt(document.getElementById('minHours').value) || 4
     };
     const resultado = await persistToSupabaseEsperando('criteria', criteria);
     toastSegunConfirmacion(resultado, 'Criterios guardados');
+}
+
+// ===== Criterios de Puntualidad (semáforo de "Docentes que deberían
+// presentarse hoy") - sección aparte de "Criterios de Asistencia" de
+// arriba, exclusiva de Rector (editar_criterios_puntualidad). =====
+function loadCriteriosPuntualidad() {
+    const criteria = getCriteria();
+    const presenteEl = document.getElementById('limitePresenteMin');
+    const tardanzaEl = document.getElementById('limiteTardanzaMin');
+    const mediaFaltaEl = document.getElementById('limiteMediaFaltaMin');
+    if (!presenteEl || !tardanzaEl || !mediaFaltaEl) return;
+    presenteEl.value = criteria.limitePresenteMin;
+    tardanzaEl.value = criteria.limiteTardanzaMin;
+    mediaFaltaEl.value = criteria.limiteMediaFaltaMin;
+
+    const puedeEditar = tienePermiso(currentUser.rol, 'editar_criterios_puntualidad');
+    [presenteEl, tardanzaEl, mediaFaltaEl].forEach(el => el.disabled = !puedeEditar);
+    const saveBtn = document.getElementById('guardarCriteriosPuntualidadBtn');
+    if (saveBtn) saveBtn.disabled = !puedeEditar;
+    actualizarLeyendaCriteriosPuntualidad();
+}
+
+// Refleja en la leyenda ("Presente: de X a Y min"...) lo que hay
+// cargado en los 3 inputs en ESE momento (incluso sin guardar todavía
+// - así Rectoría ve el efecto de un cambio antes de confirmarlo).
+function actualizarLeyendaCriteriosPuntualidad() {
+    const presente = parseInt(document.getElementById('limitePresenteMin')?.value, 10);
+    const tardanza = parseInt(document.getElementById('limiteTardanzaMin')?.value, 10);
+    const mediaFalta = parseInt(document.getElementById('limiteMediaFaltaMin')?.value, 10);
+    if (!Number.isFinite(presente) || !Number.isFinite(tardanza) || !Number.isFinite(mediaFalta)) return;
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set('leyendaPresenteMax', presente);
+    set('leyendaTardanzaMin', presente + 1);
+    set('leyendaTardanzaMax', tardanza);
+    set('leyendaMediaFaltaMin', tardanza + 1);
+    set('leyendaMediaFaltaMax', mediaFalta);
+    set('leyendaAusenteMin', mediaFalta);
+}
+
+async function guardarCriteriosPuntualidad() {
+    if (!tienePermiso(currentUser.rol, 'editar_criterios_puntualidad')) {
+        showToast(mensajeSinPermiso('editar_criterios_puntualidad'), 'error');
+        logAccion('PERMISO_DENEGADO', 'Intentó guardar los criterios de puntualidad sin permiso');
+        return;
+    }
+    const presente = parseInt(document.getElementById('limitePresenteMin').value, 10);
+    const tardanza = parseInt(document.getElementById('limiteTardanzaMin').value, 10);
+    const mediaFalta = parseInt(document.getElementById('limiteMediaFaltaMin').value, 10);
+    if (!Number.isFinite(presente) || !Number.isFinite(tardanza) || !Number.isFinite(mediaFalta) || presente < 0) {
+        showToast('Completá los 3 límites con números válidos', 'error');
+        return;
+    }
+    if (!(presente < tardanza && tardanza < mediaFalta)) {
+        showToast('Cada límite tiene que ser mayor que el anterior (Presente < Tardanza < Media Falta)', 'error');
+        return;
+    }
+    const criteria = { ...getCriteria(), limitePresenteMin: presente, limiteTardanzaMin: tardanza, limiteMediaFaltaMin: mediaFalta };
+    const resultado = await persistToSupabaseEsperando('criteria', criteria);
+    toastSegunConfirmacion(resultado, '✅ Criterios de puntualidad guardados');
+    logAccion('EDITAR_CRITERIOS_PUNTUALIDAD', `Presente ≤${presente}m, Tardanza ≤${tardanza}m, Media Falta ≤${mediaFalta}m`);
+    updateStats();
 }
 
 function loadReportTeachers() {
@@ -5406,6 +5481,84 @@ function getScheduleEntriesForDate(dateStr) {
 }
 
 // ============================================================
+// INICIO: "Docentes que deberían presentarse hoy" (semáforo de
+// puntualidad, ver Configuración > Criterios de Puntualidad).
+// ============================================================
+const SEMAFORO_PUNTUALIDAD = {
+    esperado:    { color: '#9ca3af', label: 'Esperado' },
+    presente:    { color: '#22c55e', label: 'Presente' },
+    tardanza:    { color: '#eab308', label: 'Tardanza' },
+    media_falta: { color: '#f97316', label: 'Media Falta' },
+    ausente:     { color: '#ef4444', label: 'Ausente' },
+};
+// Orden de la lista pedido: rojo, naranja, amarillo, gris, verde.
+const SEMAFORO_ORDEN = { ausente: 0, media_falta: 1, tardanza: 2, esperado: 3, presente: 4 };
+
+// elapsedMin: minutos desde la hora asignada (null si todavía no llegó
+// esa hora). yaFicho: si ya hay un fichaje de entrada para este bloque.
+// Regla pedida: mientras no fichó, se queda "Esperado" (gris) hasta que
+// se cumple limiteMediaFaltaMin sin fichar -> ahí pasa directo a
+// "Ausente" (rojo). Si fichó, el color depende de en qué franja cayó
+// esa hora real, sin importar si ya se hubiera "vencido" el margen.
+function calcularSemaforoPuntualidad(elapsedMin, criteria, yaFicho) {
+    if (yaFicho) {
+        if (elapsedMin <= criteria.limitePresenteMin) return { code: 'presente', ...SEMAFORO_PUNTUALIDAD.presente };
+        if (elapsedMin <= criteria.limiteTardanzaMin) return { code: 'tardanza', ...SEMAFORO_PUNTUALIDAD.tardanza };
+        if (elapsedMin <= criteria.limiteMediaFaltaMin) return { code: 'media_falta', ...SEMAFORO_PUNTUALIDAD.media_falta };
+        return { code: 'ausente', ...SEMAFORO_PUNTUALIDAD.ausente };
+    }
+    if (elapsedMin == null || elapsedMin <= criteria.limiteMediaFaltaMin) return { code: 'esperado', ...SEMAFORO_PUNTUALIDAD.esperado };
+    return { code: 'ausente', ...SEMAFORO_PUNTUALIDAD.ausente };
+}
+
+// Reutiliza getScheduleEntriesForDate() (mismo cruce horario+asistencia
+// que el calendario/grilla) y le suma el semáforo de puntualidad de
+// cada bloque de hoy. Las licencias no cuentan como "debería
+// presentarse" - se excluyen.
+function getDocentesEsperadosHoy() {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const criteria = getCriteria();
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    return getScheduleEntriesForDate(todayStr)
+        .filter(e => e.status !== 'licencia')
+        .map(e => {
+            let elapsedMin;
+            if (e.entryRecord) {
+                elapsedMin = e.tardanzaMin;
+            } else {
+                const [sh, sm] = e.inicio.split(':').map(Number);
+                elapsedMin = nowMinutes - (sh * 60 + sm);
+                if (elapsedMin < 0) elapsedMin = null;
+            }
+            return { ...e, semaforo: calcularSemaforoPuntualidad(elapsedMin, criteria, !!e.entryRecord) };
+        })
+        .sort((a, b) => SEMAFORO_ORDEN[a.semaforo.code] - SEMAFORO_ORDEN[b.semaforo.code] || a.inicio.localeCompare(b.inicio));
+}
+
+function renderDocentesEsperadosHoy() {
+    const container = document.getElementById('docentesEsperadosHoyList');
+    if (!container || !currentUser || currentUser.role !== 'admin') return;
+    const entries = getDocentesEsperadosHoy();
+    if (entries.length === 0) {
+        container.innerHTML = '<p class="text-muted mb-0">No hay docentes con clase asignada hoy.</p>';
+        return;
+    }
+    container.innerHTML = entries.map(e => {
+        const cursoTxt = e.carreraNombre ? `${e.carreraNombre} - ${e.anio}° Año` : '';
+        const horaTxt = e.entryRecord && e.entryRecord.time ? ` · fichó ${e.entryRecord.time.slice(0, 5)}` : '';
+        return `
+            <div class="semaforo-row" style="border-left-color:${e.semaforo.color}">
+                <div class="semaforo-row-main">
+                    <span class="semaforo-row-name">${e.teacherName}</span>
+                    <span class="semaforo-row-detail">${e.materiaNombre}${cursoTxt ? ' · ' + cursoTxt : ''} · ${e.inicio}${horaTxt}</span>
+                </div>
+                <span class="semaforo-badge" style="background:${e.semaforo.color}">${e.semaforo.label}</span>
+            </div>`;
+    }).join('');
+}
+
+// ============================================================
 // GRILLA COMPLETA DE HORARIOS (vista semana, con estado de
 // asistencia por celda). Se arma en el momento cruzando el horario
 // efectivo de cada docente (getHorarioEfectivo) con la asistencia y
@@ -6150,7 +6303,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     checkFaltasEvento();
     await loadCarreras();
     await loadMaterias();
-    setInterval(() => { loadEventoConvocatoriasPorDocente().then(() => { checkFaltas(); checkFaltasEvento(); }); }, 5 * 60 * 1000);
+    // El semáforo de "Docentes que deberían presentarse hoy" también se
+    // recalcula acá: sus franjas dependen de minutos transcurridos, así
+    // que tiene que avanzar solo aunque nadie toque nada en la pantalla.
+    setInterval(() => { loadEventoConvocatoriasPorDocente().then(() => { checkFaltas(); checkFaltasEvento(); renderDocentesEsperadosHoy(); }); }, 5 * 60 * 1000);
     onReconnectSync(); // sube lo pendiente y revalida geocerca de fichajes offline, por si quedaron de una sesión anterior
     showToast('Sistema iniciado', 'info');
 });

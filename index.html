@@ -195,19 +195,30 @@
                 </ul>
                 <div class="tab-content admin-tab-content" id="adminTabsContent">
                     <div class="tab-pane fade show active" id="tabInicio" role="tabpanel">
-                <div class="row mb-4">
-                    <div class="col-md-3">
-                        <div class="stat-card"><div class="number" id="totalTeachers">0</div><div class="label">Total Docentes</div></div>
+                <div class="row mb-3 g-2 inicio-resumen-compacto">
+                    <div class="col-6 col-md-3">
+                        <div class="stat-card compact"><div class="number" id="totalTeachers">0</div><div class="label">Total Docentes</div></div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="stat-card"><div class="number" id="presentToday">0</div><div class="label">Presentes Hoy</div></div>
+                    <div class="col-6 col-md-3">
+                        <div class="stat-card compact"><div class="number" id="presentToday">0</div><div class="label">Presentes Hoy</div></div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="stat-card"><div class="number" id="absentToday">0</div><div class="label">Ausentes Hoy</div></div>
+                    <div class="col-6 col-md-3">
+                        <div class="stat-card compact"><div class="number" id="absentToday">0</div><div class="label">Ausentes Hoy</div></div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="stat-card"><div class="number" id="lateToday">0</div><div class="label">Tardanzas Hoy</div></div>
+                    <div class="col-6 col-md-3">
+                        <div class="stat-card compact"><div class="number" id="lateToday">0</div><div class="label">Tardanzas Hoy</div></div>
                     </div>
+                </div>
+                <div class="form-section">
+                    <h4><i class="bi bi-people-fill"></i> Docentes que deberían presentarse hoy</h4>
+                    <div class="semaforo-legend mb-2">
+                        <span class="semaforo-legend-item"><span class="semaforo-dot" style="background:#9ca3af"></span> Esperado</span>
+                        <span class="semaforo-legend-item"><span class="semaforo-dot" style="background:#22c55e"></span> Presente</span>
+                        <span class="semaforo-legend-item"><span class="semaforo-dot" style="background:#eab308"></span> Tardanza</span>
+                        <span class="semaforo-legend-item"><span class="semaforo-dot" style="background:#f97316"></span> Media Falta</span>
+                        <span class="semaforo-legend-item"><span class="semaforo-dot" style="background:#ef4444"></span> Ausente</span>
+                    </div>
+                    <div id="docentesEsperadosHoyList"></div>
                 </div>
                     </div>
                     <div class="tab-pane fade" id="tabAlertas" role="tabpanel">
@@ -501,6 +512,22 @@
                         <div class="col-md-4"><div class="form-group"><label>Horas mínimas diarias</label><input type="number" class="form-control" id="minHours" value="4"></div></div>
                     </div>
                     <button class="btn btn-primary" onclick="saveCriteria()"><i class="bi bi-save"></i> Guardar</button>
+                </div>
+                <div class="form-section mt-4">
+                    <h4><i class="bi bi-stoplights"></i> Criterios de Puntualidad</h4>
+                    <p class="text-muted">Umbrales del semáforo de "Docentes que deberían presentarse hoy" (pestaña Inicio). Solo Rectoría puede editarlos.</p>
+                    <div class="row">
+                        <div class="col-md-4"><div class="form-group"><label>Límite Presente (min)</label><input type="number" class="form-control" id="limitePresenteMin" value="10" min="0" oninput="actualizarLeyendaCriteriosPuntualidad()"></div></div>
+                        <div class="col-md-4"><div class="form-group"><label>Límite Tardanza (min)</label><input type="number" class="form-control" id="limiteTardanzaMin" value="15" min="0" oninput="actualizarLeyendaCriteriosPuntualidad()"></div></div>
+                        <div class="col-md-4"><div class="form-group"><label>Límite Media Falta (min)</label><input type="number" class="form-control" id="limiteMediaFaltaMin" value="20" min="0" oninput="actualizarLeyendaCriteriosPuntualidad()"></div></div>
+                    </div>
+                    <ul class="small text-muted mb-3">
+                        <li>Presente: desde la hora asignada hasta <strong id="leyendaPresenteMax">10</strong> min</li>
+                        <li>Tardanza: de <strong id="leyendaTardanzaMin">11</strong> a <strong id="leyendaTardanzaMax">15</strong> min</li>
+                        <li>Media Falta: de <strong id="leyendaMediaFaltaMin">16</strong> a <strong id="leyendaMediaFaltaMax">20</strong> min</li>
+                        <li>Ausente: más de <strong id="leyendaAusenteMin">20</strong> min (o no ficha)</li>
+                    </ul>
+                    <button class="btn btn-primary" id="guardarCriteriosPuntualidadBtn" onclick="guardarCriteriosPuntualidad()"><i class="bi bi-save"></i> Guardar</button>
                 </div>
                 <div class="form-section mt-4">
                     <h4><i class="bi bi-geo-alt"></i> Configuración: Geocerca de Fichaje</h4>
