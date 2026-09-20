@@ -639,47 +639,48 @@ async function obtenerDireccionPorCoordenadas(lat, lng) {
     }
 }
 
-// Ubicación para el log de auditoría (login de Secretaría/Rector/
-// Programador, ver login()): intenta GPS del navegador primero (más
-// preciso, pide permiso); si el usuario lo niega o no hay soporte, cae
-// a una ubicación aproximada por IP. No bloquea nada si ninguna de las
-// 2 funciona (login sigue andando igual, el log queda sin ubicación).
+// Ubicación de alta precisión para el log de auditoría: SOLO GPS del
+// navegador, NUNCA por IP. La geolocalización por IP resuelve la
+// dirección registrada del ISP, no la posición real del dispositivo -
+// en conexiones móviles/rurales puede devolver una ciudad a cientos o
+// miles de km de distancia (se detectó justo eso en producción: un
+// fichaje real en Ituzaingó seguido, segundos después, de un login
+// "en Dique Luján, Buenos Aires" - geográficamente imposible). Mejor
+// dejar la ubicación pendiente que guardar una falsa.
 //
-// ip-api.com (lo pedido originalmente) no sirve acá: su plan gratuito
-// es solo HTTP, y este sitio corre en HTTPS - el navegador lo
-// bloquearía como "contenido mixto". Se probó ipapi.co (HTTPS, pero
-// devolvió error de rate-limit en la primera prueba en vivo) y se usa
-// ipwho.is en su lugar: HTTPS, sin key, respondió bien en la prueba.
+// Hasta 3 intentos (cada uno hasta 15s, maximumAge:0 para no reusar
+// una posición vieja cacheada), se queda con el de mejor precisión
+// (accuracy más chico, en metros). Si ni el mejor de los 3 baja de
+// UBICACION_ACCURACY_MAX_M, se descarta entero - se reintenta después
+// (ver completarUbicacionLog()/reintentarLogsPendientes() en
+// auditoria.js), nunca se guarda una ubicación de baja precisión.
+const UBICACION_ACCURACY_MAX_M = 100;
+const UBICACION_INTENTOS = 3;
+
 async function obtenerUbicacionParaLog() {
-    try {
-        const position = await getCurrentPositionPromise(8000);
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-        const direccion = await obtenerDireccionPorCoordenadas(lat, lng);
-        return {
-            lat, lng, direccion, ip: null, fuente: 'gps',
-            precision: Number.isFinite(position.coords.accuracy) ? Math.round(position.coords.accuracy) : null,
-            fakeGpsSospechoso: esGpsSospechoso(position.coords),
-        };
-    } catch (error) {
-        console.error('No se pudo obtener el GPS para el log de auditoría, se intenta por IP:', error);
-    }
-    try {
-        const res = await fetch('https://ipwho.is/');
-        const data = await res.json();
-        if (data && data.success !== false && data.latitude != null) {
-            return {
-                lat: data.latitude,
-                lng: data.longitude,
-                direccion: [data.city, data.region].filter(Boolean).join(', ') || null,
-                ip: data.ip || null,
-                fuente: 'ip',
-            };
+    let mejor = null;
+    for (let i = 0; i < UBICACION_INTENTOS; i++) {
+        try {
+            const position = await new Promise((resolve, reject) => {
+                if (!navigator.geolocation) { reject({ code: 'unsupported' }); return; }
+                navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+            });
+            const accuracy = Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : Infinity;
+            if (!mejor || accuracy < mejor.accuracy) {
+                mejor = { lat: position.coords.latitude, lng: position.coords.longitude, accuracy, coords: position.coords };
+            }
+            if (accuracy <= 30) break; // ya es buena, no hace falta gastar más intentos
+        } catch (error) {
+            console.error(`Intento ${i + 1}/${UBICACION_INTENTOS} de GPS para el log falló:`, error);
         }
-    } catch (error) {
-        console.error('No se pudo obtener la ubicación por IP para el log de auditoría:', error);
     }
-    return null;
+    if (!mejor || mejor.accuracy > UBICACION_ACCURACY_MAX_M) return null;
+    const direccion = await obtenerDireccionPorCoordenadas(mejor.lat, mejor.lng);
+    return {
+        lat: mejor.lat, lng: mejor.lng, direccion, ip: null, fuente: 'gps',
+        precision: Math.round(mejor.accuracy),
+        fakeGpsSospechoso: esGpsSospechoso(mejor.coords),
+    };
 }
 
 async function buscarGeocercaDireccion(key, query) {
@@ -1368,18 +1369,6 @@ function backToRoleSelect() {
     document.getElementById('roleSelectStep').classList.remove('hidden');
 }
 
-// Login de Secretaría/Rector/Programador: registra el LOGIN una vez
-// que se resuelve la ubicación (GPS o IP, lo que responda primero o
-// esté disponible), sin bloquear el login en sí - showDashboard() ya
-// se llamó para cuando esto termina. Los docentes no pasan por acá:
-// ya piden GPS al fichar segundos después, pedirlo de nuevo acá sería
-// un permiso redundante y confuso.
-function registrarLoginAdminConUbicacion(detalle) {
-    obtenerUbicacionParaLog().then(ubicacion => {
-        logAccion('LOGIN', detalle, ubicacion);
-    });
-}
-
 async function login() {
     if (!dataLoaded || !adminUsuario) {
         showToast('Todavía se están cargando los datos, esperá un momento e intentá de nuevo', 'warning');
@@ -1427,13 +1416,16 @@ async function login() {
         }
         if (ok) {
             currentUser = { role: 'admin', rol: ROLES.PROGRAMADOR, username: PROGRAMADOR_LOGIN_USER };
-            registrarLoginAdminConUbicacion('Login PROGRAMADOR');
+            // 2 argumentos a propósito (sin ubicacion): logAccion() ya
+            // intenta GPS de alta precisión en segundo plano sola, sin
+            // bloquear el login - no hace falta un wrapper aparte.
+            logAccion('LOGIN', 'Login PROGRAMADOR');
         }
     } else {
         const usuarioEsperado = CREDENCIALES_ADMIN_USUARIO[selectedRole];
         if (usuarioEsperado && user === usuarioEsperado && await coincideHashCredencial(selectedRole, pass)) {
             currentUser = { role: 'admin', rol: selectedRole, username: usuarioEsperado };
-            registrarLoginAdminConUbicacion(`Login ${selectedRole}`);
+            logAccion('LOGIN', `Login ${selectedRole}`);
             ok = true;
         }
     }

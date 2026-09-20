@@ -171,17 +171,51 @@ function actualizarLogLocal(logId, cambios) {
 // acción que lo disparó - fecha/timestamp del log (el momento real del
 // hecho) nunca se tocan, solo se completa ubicacion una vez que se
 // consigue (ubicacionResueltaEn deja constancia de cuándo).
+// Umbral de "salto imposible": si el mismo usuario tenía una ubicación
+// buena hace menos de SALTO_IMPOSIBLE_MIN minutos, a más de
+// SALTO_IMPOSIBLE_KM de la que se acaba de resolver, nadie recorre esa
+// distancia tan rápido - es un error de geolocalización, no un dato
+// real (justo el caso detectado en producción: Ituzaingó -> "Dique
+// Luján, Buenos Aires" a los 8 segundos). Se descarta en vez de
+// guardarlo.
+const SALTO_IMPOSIBLE_KM = 10;
+const SALTO_IMPOSIBLE_MIN = 5;
+const ULTIMA_UBICACION_VENTANA_HORAS = 2;
+
+function esSaltoImposible(usuario, nuevaUbicacion, timestampNuevo) {
+    if (!usuario || !nuevaUbicacion || typeof haversineDistanceMeters !== 'function') return false;
+    const ventanaMs = ULTIMA_UBICACION_VENTANA_HORAS * 60 * 60 * 1000;
+    const ultimaBuena = getLogsBackupLocal()
+        .filter(l => l.usuario === usuario && l.ubicacion && l.ubicacion.lat != null
+            && l.timestamp && l.timestamp < timestampNuevo && (timestampNuevo - l.timestamp) <= ventanaMs)
+        .sort((a, b) => b.timestamp - a.timestamp)[0];
+    if (!ultimaBuena) return false;
+    const distanciaKm = haversineDistanceMeters(nuevaUbicacion.lat, nuevaUbicacion.lng, ultimaBuena.ubicacion.lat, ultimaBuena.ubicacion.lng) / 1000;
+    const minutos = (timestampNuevo - ultimaBuena.timestamp) / 60000;
+    return distanciaKm > SALTO_IMPOSIBLE_KM && minutos < SALTO_IMPOSIBLE_MIN;
+}
+
 async function completarUbicacionLog(logId) {
     if (typeof obtenerUbicacionParaLog !== 'function') return;
     const ubicacion = await obtenerUbicacionParaLog();
     if (!ubicacion) {
-        // Ni GPS ni IP funcionaron (típicamente: sin conexión en este
-        // instante). Se deja ubicacionPendiente:true - reintentarLogsPendientes()
+        // Sin GPS de precisión aceptable (o directamente sin señal).
+        // Se deja ubicacionPendiente:true - reintentarLogsPendientes()
         // lo vuelve a intentar al reconectar, en vez de darlo por
-        // perdido para siempre.
+        // perdido para siempre. Nunca se cae a IP (ver
+        // obtenerUbicacionParaLog() en script.js).
         return;
     }
-    const cambios = { ubicacion, ubicacionPendiente: false, ubicacionResueltaEn: new Date().toISOString() };
+
+    const logActual = getLogsBackupLocal().find(l => l.id === logId);
+    if (logActual && esSaltoImposible(logActual.usuario, ubicacion, logActual.timestamp)) {
+        console.error(`Ubicación descartada por salto imposible para el log ${logId}: ${JSON.stringify(ubicacion)}`);
+        actualizarLogLocal(logId, { ubicacionDescartadaMotivo: `Salto imposible (más de ${SALTO_IMPOSIBLE_KM}km en menos de ${SALTO_IMPOSIBLE_MIN}min) - se reintenta` });
+        if (typeof renderAuditoriaPanel === 'function' && document.getElementById('auditoriaTableBody')) renderAuditoriaPanel();
+        return; // sigue pendiente, se vuelve a intentar más adelante
+    }
+
+    const cambios = { ubicacion, ubicacionPendiente: false, ubicacionResueltaEn: new Date().toISOString(), ubicacionDescartadaMotivo: null };
     actualizarLogLocal(logId, cambios);
     const entry = getLogsBackupLocal().find(l => l.id === logId);
     if (entry && entry.supabaseId && typeof sb !== 'undefined' && sb) {
@@ -281,20 +315,22 @@ function getLogsFiltrados() {
     }).slice().reverse();
 }
 
-// HTML de la celda "Ubicación": link a Google Maps con la dirección
-// aproximada como texto (o "GPS: lat,lon (pendiente sync)" con badge
-// amarillo si todavía no se resolvió la dirección), "-" si el log no
-// tiene ubicación en absoluto (login sin permiso GPS ni IP, o acciones
-// que nunca la piden, como guardar una materia). Tooltip con el
-// detalle completo (lat/lon/precisión/IP).
-// Nunca "-": o hay ubicación, o se está por conseguir (⏳), o se probó
-// de verdad y no se pudo (GPS apagado/permiso denegado, IP también
-// falló). "-" no distingue "no se pidió" de "se pidió y falló"; estos
-// 3 mensajes sí.
+// HTML de la celda "Ubicación". Nunca "-": siempre uno de estos 4
+// estados, bien distinguibles entre sí:
+//   1) pendiente (todavía intentando conseguir GPS preciso)
+//   2) descartada por salto imposible (se resolvió, pero no es
+//      creíble - se sigue reintentando)
+//   3) no solicitada a propósito (login de docente, fichaje con
+//      bypass sin geocerca real)
+//   4) resuelta - siempre con la precisión (m) a la vista, nunca
+//      escondida en el tooltip solamente (pedido explícito).
 function celdaUbicacionLog(l) {
+    const desde = l.fecha ? (l.fecha.split(' ')[1] || l.fecha) : '';
+    if (l.ubicacionDescartadaMotivo) {
+        return `<span class="badge bg-danger" title="${l.ubicacionDescartadaMotivo}"><i class="bi bi-exclamation-octagon"></i> Ubicación descartada - salto imposible (desde ${desde})</span>`;
+    }
     if (l.ubicacionPendiente) {
-        const desde = l.fecha ? l.fecha.split(' ')[1] || l.fecha : '';
-        return `<span class="badge bg-warning text-dark" title="Intentando conseguir GPS/IP desde las ${desde}"><i class="bi bi-hourglass-split"></i> Sin señal al momento de la acción (desde ${desde}) - pendiente ubicación</span>`;
+        return `<span class="badge bg-warning text-dark" title="Sin GPS de precisión aceptable todavía (nunca se usa IP como respaldo) - se reintenta solo al reconectar"><i class="bi bi-hourglass-split"></i> Offline ${desde} (firstOffline) - esperando GPS preciso...</span>`;
     }
     if (!l.ubicacion || l.ubicacion.lat == null) {
         // ubicacionPendiente ya es false acá: no es que falló, es que
@@ -304,25 +340,30 @@ function celdaUbicacionLog(l) {
         return '<span class="text-muted small">Ubicación no solicitada para esta acción</span>';
     }
     const lat = Number(l.ubicacion.lat), lng = Number(l.ubicacion.lng);
-    const texto = l.ubicacion.direccion || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    const coords = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+    const precisionM = l.ubicacion.precision;
+    // Etiqueta de precisión siempre visible junto a las coordenadas -
+    // pedido explícito, no solo en el tooltip.
+    const etiquetaPrecision = precisionM == null ? ''
+        : precisionM <= 30 ? ` (precisión ${precisionM}m - alta)`
+        : ` (precisión ${precisionM}m - media)`;
+    const textoBase = l.ubicacion.direccion ? `${l.ubicacion.direccion} - ${coords}` : coords;
     const fakeGpsBadge = l.ubicacion.fakeGpsSospechoso ? ' <span class="badge bg-danger" title="Heurística débil, no es detección real de GPS falso">POSIBLE UBICACIÓN FALSA</span>' : '';
-    // Si tardó en resolverse (guardó el log antes de tener ubicación,
-    // ver ubicacionPendiente más arriba), se nota - no es lo mismo que
-    // "se resolvió al toque".
-    const horaAccion = l.fecha ? l.fecha.split(' ')[1] : null;
+    // Si tardó en resolverse (el log se guardó antes de tener
+    // ubicación, ver ubicacionPendiente más arriba), se nota - no es
+    // lo mismo que "se resolvió al toque".
     const horaResuelta = l.ubicacionResueltaEn ? new Date(l.ubicacionResueltaEn).toLocaleTimeString('es-AR').slice(0, 5) : null;
-    const recuperadaBadge = (horaResuelta && horaAccion && horaResuelta.slice(0, 5) !== horaAccion.slice(0, 5))
-        ? ` <span class="badge bg-info text-dark" title="La acción fue a las ${horaAccion}, la ubicación recién se pudo confirmar a las ${horaResuelta}">ubicación recuperada</span>`
+    const prefijo = (horaResuelta && horaResuelta !== desde.slice(0, 5))
+        ? `<span class="badge bg-info text-dark me-1" title="Firstoffline ${desde} - recién se pudo confirmar la ubicación a las ${horaResuelta}">recuperada al sincronizar - firstOffline ${desde}</span> `
         : '';
     const tooltip = [
         `Lat/Lon: ${lat}, ${lng}`,
-        l.ubicacion.precision != null ? `Precisión: ${l.ubicacion.precision}m` : null,
-        l.ubicacion.ip ? `IP: ${l.ubicacion.ip}` : null,
-        l.ubicacion.fuente ? `Fuente: ${l.ubicacion.fuente === 'gps' ? 'GPS del dispositivo' : 'aproximada por IP'}` : null,
-        horaAccion ? `Hecho a las: ${horaAccion}` : null,
+        precisionM != null ? `Precisión: ${precisionM}m` : null,
+        `Fuente: GPS del dispositivo (nunca IP)`,
+        `Hecho a las: ${desde}`,
         horaResuelta ? `Ubicación confirmada a las: ${horaResuelta}` : null,
     ].filter(Boolean).join(' · ');
-    return `<a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener" title="${tooltip}"><i class="bi bi-geo-alt-fill"></i> ${texto}</a>${recuperadaBadge}${fakeGpsBadge}`;
+    return `${prefijo}<a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener" title="${tooltip}"><i class="bi bi-geo-alt-fill"></i> ${textoBase}${etiquetaPrecision}</a>${fakeGpsBadge}`;
 }
 
 function hayFiltrosActivosAuditoria() {
@@ -425,15 +466,18 @@ function exportarLogsAExcel(logs, sufijoArchivo, sufijoAccion) {
     const rows = logs.map(l => ({
         Fecha: l.fecha, Usuario: l.usuario, Rol: l.rol, Accion: l.accion, Detalle: l.detalle || '',
         Dispositivo: l.dispositivo || '', Plataforma: l.plataforma || '',
+        EstadoUbicacion: l.ubicacionDescartadaMotivo ? 'DESCARTADA (salto imposible)'
+            : l.ubicacionPendiente ? 'PENDIENTE (sin GPS preciso)'
+            : (!l.ubicacion || l.ubicacion.lat == null) ? 'NO SOLICITADA'
+            : 'RESUELTA',
         Ubicacion: l.ubicacion && l.ubicacion.lat != null ? `${l.ubicacion.lat}, ${l.ubicacion.lng}` : '',
         Direccion: l.ubicacion?.direccion || '',
         PrecisionM: l.ubicacion?.precision ?? '',
-        IP: l.ubicacion?.ip || '',
         FakeGpsSospechoso: l.ubicacion?.fakeGpsSospechoso ? 'SI' : '',
     }));
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 40 }, { wch: 30 }, { wch: 14 }, { wch: 20 }, { wch: 26 }, { wch: 12 }, { wch: 15 }, { wch: 12 }];
+    ws['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 40 }, { wch: 30 }, { wch: 14 }, { wch: 22 }, { wch: 20 }, { wch: 26 }, { wch: 12 }, { wch: 12 }];
     XLSX.utils.book_append_sheet(wb, ws, 'Auditoria');
     XLSX.writeFile(wb, `asiscam_auditoria${sufijoArchivo || ''}_${new Date().toISOString().split('T')[0]}.xlsx`);
     logAccion('EXPORTAR_LOG', `Exportó ${logs.length} registro(s) a Excel${sufijoAccion || ''}`);
@@ -454,9 +498,15 @@ function exportarLogPDF() {
     doc.setFontSize(9);
     let y = 65;
     logs.slice(0, 500).forEach(l => {
-        const ubicacionTexto = l.ubicacion && l.ubicacion.lat != null
-            ? ` | Ubicación: ${l.ubicacion.direccion || `${l.ubicacion.lat}, ${l.ubicacion.lng}`}`
-            : '';
+        let ubicacionTexto = '';
+        if (l.ubicacionDescartadaMotivo) {
+            ubicacionTexto = ' | Ubicación DESCARTADA (salto imposible)';
+        } else if (l.ubicacionPendiente) {
+            ubicacionTexto = ' | Ubicación pendiente (sin GPS preciso)';
+        } else if (l.ubicacion && l.ubicacion.lat != null) {
+            const prec = l.ubicacion.precision != null ? ` (${l.ubicacion.precision}m)` : '';
+            ubicacionTexto = ` | Ubicación: ${l.ubicacion.direccion || `${l.ubicacion.lat}, ${l.ubicacion.lng}`}${prec}`;
+        }
         const linea = `${l.fecha} | ${l.usuario} (${l.rol}) | ${l.accion} | ${l.detalle || ''}${ubicacionTexto}`;
         if (y > 780) { doc.addPage(); y = 40; }
         doc.text(linea.slice(0, 160), 40, y);
