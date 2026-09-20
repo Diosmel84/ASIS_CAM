@@ -3345,10 +3345,11 @@ async function detectFace() {
         return;
     }
 
-    // Prueba de vida (Anti-Spoofing Nivel 1+2, ver liveness.js): mira
-    // al centro, gira levemente la cabeza y parpadea, ANTES de gastar
-    // el reconocimiento facial en una foto de un celular. Solo si esto
-    // pasa se sigue a la comparación de rostro de siempre.
+    // Prueba de vida (Anti-Spoofing Nivel 1+2, ver liveness.js): 2 o 3
+    // gestos al azar, en orden al azar (parpadeo/giro/sonrisa/mirar
+    // arriba), ANTES de gastar el reconocimiento facial en una foto o
+    // un video grabado. Solo si esto pasa se sigue a la comparación
+    // de rostro de siempre.
     if (typeof runLivenessCheck === 'function') {
         const liveness = await runLivenessCheck(video, currentUser.dni);
         if (!liveness.passed) {

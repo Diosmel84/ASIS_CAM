@@ -735,12 +735,10 @@
                             <div class="camera-controls">
                                 <div id="materiaFichajeInfo" class="mb-2"></div>
                                 <div id="fichajeContextBadges" class="mb-2 small"></div>
-                                <div id="livenessSteps" class="liveness-steps hidden">
-                                    <span class="liveness-step" data-step="mirando">1/3 Mirando</span>
-                                    <span class="liveness-step" data-step="girando">2/3 Girando</span>
-                                    <span class="liveness-step" data-step="parpadeo">3/3 Parpadeo</span>
-                                    <span class="liveness-step" data-step="ok">OK</span>
-                                </div>
+                                <!-- Chips "1/N <gesto>" ... "OK": se arman en JS por cada
+                                     intento (liveness.js:livenessRenderSteps()), porque el
+                                     set de challenges es al azar (2 o 3, orden al azar). -->
+                                <div id="livenessSteps" class="liveness-steps hidden"></div>
                                 <div id="faceRecognitionStatus" class="face-recognition-status waiting">
                                     <i class="bi bi-info-circle"></i> Esperando identificación...
                                 </div>

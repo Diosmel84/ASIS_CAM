@@ -132,9 +132,9 @@ async function main() {
   console.log("== Paso 1: instalación (install) con red disponible ==");
   let env = makeSandbox({ networkOnline: true });
   await env.dispatch("install");
-  const cache = env.caches.get("asiscam-cache-v3");
-  check("se creó la cache asiscam-cache-v3", !!cache);
-  check("precacheó el app shell (index.html, style.css, script.js)", !!(await cache.match("./index.html")) && !!(await cache.match("./style.css")) && !!(await cache.match("./script.js")));
+  const cache = env.caches.get("asiscam-cache-v4");
+  check("se creó la cache asiscam-cache-v4", !!cache);
+  check("precacheó el app shell (index.html, style.css, script.js, liveness.js)", !!(await cache.match("./index.html")) && !!(await cache.match("./style.css")) && !!(await cache.match("./script.js")) && !!(await cache.match("./liveness.js")));
   check("precacheó los 7 archivos de /models", [
     "./models/tiny_face_detector_model-weights_manifest.json",
     "./models/tiny_face_detector_model-shard1",
@@ -155,14 +155,14 @@ async function main() {
     "./libs/jspdf.umd.min.js",
     "./libs/supabase.min.js",
   ].every((u) => cache.store.has(toAbsolute(u))));
-  check("total precacheado = 20 recursos (4 app shell + 7 modelos + 9 libs)", cache.store.size === 20);
+  check("total precacheado = 21 recursos (5 app shell + 7 modelos + 9 libs)", cache.store.size === 21);
   check("llamó a self.skipWaiting()", env.self._skippedWaiting === true);
 
   console.log("\n== Paso 2: activación (activate) limpia caches viejas ==");
-  env.caches.set("asiscam-cache-v2", new FakeCache(async () => ({ ok: true })));
+  env.caches.set("asiscam-cache-v3", new FakeCache(async () => ({ ok: true })));
   await env.dispatch("activate");
-  check("borró la cache vieja asiscam-cache-v2", !env.caches.has("asiscam-cache-v2"));
-  check("conservó la cache actual asiscam-cache-v3", env.caches.has("asiscam-cache-v3"));
+  check("borró la cache vieja asiscam-cache-v3", !env.caches.has("asiscam-cache-v3"));
+  check("conservó la cache actual asiscam-cache-v4", env.caches.has("asiscam-cache-v4"));
   check("llamó a self.clients.claim()", env.self._claimed === true);
 
   console.log("\n== Paso 3: fetch de un modelo -> cache-first (ya cacheado, no debe volver a pedirlo a la red) ==");
