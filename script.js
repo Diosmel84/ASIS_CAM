@@ -2537,7 +2537,6 @@ function dismissAlert(id) {
 
 function loadCriteria() {
     const criteria = getCriteria();
-    document.getElementById('lateLimit').value = criteria.lateLimit;
     document.getElementById('minAttendance').value = criteria.minAttendance;
     document.getElementById('minHours').value = criteria.minHours;
     loadCriteriosPuntualidad();
@@ -2551,11 +2550,13 @@ function loadCriteria() {
 // Parte de getCriteria() (spread primero): así este botón nunca pisa
 // los criterios de puntualidad guardados por guardarCriteriosPuntualidad()
 // (y viceversa) - son 2 secciones/botones separados sobre el mismo
-// objeto criteria en Supabase.
+// objeto criteria en Supabase. lateLimit ya no tiene campo propio acá
+// (se sacó de "Criterios de Asistencia" a pedido) - el spread lo deja
+// tal cual estaba guardado, sin tocarlo; lo sigue usando la lógica de
+// tardanza existente (checkFaltas, registerAttendance, etc.).
 async function saveCriteria() {
     const criteria = {
         ...getCriteria(),
-        lateLimit: parseInt(document.getElementById('lateLimit').value) || 15,
         minAttendance: parseInt(document.getElementById('minAttendance').value) || 80,
         minHours: parseInt(document.getElementById('minHours').value) || 4
     };
