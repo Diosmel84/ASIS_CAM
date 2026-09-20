@@ -834,10 +834,11 @@
                 </div>
                 <div class="modal-body">
                     <div class="schedule-legend mb-3">
-                        <div class="schedule-legend-item"><div class="schedule-legend-color" style="background:#4f5f34;"></div><span>Presente</span></div>
-                        <div class="schedule-legend-item"><div class="schedule-legend-color" style="background:#8c3f3f;"></div><span>Falta</span></div>
-                        <div class="schedule-legend-item"><div class="schedule-legend-color" style="background:#55676b;"></div><span>Licencia</span></div>
-                        <div class="schedule-legend-item"><div class="schedule-legend-color" style="background:#96752c;"></div><span>Programado (futuro)</span></div>
+                        <div class="schedule-legend-item"><div class="schedule-legend-color status-present"></div><span>Presente</span></div>
+                        <div class="schedule-legend-item"><div class="schedule-legend-color status-late"></div><span>Tardanza</span></div>
+                        <div class="schedule-legend-item"><div class="schedule-legend-color status-falta"></div><span>Falta</span></div>
+                        <div class="schedule-legend-item"><div class="schedule-legend-color status-licencia"></div><span>Licencia</span></div>
+                        <div class="schedule-legend-item"><div class="schedule-legend-color status-scheduled"></div><span>Pendiente (futuro)</span></div>
                     </div>
                     <div class="annual-calendar-container" id="annualCalendarBody"></div>
                 </div>
@@ -850,13 +851,29 @@
 
     <!-- ===== GRILLA COMPLETA DE HORARIOS (solo visualización) ===== -->
     <div class="modal fade" id="fullScheduleGridModal" tabindex="-1">
-        <div class="modal-dialog modal-xl">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="bi bi-grid-3x3"></i> Grilla Completa de Horarios del Personal</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body" id="fullScheduleGridBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== DETALLE DE UNA CELDA DE LA GRILLA (fichaje puntual) ===== -->
+    <div class="modal fade" id="gridCellDetailModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="gridCellDetailModalTitle"><i class="bi bi-info-circle"></i> Detalle</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="gridCellDetailBody"></div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
                 </div>

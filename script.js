@@ -943,6 +943,13 @@ let isFaceVerified = false;
 // autoselecciona sola, sin mostrar nada para elegir).
 let materiaFichajeSeleccionada = null;
 let annualCalendarByDate = {}; // último cálculo de showAnnualCalendar(), usado por showDayDetail()
+// Estado de la Grilla Completa de Horarios (vista semana): offset de
+// semanas respecto de la actual (0 = semana de hoy, -1 = anterior,
+// 1 = siguiente) y los filtros activos. Se reinicia cada vez que se
+// abre el modal (showFullScheduleGrid()).
+let grillaSemanaOffset = 0;
+let grillaFiltro = { profesor: '', materia: '', carrera: '', estado: '' };
+let grillaEntriesPorCelda = {}; // `${teacherId}_${dateStr}_${inicio}` -> entry, usado por showGridCellDetail()
 let modelsLoaded = false;
 let exitWindowPollInterval = null;
 let liveOverlayInterval = null;
@@ -5142,56 +5149,329 @@ function getDayStatus(teacherId, dateStr, hasScheduleToday, earliestStart, atten
     return 'scheduled';
 }
 
+const SCHEDULE_STATUS_ICON = { present: '✓', late: '⏰', falta: '✗', licencia: '🏥', scheduled: '○' };
+const SCHEDULE_STATUS_LABEL = { present: 'Presente', late: 'Tardanza', falta: 'Ausente', licencia: 'Licencia', scheduled: 'Pendiente' };
+
+// Cruza horario efectivo (getHorarioEfectivo, ya trae materiaId/
+// materiaNombre cuando el docente tiene materias asignadas) +
+// asistencias + licencias para UNA fecha puntual: devuelve una
+// entrada por cada bloque materia+docente que tiene clase ese día,
+// con el estado ya resuelto (present/late/falta/licencia/scheduled).
+// La usan tanto el Calendario Anual del Establecimiento como la
+// Grilla Completa de Horarios, para no repetir la lógica de cruce.
+function getScheduleEntriesForDate(dateStr) {
+    const dayName = FULL_DAYS[new Date(dateStr + 'T00:00:00Z').getUTCDay()];
+    const teachers = getTeachers();
+    const attendance = getAttendance();
+    const criteria = getCriteria();
+    const lateLimit = criteria.lateLimit || 15;
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const carrerasPorId = {};
+    (typeof currentCarreras !== 'undefined' ? currentCarreras : []).forEach(c => { carrerasPorId[c.id] = c.nombre; });
+    const materiasPorId = {};
+    (typeof currentMaterias !== 'undefined' ? currentMaterias : []).forEach(m => { materiasPorId[m.id] = m; });
+
+    const entries = [];
+    teachers.forEach(teacher => {
+        const createdDateStr = teacher.createdAt ? teacher.createdAt.split('T')[0] : null;
+        if (createdDateStr && dateStr < createdDateStr) return;
+        const licencia = getLicenciaForDate(teacher.id, dateStr);
+        const bloques = getHorarioEfectivo(teacher).filter(h => h.dia === dayName);
+        bloques.forEach(h => {
+            const materia = h.materiaId != null ? materiasPorId[h.materiaId] : null;
+            let status, entryRecord = null, tardanzaMin = null;
+            if (licencia) {
+                status = 'licencia';
+            } else {
+                entryRecord = attendance.find(a => a.teacherId === teacher.id && a.type === 'entry' && a.date === dateStr &&
+                    (a.categoria || 'regular') === 'regular' && (h.materiaId != null ? a.materiaId === h.materiaId : true)) || null;
+                if (entryRecord) {
+                    status = entryRecord.status === 'late' ? 'late' : 'present';
+                    const [sh, sm] = h.inicio.split(':').map(Number);
+                    const [eh, em] = (entryRecord.time || '00:00').split(':').map(Number);
+                    tardanzaMin = (eh * 60 + em) - (sh * 60 + sm);
+                } else if (dateStr < todayStr) {
+                    status = 'falta';
+                } else if (dateStr === todayStr) {
+                    const [sh, sm] = h.inicio.split(':').map(Number);
+                    status = nowMinutes > (sh * 60 + sm + lateLimit) ? 'falta' : 'scheduled';
+                } else {
+                    status = 'scheduled';
+                }
+            }
+            entries.push({
+                teacherId: teacher.id,
+                teacherName: `${teacher.apellido} ${teacher.nombre}`,
+                teacherApellido: teacher.apellido,
+                materiaId: h.materiaId || null,
+                materiaNombre: h.materiaNombre || teacher.materia || 'Clase',
+                carreraId: materia ? materia.carrera_id : null,
+                carreraNombre: materia ? (carrerasPorId[materia.carrera_id] || null) : null,
+                anio: materia ? materia.anio : null,
+                inicio: h.inicio,
+                fin: h.fin,
+                dia: dayName,
+                date: dateStr,
+                status,
+                entryRecord,
+                licenciaMotivo: licencia ? licencia.motivo : null,
+                tardanzaMin
+            });
+        });
+    });
+    return entries.sort((a, b) => a.inicio.localeCompare(b.inicio) || a.teacherName.localeCompare(b.teacherName));
+}
+
 // ============================================================
-// GRILLA COMPLETA DE HORARIOS (vista panorámica, solo lectura)
-// Se arma en el momento a partir de horario_laboral de cada
-// docente (día + inicio + fin), no se persiste por separado.
+// GRILLA COMPLETA DE HORARIOS (vista semana, con estado de
+// asistencia por celda). Se arma en el momento cruzando el horario
+// efectivo de cada docente (getHorarioEfectivo) con la asistencia y
+// las licencias del día vía getScheduleEntriesForDate() — no se
+// persiste por separado. Navegación por semana (grillaSemanaOffset)
+// + filtros (grillaFiltro), ambos con estado propio para que
+// sobrevivan a los re-render sin perder lo elegido.
 // ============================================================
+
+// Lunes..Domingo (alineado con DAYS) de la semana actual + offset
+// semanas (0 = esta semana, -1 = anterior, 1 = siguiente).
+function getWeekDates(offsetWeeks) {
+    const now = new Date();
+    const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    const dow = today.getUTCDay(); // 0=Domingo..6=Sábado
+    const diffToMonday = dow === 0 ? -6 : 1 - dow;
+    const monday = new Date(today);
+    monday.setUTCDate(today.getUTCDate() + diffToMonday + offsetWeeks * 7);
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setUTCDate(monday.getUTCDate() + i);
+        dates.push(d.toISOString().split('T')[0]);
+    }
+    return dates;
+}
+
+function formatFechaCorta(dateStr) {
+    const [, m, d] = dateStr.split('-');
+    return `${d}/${m}`;
+}
+
 function showFullScheduleGrid() {
+    grillaSemanaOffset = 0;
+    grillaFiltro = { profesor: '', materia: '', carrera: '', estado: '' };
+    renderFullScheduleGrid();
+    new bootstrap.Modal(document.getElementById('fullScheduleGridModal')).show();
+}
+
+function cambiarSemanaGrilla(delta) {
+    grillaSemanaOffset += delta;
+    renderFullScheduleGrid();
+}
+
+function irHoyGrilla() {
+    grillaSemanaOffset = 0;
+    renderFullScheduleGrid();
+}
+
+function onGrillaFiltroChange(campo, valor) {
+    grillaFiltro[campo] = valor;
+    renderFullScheduleGrid();
+}
+
+function entryPasaFiltroGrilla(e) {
+    if (grillaFiltro.profesor && String(e.teacherId) !== String(grillaFiltro.profesor)) return false;
+    if (grillaFiltro.materia && String(e.materiaId) !== String(grillaFiltro.materia)) return false;
+    if (grillaFiltro.carrera && String(e.carreraId) !== String(grillaFiltro.carrera)) return false;
+    if (grillaFiltro.estado && e.status !== grillaFiltro.estado) return false;
+    return true;
+}
+
+function buildGrillaFiltrosHtml(teachers) {
+    const docentesOpts = teachers.slice().sort((a, b) => a.apellido.localeCompare(b.apellido))
+        .map(t => `<option value="${t.id}" ${String(grillaFiltro.profesor) === String(t.id) ? 'selected' : ''}>${t.apellido} ${t.nombre}</option>`).join('');
+    const materiasOpts = (typeof currentMaterias !== 'undefined' ? currentMaterias : []).slice().sort((a, b) => a.nombre.localeCompare(b.nombre))
+        .map(m => `<option value="${m.id}" ${String(grillaFiltro.materia) === String(m.id) ? 'selected' : ''}>${m.nombre}</option>`).join('');
+    const carrerasOpts = (typeof currentCarreras !== 'undefined' ? currentCarreras : []).slice().sort((a, b) => a.nombre.localeCompare(b.nombre))
+        .map(c => `<option value="${c.id}" ${String(grillaFiltro.carrera) === String(c.id) ? 'selected' : ''}>${c.nombre}</option>`).join('');
+    const estadoOpts = Object.keys(SCHEDULE_STATUS_LABEL)
+        .map(k => `<option value="${k}" ${grillaFiltro.estado === k ? 'selected' : ''}>${SCHEDULE_STATUS_LABEL[k]}</option>`).join('');
+    return `
+        <div class="grid-horarios-filtros">
+            <select class="form-select form-select-sm" onchange="onGrillaFiltroChange('profesor', this.value)">
+                <option value="">Todos los profesores</option>${docentesOpts}
+            </select>
+            <select class="form-select form-select-sm" onchange="onGrillaFiltroChange('materia', this.value)">
+                <option value="">Todas las materias</option>${materiasOpts}
+            </select>
+            <select class="form-select form-select-sm" onchange="onGrillaFiltroChange('carrera', this.value)">
+                <option value="">Todas las carreras</option>${carrerasOpts}
+            </select>
+            <select class="form-select form-select-sm" onchange="onGrillaFiltroChange('estado', this.value)">
+                <option value="">Todos los estados</option>${estadoOpts}
+            </select>
+        </div>`;
+}
+
+// Una "tarjetita" con materia + profesor + estado, usada tanto en la
+// celda de la tabla (desktop) como en la card por día (mobile) — el
+// mismo dato en los dos formatos, como pidió el ticket.
+function buildGridCellItemHtml(e) {
+    const cursoTxt = e.carreraNombre ? `${e.carreraNombre} - ${e.anio}° Año` : '';
+    let estadoHtml;
+    if (e.status === 'licencia') {
+        estadoHtml = `<span class="grid-item-status">🏥 Licencia</span>`;
+    } else if (e.status === 'present' || e.status === 'late') {
+        const hora = e.entryRecord && e.entryRecord.time ? e.entryRecord.time.slice(0, 5) : '';
+        const minTxt = e.tardanzaMin > 0 ? ` (${e.tardanzaMin}m)` : (e.tardanzaMin < 0 ? ` (${Math.abs(e.tardanzaMin)}m antes)` : '');
+        estadoHtml = `<span class="grid-item-status">${SCHEDULE_STATUS_ICON[e.status]} ${hora}${minTxt}</span>`;
+    } else if (e.status === 'falta') {
+        estadoHtml = `<span class="grid-item-status">✗ Ausente</span>`;
+    } else {
+        estadoHtml = `<span class="grid-item-status">○ Pendiente</span>`;
+    }
+    const cellKey = `${e.teacherId}|${e.date}|${e.inicio}`;
+    return `
+        <div class="grid-item status-${e.status}" title="${e.inicio}-${e.fin} · ${cursoTxt || 'Sin carrera asociada'}" onclick="showGridCellDetail('${cellKey}')" role="button">
+            <div class="grid-item-time">${e.inicio}-${e.fin}</div>
+            <div class="grid-item-materia">${e.materiaNombre}</div>
+            <div class="grid-item-profesor">Prof. ${e.teacherApellido}${cursoTxt ? ' · ' + cursoTxt : ''}</div>
+            ${estadoHtml}
+        </div>`;
+}
+
+function renderFullScheduleGrid() {
     const teachers = getTeachers();
     const body = document.getElementById('fullScheduleGridBody');
+    if (!body) return;
 
     if (teachers.length === 0) {
         body.innerHTML = '<p class="text-muted text-center mb-0">No hay docentes registrados</p>';
-        new bootstrap.Modal(document.getElementById('fullScheduleGridModal')).show();
         return;
     }
 
-    const cellData = {}; // `${dia}_${hora}` -> [{ name, range }]
-    teachers.forEach(teacher => {
-        getHorarioEfectivo(teacher).forEach(h => {
-            const [inicioH] = h.inicio.split(':').map(Number);
-            const [finH, finM] = h.fin.split(':').map(Number);
+    const weekDates = getWeekDates(grillaSemanaOffset);
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    const entriesByDate = {};
+    weekDates.forEach(dateStr => { entriesByDate[dateStr] = getScheduleEntriesForDate(dateStr).filter(entryPasaFiltroGrilla); });
+
+    // cellData: `${dateStr}_${hora}` -> [entry, ...] (un bloque puede
+    // ocupar varias horas, se repite en cada fila que cruza, igual que
+    // hacía la versión anterior de esta grilla).
+    const cellData = {};
+    grillaEntriesPorCelda = {};
+    weekDates.forEach(dateStr => {
+        entriesByDate[dateStr].forEach(e => {
+            const [inicioH] = e.inicio.split(':').map(Number);
+            const [finH, finM] = e.fin.split(':').map(Number);
             const finExclusivo = finM > 0 ? finH + 1 : finH;
+            grillaEntriesPorCelda[`${e.teacherId}|${e.date}|${e.inicio}`] = e;
             for (let hora = inicioH; hora < finExclusivo; hora++) {
-                const key = `${h.dia}_${hora}`;
+                const key = `${dateStr}_${hora}`;
                 if (!cellData[key]) cellData[key] = [];
-                cellData[key].push({ name: `${teacher.apellido} ${teacher.nombre}`, range: `${h.inicio}-${h.fin}` });
+                cellData[key].push(e);
             }
         });
     });
 
-    let html = '<div class="table-responsive"><table class="table table-bordered table-sm text-center align-middle mb-0"><thead><tr><th>Hora</th>';
-    DAYS.forEach(day => { html += `<th>${day}</th>`; });
-    html += '</tr></thead><tbody>';
+    const rangoTxt = `${formatFechaCorta(weekDates[0])} al ${formatFechaCorta(weekDates[6])}`;
+
+    let table = '<div class="table-responsive d-none d-md-block"><table class="table table-bordered table-sm text-center align-middle mb-0 grid-horarios-table"><thead><tr><th>Hora</th>';
+    DAYS.forEach((day, i) => {
+        const dateStr = weekDates[i];
+        const esHoy = dateStr === todayStr ? ' grid-day-today' : '';
+        table += `<th class="${esHoy}">${day}<br><small class="fw-normal">${formatFechaCorta(dateStr)}</small></th>`;
+    });
+    table += '</tr></thead><tbody>';
     for (let hora = START_HOUR; hora < END_HOUR; hora++) {
         const label = `${hora.toString().padStart(2, '0')}:00`;
-        html += `<tr><td class="fw-semibold">${label}</td>`;
-        DAYS.forEach(day => {
-            const entries = cellData[`${day}_${hora}`] || [];
-            if (entries.length === 0) {
-                html += '<td></td>';
-            } else {
-                const badges = entries.map(e => `<span class="badge bg-secondary d-block mb-1" title="${e.range}">${e.name}</span>`).join('');
-                html += `<td>${badges}</td>`;
-            }
+        table += `<tr><td class="fw-semibold">${label}</td>`;
+        weekDates.forEach(dateStr => {
+            const entries = cellData[`${dateStr}_${hora}`] || [];
+            table += entries.length === 0 ? '<td></td>' : `<td>${entries.map(buildGridCellItemHtml).join('')}</td>`;
         });
-        html += '</tr>';
+        table += '</tr>';
     }
-    html += '</tbody></table></div>';
+    table += '</tbody></table></div>';
 
-    body.innerHTML = html;
-    new bootstrap.Modal(document.getElementById('fullScheduleGridModal')).show();
+    let cards = '<div class="d-md-none grid-mobile-cards">';
+    DAYS.forEach((day, i) => {
+        const dateStr = weekDates[i];
+        const entries = entriesByDate[dateStr];
+        const esHoy = dateStr === todayStr ? ' grid-day-today' : '';
+        cards += `<div class="grid-mobile-day${esHoy}"><div class="grid-mobile-day-title">${day} <small>${formatFechaCorta(dateStr)}</small></div>`;
+        cards += entries.length > 0 ? entries.map(buildGridCellItemHtml).join('') : '<p class="text-muted small mb-0">Sin clases</p>';
+        cards += '</div>';
+    });
+    cards += '</div>';
+
+    body.innerHTML = `
+        <div class="grid-horarios-toolbar mb-3">
+            ${buildGrillaFiltrosHtml(teachers)}
+            <div class="grid-horarios-nav">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="cambiarSemanaGrilla(-1)"><i class="bi bi-chevron-left"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-primary" onclick="irHoyGrilla()">Hoy</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="cambiarSemanaGrilla(1)"><i class="bi bi-chevron-right"></i></button>
+                <span class="ms-2 small text-muted">${rangoTxt}</span>
+            </div>
+        </div>
+        <div class="schedule-legend mb-3">
+            <div class="schedule-legend-item"><div class="schedule-legend-color status-present"></div><span>Presente</span></div>
+            <div class="schedule-legend-item"><div class="schedule-legend-color status-late"></div><span>Tardanza</span></div>
+            <div class="schedule-legend-item"><div class="schedule-legend-color status-falta"></div><span>Ausente</span></div>
+            <div class="schedule-legend-item"><div class="schedule-legend-color status-scheduled"></div><span>Pendiente</span></div>
+            <div class="schedule-legend-item"><div class="schedule-legend-color status-licencia"></div><span>Licencia</span></div>
+        </div>
+        ${table}
+        ${cards}
+    `;
+}
+
+// Click en una celda/card de la grilla: popup con el detalle del
+// fichaje (hora real, ubicación, precisión, si fue offline) cuando
+// hay uno; si todavía no fichó o está de licencia, muestra igual
+// materia/docente/curso/estado sin la parte de ubicación.
+function showGridCellDetail(cellKey) {
+    const e = grillaEntriesPorCelda[cellKey];
+    if (!e) return;
+    const cursoTxt = e.carreraNombre ? `${e.carreraNombre} - ${e.anio}° Año` : 'Sin carrera asociada';
+    const estadoTxt = e.status === 'licencia'
+        ? `Licencia${e.licenciaMotivo ? ': ' + e.licenciaMotivo : ''}`
+        : SCHEDULE_STATUS_LABEL[e.status] || e.status;
+
+    let horaFichadaHtml = '<span class="text-muted">Sin fichaje registrado</span>';
+    let ubicacionHtml = '<span class="text-muted">Sin datos de ubicación</span>';
+    if (e.entryRecord) {
+        const r = e.entryRecord;
+        horaFichadaHtml = r.time ? r.time.slice(0, 5) : '-';
+        if (e.tardanzaMin != null) {
+            horaFichadaHtml += e.tardanzaMin > 0 ? ` (${e.tardanzaMin}m tarde)` : (e.tardanzaMin < 0 ? ` (${Math.abs(e.tardanzaMin)}m antes)` : ' (a horario)');
+        }
+        if (r.fichajeLat != null && r.fichajeLng != null) {
+            const precisionTxt = r.fichajePrecisionM != null ? `±${r.fichajePrecisionM}m` : 'sin dato';
+            const distanciaTxt = r.fichajeDistanciaMts != null ? ` · ${r.fichajeDistanciaMts}m de la geocerca` : '';
+            ubicacionHtml = `${r.fichajeLat.toFixed(5)}, ${r.fichajeLng.toFixed(5)} (precisión ${precisionTxt})${distanciaTxt}`;
+        } else if (r.coords) {
+            ubicacionHtml = `${r.coords.lat.toFixed(5)}, ${r.coords.lng.toFixed(5)}`;
+        }
+        if (r.offline) {
+            ubicacionHtml += `<br><span class="badge bg-warning text-dark mt-1"><i class="bi bi-wifi-off"></i> Fichaje offline (firstOffline) — ${r.syncUbicacion === 'completo' ? 'ubicación ya confirmada al reconectar' : 'esperando confirmar ubicación al reconectar'}</span>`;
+        }
+    }
+
+    document.getElementById('gridCellDetailModalTitle').textContent = `${e.materiaNombre} — ${e.inicio}-${e.fin}`;
+    document.getElementById('gridCellDetailBody').innerHTML = `
+        <div class="teacher-detail-info-grid">
+            <div class="teacher-detail-info-row"><div class="teacher-detail-info-label">Docente</div><div class="teacher-detail-info-value">${e.teacherName}</div></div>
+            <div class="teacher-detail-info-row"><div class="teacher-detail-info-label">Materia</div><div class="teacher-detail-info-value">${e.materiaNombre}</div></div>
+            <div class="teacher-detail-info-row"><div class="teacher-detail-info-label">Carrera</div><div class="teacher-detail-info-value">${cursoTxt}</div></div>
+            <div class="teacher-detail-info-row"><div class="teacher-detail-info-label">Fecha</div><div class="teacher-detail-info-value">${e.date} (${e.dia})</div></div>
+            <div class="teacher-detail-info-row"><div class="teacher-detail-info-label">Estado</div><div class="teacher-detail-info-value">${estadoTxt}</div></div>
+            <div class="teacher-detail-info-row"><div class="teacher-detail-info-label">Hora fichada</div><div class="teacher-detail-info-value">${horaFichadaHtml}</div></div>
+            <div class="teacher-detail-info-row"><div class="teacher-detail-info-label">Ubicación</div><div class="teacher-detail-info-value">${ubicacionHtml}</div></div>
+        </div>`;
+    new bootstrap.Modal(document.getElementById('gridCellDetailModal')).show();
 }
 
 // ============================================================
@@ -5366,31 +5646,26 @@ function showTeacherCalendar(teacherId) {
 
 // ===== Vista de calendario anual del establecimiento (todos los
 // docentes, desde hoy hasta diciembre de SCHEDULE_CALENDAR_YEAR) =====
+// Cada día muestra un chip por bloque materia+docente ("Matemática -
+// Gómez [✓ Presente]"), coloreado según su estado real (ver
+// getScheduleEntriesForDate()); las licencias quedan incluidas como
+// un estado más (no se resta el día, se marca aparte).
 function showAnnualCalendar() {
-    const teachers = getTeachers();
-    const attendance = getAttendance();
-    const criteria = getCriteria();
-    const lateLimit = criteria.lateLimit || 15;
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-    // Mapa fecha -> [{teacherName, status}], acumulando a todos los
-    // docentes que tienen clase asignada ese día.
+    // Mapa fecha -> entradas (materia+docente+estado) de ese día, desde
+    // hoy hasta el 31/12 de SCHEDULE_CALENDAR_YEAR.
     const byDate = {};
-    teachers.forEach(teacher => {
-        const attendedDates = new Set(
-            attendance.filter(a => a.teacherId === teacher.id && a.type === 'entry').map(a => a.date)
-        );
-        const createdDateStr = teacher.createdAt ? teacher.createdAt.split('T')[0] : todayStr;
-        generateTeacherScheduleDates(teacher, SCHEDULE_CALENDAR_YEAR).forEach(sd => {
-            if (sd.date < todayStr || sd.date < createdDateStr) return; // desde hoy en adelante
-            const earliestStart = sd.startTimes.slice().sort()[0];
-            const status = getDayStatus(teacher.id, sd.date, true, earliestStart, attendedDates, todayStr, nowMinutes, lateLimit);
-            if (!byDate[sd.date]) byDate[sd.date] = [];
-            byDate[sd.date].push({ teacherId: teacher.id, name: `${teacher.apellido} ${teacher.nombre}`, status });
-        });
-    });
+    const startTime = now.getFullYear() === SCHEDULE_CALENDAR_YEAR
+        ? Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+        : Date.UTC(SCHEDULE_CALENDAR_YEAR, 0, 1);
+    const endTime = Date.UTC(SCHEDULE_CALENDAR_YEAR, 11, 31);
+    for (let t = startTime; t <= endTime; t += 86400000) {
+        const dateStr = new Date(t).toISOString().split('T')[0];
+        const entries = getScheduleEntriesForDate(dateStr);
+        if (entries.length > 0) byDate[dateStr] = entries;
+    }
     annualCalendarByDate = byDate;
 
     const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -5407,7 +5682,11 @@ function showAnnualCalendar() {
             const dateStr = new Date(Date.UTC(SCHEDULE_CALENDAR_YEAR, m, day)).toISOString().split('T')[0];
             if (dateStr < todayStr) { html += `<div class="annual-day-cell empty"></div>`; continue; }
             const entries = byDate[dateStr] || [];
-            const chips = entries.map(e => `<span class="annual-teacher-chip status-${e.status}" title="${e.name} (${e.status})">${e.name}</span>`).join('');
+            const chips = entries.map(e => {
+                const label = `${e.materiaNombre} - ${e.teacherApellido}`;
+                const title = `${e.materiaNombre} - ${e.teacherName} (${SCHEDULE_STATUS_LABEL[e.status]})`;
+                return `<span class="annual-teacher-chip status-${e.status}" title="${title}">${SCHEDULE_STATUS_ICON[e.status]} ${label}</span>`;
+            }).join('');
             const cellCls = entries.length > 0 ? 'annual-day-cell has-entries' : 'annual-day-cell';
             const cellClick = entries.length > 0 ? ` onclick="showDayDetail('${dateStr}')"` : '';
             html += `<div class="${cellCls}"${cellClick}><div class="annual-day-num">${day}</div>${chips}</div>`;
@@ -5419,9 +5698,10 @@ function showAnnualCalendar() {
 }
 
 // Al hacer clic en un día del calendario del establecimiento, muestra
-// en grande los nombres de los docentes asignados a ese día (los
-// "chips" del calendario son chicos para que entren todos los meses
-// en pantalla, así que este detalle es donde se leen cómodos).
+// en grande el detalle de cada bloque (horario, materia, curso,
+// docente y estado con hora real) — los chips del calendario son
+// chicos para que entren todos los meses en pantalla, así que este
+// detalle es donde se leen cómodos.
 function showDayDetail(dateStr) {
     const entries = annualCalendarByDate[dateStr] || [];
     const dateObj = new Date(dateStr + 'T00:00:00Z');
@@ -5429,15 +5709,26 @@ function showDayDetail(dateStr) {
     formatted = formatted.charAt(0).toUpperCase() + formatted.slice(1);
     document.getElementById('dayDetailModalTitle').textContent = formatted;
 
-    const statusLabel = { present: 'Presente', falta: 'Falta', licencia: 'Licencia', scheduled: 'Programado' };
     document.getElementById('dayDetailBody').innerHTML = entries.length > 0
-        ? entries.map(e => `
+        ? entries.map(e => {
+            const cursoTxt = e.carreraNombre ? ` ${e.carreraNombre} ${e.anio}°` : '';
+            let estadoTxt;
+            if (e.status === 'licencia') estadoTxt = `Licencia${e.licenciaMotivo ? ': ' + e.licenciaMotivo : ''}`;
+            else if (e.status === 'present' || e.status === 'late') {
+                const hora = e.entryRecord && e.entryRecord.time ? e.entryRecord.time.slice(0, 5) : '-';
+                const minTxt = e.tardanzaMin > 0 ? ` (${e.tardanzaMin}m tarde)` : '';
+                estadoTxt = `✓ ${hora}${minTxt}`;
+            }
+            else if (e.status === 'falta') estadoTxt = '✗ Ausente';
+            else estadoTxt = '○ Pendiente';
+            return `
             <div class="day-detail-teacher status-${e.status}" onclick="openTeacherDetailFromDay('${e.teacherId}')">
-                <span class="day-detail-name">${e.name}</span>
-                <span class="day-detail-status">${statusLabel[e.status] || e.status}</span>
+                <span class="day-detail-name">${e.inicio}-${e.fin} ${e.materiaNombre}${cursoTxt} - Prof. ${e.teacherName}</span>
+                <span class="day-detail-status">${estadoTxt}</span>
             </div>
-        `).join('')
-        : '<p class="text-muted">No hay docentes con clase asignada este día.</p>';
+        `;
+        }).join('')
+        : '<p class="text-muted">No hay clases programadas este día.</p>';
     new bootstrap.Modal(document.getElementById('dayDetailModal')).show();
 }
 
