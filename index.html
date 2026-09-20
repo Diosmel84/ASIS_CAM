@@ -346,96 +346,16 @@
                             </div>
                         </div>
                     </div>
+                    <!-- El horario de trabajo ya NO se carga acá: se define por
+                         materia, en la pestaña "Materias" (horaEntrada/Salida/
+                         días propios de cada una). Este checklist es la única
+                         forma de asignarle materias (y por lo tanto horario) a
+                         este docente - puede tener 0, 1 o varias. Sin ninguna
+                         asignada, sigue sin horario hasta que se le cargue una. -->
                     <div class="row mt-3">
                         <div class="col-12">
-                            <label class="required-field">Horario de trabajo</label>
-                            <div class="p-2 mb-3 border rounded">
-                                <label class="form-label small mb-2 text-muted">Atajo rápido: mismo horario para varios días</label>
-                                <div class="d-flex flex-wrap gap-3 mb-2">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="horarioRapidoLunes">
-                                        <label class="form-check-label" for="horarioRapidoLunes">Lunes</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="horarioRapidoMartes">
-                                        <label class="form-check-label" for="horarioRapidoMartes">Martes</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="horarioRapidoMiercoles">
-                                        <label class="form-check-label" for="horarioRapidoMiercoles">Miércoles</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="horarioRapidoJueves">
-                                        <label class="form-check-label" for="horarioRapidoJueves">Jueves</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="horarioRapidoViernes">
-                                        <label class="form-check-label" for="horarioRapidoViernes">Viernes</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="horarioRapidoSabado">
-                                        <label class="form-check-label" for="horarioRapidoSabado">Sábado</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="horarioRapidoDomingo">
-                                        <label class="form-check-label" for="horarioRapidoDomingo">Domingo</label>
-                                    </div>
-                                </div>
-                                <div class="row g-2 align-items-end">
-                                    <div class="col-6 col-md-3">
-                                        <label class="form-label small mb-1 text-muted">Hora de inicio</label>
-                                        <input type="time" class="form-control" id="horarioRapidoInicioInput">
-                                    </div>
-                                    <div class="col-6 col-md-3">
-                                        <label class="form-label small mb-1 text-muted">Hora de finalización</label>
-                                        <input type="time" class="form-control" id="horarioRapidoFinInput">
-                                    </div>
-                                    <div class="col-12 col-md-3">
-                                        <button type="button" class="btn btn-outline-primary w-100" onclick="aplicarHorarioRapido()">
-                                            <i class="bi bi-check2-all"></i> Aplicar a los días marcados
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row g-2 align-items-end">
-                                <div class="col-6 col-md-3">
-                                    <label class="form-label small mb-1 text-muted">Día de la semana</label>
-                                    <select class="form-control" id="horarioDiaInput">
-                                        <option value="Lunes">Lunes</option>
-                                        <option value="Martes">Martes</option>
-                                        <option value="Miércoles">Miércoles</option>
-                                        <option value="Jueves">Jueves</option>
-                                        <option value="Viernes">Viernes</option>
-                                        <option value="Sábado">Sábado</option>
-                                        <option value="Domingo">Domingo</option>
-                                    </select>
-                                </div>
-                                <div class="col-6 col-md-3">
-                                    <label class="form-label small mb-1 text-muted">Hora de inicio</label>
-                                    <input type="time" class="form-control" id="horarioInicioInput">
-                                </div>
-                                <div class="col-6 col-md-3">
-                                    <label class="form-label small mb-1 text-muted">Hora de finalización</label>
-                                    <input type="time" class="form-control" id="horarioFinInput">
-                                </div>
-                                <div class="col-6 col-md-3">
-                                    <button type="button" class="btn btn-primary w-100" onclick="agregarHorarioLaboral()">
-                                        <i class="bi bi-plus-circle"></i> Agregar Horario
-                                    </button>
-                                </div>
-                            </div>
-                            <div id="horarioLaboralChips" class="d-flex flex-wrap gap-2 mt-3">
-                                <span class="text-muted">No se ha agregado ningún horario</span>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Materias de cátedra (carrera/año/cuatrimestre, pestaña
-                         "Materias"): capa aparte del horario laboral de arriba,
-                         que sigue siendo lo único que se usa para tardanzas y
-                         faltas. Un docente puede tener 0, 1 o varias. -->
-                    <div class="row mt-3">
-                        <div class="col-12">
-                            <label>Materias asignadas <small class="text-muted">(opcional - se gestionan en la pestaña "Materias")</small></label>
+                            <label class="required-field">Materias asignadas</label>
+                            <p class="text-muted small mb-1">El horario de tardanzas/faltas sale de acá, no se carga a mano en la ficha del docente. Para editar horarios, andá a la pestaña "Materias".</p>
                             <div id="materiasDocenteChecklist" class="p-2 border rounded" style="max-height:180px;overflow-y:auto;">
                                 <span class="text-muted small">No hay materias cargadas todavía.</span>
                             </div>
@@ -761,6 +681,7 @@
                                 <canvas id="teacherCanvas" style="display:none;"></canvas>
                             </div>
                             <div class="camera-controls">
+                                <div id="materiaFichajeInfo" class="mb-2"></div>
                                 <div id="fichajeContextBadges" class="mb-2 small"></div>
                                 <div id="faceRecognitionStatus" class="face-recognition-status waiting">
                                     <i class="bi bi-info-circle"></i> Esperando identificación...

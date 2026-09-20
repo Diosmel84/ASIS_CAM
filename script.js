@@ -936,6 +936,11 @@ let horarioLaboralList = [];
 // crear uno nuevo. Ver editTeacher() / cancelEditTeacher().
 let editingTeacherId = null;
 let isFaceVerified = false;
+// Cuál de sus materias eligió el docente para fichar hoy (ver
+// renderMateriaFichajeInfo()) - null si todavía no tiene materias
+// asignadas (usa su horario_laboral propio) o si tiene una sola (se
+// autoselecciona sola, sin mostrar nada para elegir).
+let materiaFichajeSeleccionada = null;
 let annualCalendarByDate = {}; // último cálculo de showAnnualCalendar(), usado por showDayDetail()
 let modelsLoaded = false;
 let exitWindowPollInterval = null;
@@ -1439,6 +1444,7 @@ function logout() {
     selectedRole = null;
     recognizedTeacher = null;
     isFaceVerified = false;
+    materiaFichajeSeleccionada = null;
     stopLiveOverlay();
     stopRegLiveOverlay();
     stopExitWindowPoll();
@@ -1925,6 +1931,34 @@ function getHorarioLaboral(teacher) {
     return result;
 }
 
+// Materias asignadas a un docente: no es un campo nuevo en el docente,
+// se deriva de materias.profesor_id (cruzado por dni vía
+// materiaProfesorPorDocenteId, ver sección MATERIAS) - un docente
+// puede tener 0, 1 o varias, sin límite.
+function getMateriasDeDocente(teacherId) {
+    if (!teacherId || typeof currentMaterias === 'undefined') return [];
+    return currentMaterias.filter(m => {
+        if (m.profesor_id == null) return false;
+        const profesor = materiaProfesorPorDocenteId[m.profesor_id];
+        return profesor && profesor.id === teacherId;
+    });
+}
+
+// Horario "efectivo" para calendario/grilla/perfil y para el chequeo
+// automático de faltas: si el docente tiene 1+ materias asignadas, la
+// UNIÓN de los horarios de todas ellas (cada bloque queda etiquetado
+// con de qué materia es). Si todavía no tiene ninguna, se sigue
+// usando su horario_laboral propio tal cual - a propósito, para no
+// dejar sin horario a un docente que no tiene materia asignada
+// todavía (ver getHorarioLaboral()).
+function getHorarioEfectivo(teacher) {
+    const materias = getMateriasDeDocente(teacher.id);
+    if (materias.length === 0) return getHorarioLaboral(teacher);
+    const bloques = [];
+    materias.forEach(m => materiaHorarios(m).forEach(h => bloques.push({ dia: h.dia, inicio: h.inicio, fin: h.fin, materiaId: m.id, materiaNombre: m.nombre })));
+    return bloques;
+}
+
 // ============================================================
 // ADMIN - REGISTRO DE DOCENTES (captura + validación facial)
 // ============================================================
@@ -2079,8 +2113,6 @@ function editTeacher(id) {
     document.getElementById('regPais').value = teacher.pais || 'Argentina';
     document.getElementById('regPassword').value = teacher.password || CONFIG.DEFAULT_PASSWORD;
 
-    horarioLaboralList = getHorarioLaboral(teacher).slice();
-    renderHorarioLaboralChips();
     renderMateriasDocenteChecklist(teacher.id);
 
     // Abre directamente "Laboral" (horarios + foto) porque es lo que
@@ -2173,7 +2205,10 @@ async function saveTeacher() {
     if (!telefonoFamiliar) { showToast('El teléfono de contacto familiar es obligatorio', 'error'); return; }
     if (!email) { showToast('El e-mail es obligatorio', 'error'); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('El e-mail no tiene un formato válido', 'error'); return; }
-    if (horarioLaboralList.length === 0) { showToast('Agregá al menos un horario', 'error'); return; }
+    // Ya no se pide horario acá: el horario de cátedra se carga y edita
+    // solo desde el CRUD de Materias (ver checklist "Materias asignadas"
+    // más abajo en este mismo formulario). Un docente sin materias
+    // todavía queda sin horario hasta que se le asigne una.
 
     const teachers = getTeachers();
     if (teachers.some(t => t.dni === dni && t.id !== editingTeacherId)) {
@@ -2214,7 +2249,9 @@ async function saveTeacher() {
             ...teachers[idx],
             apellido, nombre, dni, materia, telefono, telefonoFamiliar, email,
             calle, numero, barrio, localidad, provincia, pais,
-            horario_laboral: horarioLaboralList,
+            // horario_laboral NO se toca acá a propósito: ya no hay UI
+            // para editarlo (ver checklist de materias) y el spread de
+            // arriba ya conserva el valor que tenía, sea cual sea.
             photo, faceDescriptor, password,
         };
         savedTeacher = teachers[idx];
@@ -2226,7 +2263,10 @@ async function saveTeacher() {
             id: Date.now().toString(),
             apellido, nombre, dni, telefono, telefonoFamiliar, email,
             calle, numero, barrio, localidad, provincia, pais,
-            materia, horario_laboral: horarioLaboralList,
+            // Sin horario_laboral: un docente nuevo arranca sin horario
+            // propio, se le asigna una materia (que trae su horario)
+            // desde el checklist de abajo o después desde su ficha.
+            materia,
             photo, faceDescriptor,
             // Contraseña por defecto (o la que haya puesto el admin):
             // se obliga a cambiarla en el primer login (ver
@@ -2282,7 +2322,7 @@ function loadTeachersTable() {
     tbody.innerHTML = teachers.map(teacher => {
         const attendance = getAttendance().filter(a => a.teacherId === teacher.id && new Date(a.date).toDateString() === today);
         const status = attendance.length > 0 ? `<span class="badge bg-success">Presente (${attendance.length})</span>` : `<span class="badge bg-danger">Ausente</span>`;
-        const horarioTeacher = getHorarioLaboral(teacher);
+        const horarioTeacher = getHorarioEfectivo(teacher);
         const scheduleDisplay = horarioTeacher.length > 0 ?
             horarioTeacher.slice(0, 3).map(h => `${h.dia} ${h.inicio}-${h.fin}`).join(', ') + (horarioTeacher.length > 3 ? '...' : '') : 'Sin horario';
         const bioBadge = teacher.faceDescriptor ? '<span class="badge bg-success">Registrada</span>' : '<span class="badge bg-warning text-dark">Sin datos</span>';
@@ -2748,6 +2788,44 @@ function loadTeacherDashboard() {
     updateAttendanceButtonsState();
     startExitWindowPoll();
     renderFichajeContextBadges();
+    renderMateriaFichajeInfo();
+}
+
+// Info/selector de con qué materia ficha el docente hoy - reemplaza la
+// vieja edición de horario propio en el fichaje: acá es solo
+// informativo, o para ELEGIR entre materias ya cargadas por el admin
+// (nunca para editar horas, eso es exclusivo del CRUD de Materias).
+// Sin materias asignadas todavía: no muestra nada, sigue usando su
+// horario_laboral propio como hasta ahora (ver getHorarioEfectivo()).
+function renderMateriaFichajeInfo() {
+    const el = document.getElementById('materiaFichajeInfo');
+    if (!el || !currentUser || currentUser.role !== 'teacher') return;
+    const materias = getMateriasDeDocente(currentUser.id);
+    if (materias.length === 0) {
+        materiaFichajeSeleccionada = null;
+        el.innerHTML = '';
+        return;
+    }
+    if (materias.length === 1) {
+        materiaFichajeSeleccionada = materias[0].id;
+        el.innerHTML = `<div class="alert alert-info py-1 px-2 mb-0 small"><i class="bi bi-journal-bookmark"></i> Materia: <strong>${materias[0].nombre}</strong> - Horario: ${formatoHorariosCorto(materias[0])}</div>`;
+        return;
+    }
+    if (!materiaFichajeSeleccionada || !materias.some(m => m.id === materiaFichajeSeleccionada)) {
+        materiaFichajeSeleccionada = materias[0].id;
+    }
+    const actual = materias.find(m => m.id === materiaFichajeSeleccionada);
+    el.innerHTML = `
+        <label class="form-label small mb-1"><i class="bi bi-journal-bookmark"></i> ¿Para qué materia fichás hoy?</label>
+        <select class="form-control form-control-sm mb-1" onchange="seleccionarMateriaFichaje(Number(this.value))">
+            ${materias.map(m => `<option value="${m.id}" ${m.id === materiaFichajeSeleccionada ? 'selected' : ''}>${m.nombre}</option>`).join('')}
+        </select>
+        <div class="alert alert-info py-1 px-2 mb-0 small">Horario: ${formatoHorariosCorto(actual)}</div>`;
+}
+
+function seleccionarMateriaFichaje(materiaId) {
+    materiaFichajeSeleccionada = materiaId;
+    renderMateriaFichajeInfo();
 }
 
 // Indicadores de la "pantalla de fichaje": punto activo, si esta PC
@@ -2857,7 +2935,7 @@ function updateAttendanceButtonsState() {
 
     const btnSalida = document.getElementById('btnSalida');
     const btnRetirada = document.getElementById('btnRetirada');
-    const exitInfo = currentUser && currentUser.role === 'teacher' ? getExitWindowInfo(currentUser) : { isExitTime: false };
+    const exitInfo = currentUser && currentUser.role === 'teacher' ? getExitWindowInfo(currentUser, materiaFichajeSeleccionada) : { isExitTime: false };
     if (btnSalida) {
         btnSalida.classList.toggle('hidden', !exitInfo.isExitTime);
         btnSalida.disabled = !isFaceVerified || !yaEntroHoy;
@@ -2942,7 +3020,7 @@ function updateTeacherInfo() {
         document.getElementById('teacherPhone').textContent = currentUser.telefono || '-';
         document.getElementById('teacherEmail').textContent = currentUser.email || '-';
         document.getElementById('teacherAddress').textContent = getDomicilioCompleto(currentUser);
-        const horarioUsuario = getHorarioLaboral(currentUser);
+        const horarioUsuario = getHorarioEfectivo(currentUser);
         const scheduleDisplay = horarioUsuario.length > 0 ?
             horarioUsuario.slice(0, 5).map(h => `${h.dia} ${h.inicio}-${h.fin}`).join(', ') + (horarioUsuario.length > 5 ? '...' : '') : 'Sin horario';
         document.getElementById('teacherSchedule').textContent = scheduleDisplay;
@@ -3431,7 +3509,7 @@ function registerAttendance(type, geo) {
 
     if (type === 'entry') {
         const todayDay = FULL_DAYS[now.getDay()];
-        const earliestStart = getEarliestScheduleTime(recognizedTeacher, todayDay);
+        const earliestStart = getEarliestScheduleTime(recognizedTeacher, todayDay, materiaFichajeSeleccionada);
         if (earliestStart) {
             const [startH, startM] = earliestStart.split(':').map(Number);
             const scheduledMinutes = startH * 60 + startM;
@@ -3454,7 +3532,7 @@ function registerAttendance(type, geo) {
     // consola, el registro se rechaza si en verdad no es la hora.
     const teacherFullName = `${recognizedTeacher.apellido} ${recognizedTeacher.nombre}`;
     const todayDay = FULL_DAYS[now.getDay()];
-    const exitInfo = getExitWindowInfo(recognizedTeacher);
+    const exitInfo = getExitWindowInfo(recognizedTeacher, materiaFichajeSeleccionada);
 
     if (type === 'exit' && !exitInfo.isExitTime) {
         showToast('⚠️ Todavía no es tu horario de salida. Usá "Salir antes de tiempo".', 'warning');
@@ -3463,7 +3541,7 @@ function registerAttendance(type, geo) {
     }
 
     if (type === 'early_exit') {
-        const scheduledEnd = exitInfo.scheduledEnd || getLatestScheduleEndTime(recognizedTeacher, todayDay);
+        const scheduledEnd = exitInfo.scheduledEnd || getLatestScheduleEndTime(recognizedTeacher, todayDay, materiaFichajeSeleccionada);
         const horarioTexto = scheduledEnd ? `${todayDay} hasta las ${scheduledEnd}` : 'sin horario cargado para hoy';
         createAlert(recognizedTeacher, 'Salida Anticipada', `Salida anticipada - ${teacherFullName} - ${time} - Horario que correspondía: ${horarioTexto}`);
     }
@@ -3478,6 +3556,7 @@ function registerAttendance(type, geo) {
         date, time, type, status: attStatus, timestamp: now.toISOString(),
         horaFichajeReal: now.toISOString(),
         categoria: 'regular',
+        materiaId: materiaFichajeSeleccionada || null,
         ...pendingGeofenceFields(geo),
         ...geoFichajeFields(geo),
     });
@@ -3726,8 +3805,15 @@ function clearTodaysFaltaAlert(teacherId, dateStr) {
 // Hora de inicio (HH:MM) más temprana que tiene el docente agendada
 // para un día de la semana dado (p. ej. "Lunes"). Es contra esa hora
 // que se mide la tolerancia de tardanza / falta.
-function getEarliestScheduleTime(teacher, dayName) {
-    const times = getHorarioLaboral(teacher).filter(h => h.dia === dayName).map(h => h.inicio);
+// materiaId opcional: si el docente tiene 2+ materias, el fichaje usa
+// el horario de LA materia elegida (ver materiaFichajeSeleccionada),
+// no la unión de todas. Sin materiaId (o docente sin materias todavía)
+// cae a getHorarioEfectivo() = unión de materias, o horario_laboral si
+// no tiene ninguna.
+function getEarliestScheduleTime(teacher, dayName, materiaId) {
+    let horario = getHorarioEfectivo(teacher);
+    if (materiaId) horario = horario.filter(h => h.materiaId === materiaId);
+    const times = horario.filter(h => h.dia === dayName).map(h => h.inicio);
     if (times.length === 0) return null;
     return times.sort()[0];
 }
@@ -3735,8 +3821,10 @@ function getEarliestScheduleTime(teacher, dayName) {
 // Hora de fin (HH:MM) más tardía que tiene el docente agendada
 // para un día de la semana dado. Es la hora de salida "oficial"
 // contra la que se valida el botón de Salida.
-function getLatestScheduleEndTime(teacher, dayName) {
-    const times = getHorarioLaboral(teacher).filter(h => h.dia === dayName).map(h => h.fin);
+function getLatestScheduleEndTime(teacher, dayName, materiaId) {
+    let horario = getHorarioEfectivo(teacher);
+    if (materiaId) horario = horario.filter(h => h.materiaId === materiaId);
+    const times = horario.filter(h => h.dia === dayName).map(h => h.fin);
     if (times.length === 0) return null;
     return times.sort().slice(-1)[0];
 }
@@ -3752,10 +3840,10 @@ function getLatestScheduleEndTime(teacher, dayName) {
 // Si el docente no tiene horario cargado para hoy, no hay forma de
 // validar que sea su hora de salida, así que se trata siempre
 // como salida antes de tiempo (queda pendiente de autorización).
-function getExitWindowInfo(teacher) {
+function getExitWindowInfo(teacher, materiaId) {
     const now = new Date();
     const todayDay = FULL_DAYS[now.getDay()];
-    const scheduledEnd = getLatestScheduleEndTime(teacher, todayDay);
+    const scheduledEnd = getLatestScheduleEndTime(teacher, todayDay, materiaId);
     if (!scheduledEnd) return { isExitTime: false, scheduledEnd: null };
     const [endH, endM] = scheduledEnd.split(':').map(Number);
     const scheduledMinutes = endH * 60 + endM;
@@ -4789,7 +4877,7 @@ async function guardarMateriasAsignadasDocente(teacher) {
 // clase. Usa fechas en UTC para que coincidan con el formato
 // (toISOString) con el que se guarda la fecha de cada asistencia.
 function generateTeacherScheduleDates(teacher, year) {
-    const horario = getHorarioLaboral(teacher);
+    const horario = getHorarioEfectivo(teacher);
     if (horario.length === 0) return [];
     const dayRangesMap = {};
     horario.forEach(h => {
@@ -4966,7 +5054,7 @@ function showFullScheduleGrid() {
 
     const cellData = {}; // `${dia}_${hora}` -> [{ name, range }]
     teachers.forEach(teacher => {
-        getHorarioLaboral(teacher).forEach(h => {
+        getHorarioEfectivo(teacher).forEach(h => {
             const [inicioH] = h.inicio.split(':').map(Number);
             const [finH, finM] = h.fin.split(':').map(Number);
             const finExclusivo = finM > 0 ? finH + 1 : finH;
@@ -5026,7 +5114,7 @@ function showTeacherDetail(teacherId) {
     const attendanceToday = attendance.filter(a => new Date(a.date).toDateString() === today);
     const estadoHoy = attendanceToday.length > 0 ? `Presente (${attendanceToday.length})` : 'Ausente';
 
-    const horarioTeacherDetail = getHorarioLaboral(teacher);
+    const horarioTeacherDetail = getHorarioEfectivo(teacher);
     const scheduleDisplay = horarioTeacherDetail.length > 0 ?
         horarioTeacherDetail.map(h => `${h.dia} ${h.inicio}-${h.fin}`).join('<br>') : 'Sin horario asignado';
     const licenciasDisplay = licencias.length > 0 ?
