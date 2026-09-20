@@ -2693,8 +2693,9 @@ function generateReport() {
                     ? `  |  DIFERIDO: fichó ${r.time} pero sincronizó ${new Date(r.horaSync).toLocaleTimeString('es-AR').slice(0, 5)} (${diferidoMin}min después)`
                     : '';
                 const fakeGpsTag = r.fichajeFakeGpsSospechoso ? '  |  POSIBLE UBICACIÓN FALSA' : '';
-                const corregidoTag = r.corregidoPorDocente ? '  |  CORREGIDO POR EL DOCENTE' : '';
-                doc.text(`${r.date} ${r.time}  |  ${typeMap[r.type] || r.type}${categoriaTag}  |  ${r.status}${ubicacionTag}${diferidoTag}${fakeGpsTag}${corregidoTag}`, marginX + 10, y);
+                const corregidoTag = r.corregidoPorDocente ? '  |  GENERADO POR CORRECCIÓN DEL DOCENTE' : '';
+                const anuladoTag = r.anulado ? '  |  ANULADO POR EL DOCENTE (reemplazado por un fichaje nuevo)' : '';
+                doc.text(`${r.date} ${r.time}  |  ${typeMap[r.type] || r.type}${categoriaTag}  |  ${r.status}${ubicacionTag}${diferidoTag}${fakeGpsTag}${corregidoTag}${anuladoTag}`, marginX + 10, y);
                 y += 13;
             });
         y += 12;
@@ -2757,6 +2758,7 @@ function generateReportExcel() {
                 IP: r.ip || '',
                 FakeGpsSospechoso: r.fichajeFakeGpsSospechoso ? 'SI' : '',
                 CorregidoPorDocente: r.corregidoPorDocente ? 'SI' : '',
+                AnuladoPorDocente: r.anulado ? 'SI' : '',
                 LinkMapa: linkMapaFichaje(r, geofenceReporte) || '',
             };
         });
@@ -2978,17 +2980,17 @@ function submitKioskAuthorizeCode() {
 // independiente: la cátedra completa de hoy no bloquea ni habilita
 // el fichaje de un evento, y viceversa (cada evento convocado tiene
 // su propio estado de ingreso/salida).
-// corregidoPorDocente excluido a propósito: un fichaje que el propio
-// docente corrigió dentro de los 10 minutos (ver corregirPropioFichaje())
-// queda guardado para auditoría, pero deja de contar como fichaje real
-// en todos lados (acá, faltas, ventana de salida) - el docente puede
-// volver a fichar bien.
+// anulado excluido a propósito: un fichaje que el propio docente anuló
+// dentro de los 10 minutos (ver anularYRegenerarPropioFichaje()) queda
+// guardado para auditoría, pero deja de contar como fichaje real en
+// todos lados (acá, faltas, ventana de salida) - el reemplazo
+// automático que genera esa función sí cuenta normal.
 function hasEntryToday(teacherId, categoria, eventoId) {
     categoria = categoria || 'regular';
     const todayStr = new Date().toISOString().split('T')[0];
     return getAttendance().some(a => a.teacherId === teacherId && a.type === 'entry' && a.date === todayStr &&
         (a.categoria || 'regular') === categoria &&
-        (categoria !== 'evento' || a.eventoId === eventoId) && !a.corregidoPorDocente);
+        (categoria !== 'evento' || a.eventoId === eventoId) && !a.anulado);
 }
 
 // Habilita/deshabilita los botones de Entrada/Salida/Retirada según
@@ -3102,17 +3104,25 @@ function updateTeacherInfo() {
     renderMiUltimoFichaje();
 }
 
-// Corrección propia de fichaje (RBAC docente): el docente puede
-// deshacer su propio último fichaje dentro de los 10 minutos de
-// registrado (típico "toqué el botón equivocado"), sin necesitar al
-// admin. No lo borra: lo marca corregidoPorDocente (ver
-// hasEntryToday()/hasExitToday(), que lo excluyen) para que quede en
-// el historial/auditoría.
+// Corrección propia de fichaje (RBAC docente): el fichaje NUNCA es
+// manual, siempre automático del servidor con GPS - así que "corregir"
+// acá NO es tipear una hora. Es UNA sola acción, "Anular", disponible
+// solo dentro de los 10 minutos del propio último fichaje: anula el
+// original (queda como anulado, nunca se borra) y el sistema pide GPS
+// de nuevo (misma verifyGeofence() que cualquier fichaje normal) para
+// generar automáticamente el reemplazo con la hora real del momento.
+// Pasados los 10 minutos ya no aparece el botón - de ahí en más
+// cualquier corrección pasa por las herramientas que ya tiene Rectoría
+// (fichaje manual / alertas), no por acá.
+// Rastro que queda: original con anulado=true + anuladoEn (hora
+// original anulada); el reemplazo es un fichaje nuevo normal con
+// corregidoPorDocente=true + fichajeAnuladoId apuntando al original
+// (hora nueva automática).
 const CORRECCION_PROPIA_VENTANA_MS = 10 * 60 * 1000;
 
 function puedeCorregirFichaje(record) {
     return !!record && !!currentUser && currentUser.role === 'teacher' && record.teacherId === currentUser.id &&
-        (record.categoria || 'regular') === 'regular' && !record.corregidoPorDocente &&
+        (record.categoria || 'regular') === 'regular' && !record.anulado &&
         (Date.now() - new Date(record.timestamp).getTime()) <= CORRECCION_PROPIA_VENTANA_MS;
 }
 
@@ -3122,32 +3132,89 @@ function renderMiUltimoFichaje() {
     const box = document.getElementById('miUltimoFichajeBox');
     if (!box || !currentUser || currentUser.role !== 'teacher') return;
     const todayStr = new Date().toISOString().split('T')[0];
-    const propios = getAttendance().filter(a => a.teacherId === currentUser.id && a.date === todayStr && (a.categoria || 'regular') === 'regular');
+    const propios = getAttendance().filter(a => a.teacherId === currentUser.id && a.date === todayStr && (a.categoria || 'regular') === 'regular' && !a.anulado);
     if (propios.length === 0) { box.innerHTML = ''; return; }
     const ultimo = propios.slice().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
     if (!puedeCorregirFichaje(ultimo)) { box.innerHTML = ''; return; }
     const minutosRestantes = Math.max(1, Math.ceil((CORRECCION_PROPIA_VENTANA_MS - (Date.now() - new Date(ultimo.timestamp).getTime())) / 60000));
     box.innerHTML = `
         <small class="text-muted d-block mb-1">Último fichaje: ${TIPO_FICHAJE_LABEL[ultimo.type] || ultimo.type} a las ${ultimo.time}</small>
-        <button class="btn btn-outline-warning btn-sm" onclick="corregirPropioFichaje('${ultimo.id}')">
-            <i class="bi bi-arrow-counterclockwise"></i> Corregir mi último fichaje (quedan ${minutosRestantes} min)
+        <button class="btn btn-outline-warning btn-sm" id="btnAnularMiFichaje" onclick="anularYRegenerarPropioFichaje('${ultimo.id}')">
+            <i class="bi bi-arrow-counterclockwise"></i> Anular y volver a fichar ahora (quedan ${minutosRestantes} min)
         </button>`;
 }
 
-function corregirPropioFichaje(id) {
+// Recalcula "present"/"late" para el fichaje de reemplazo exactamente
+// como registerAttendance() lo hace para un tipo 'entry' (mismo
+// margen de tolerancia, misma alerta de Tardanza) - una salida/
+// retirada nunca queda "late" acá tampoco, igual que en el fichaje
+// normal.
+function calcularEstadoFichajeAutomatico(teacher, type, now, time) {
+    if (type !== 'entry') return 'present';
+    const criteria = getCriteria();
+    const lateLimit = criteria.lateLimit || 15;
+    const todayDay = FULL_DAYS[now.getDay()];
+    const earliestStart = getEarliestScheduleTime(teacher, todayDay, materiaFichajeSeleccionada);
+    if (!earliestStart) return 'present';
+    const [startH, startM] = earliestStart.split(':').map(Number);
+    const scheduledMinutes = startH * 60 + startM;
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    if (nowMinutes > scheduledMinutes + lateLimit) {
+        createAlert(teacher, 'Tardanza', `Llegó tarde (${time}). Hora prevista: ${earliestStart}. Más de ${lateLimit} minutos de retraso.`);
+        return 'late';
+    }
+    return 'present';
+}
+
+async function anularYRegenerarPropioFichaje(id) {
     const attendance = getAttendance();
     const record = attendance.find(a => a.id === id);
     if (!puedeCorregirFichaje(record)) {
-        showToast('Ya no podés corregir este fichaje (pasaron los 10 minutos o no es tuyo)', 'error');
+        showToast('Ya no podés anular este fichaje (pasaron los 10 minutos o no es tuyo)', 'error');
         renderMiUltimoFichaje();
         return;
     }
-    if (!confirm(`¿Corregir tu fichaje de ${TIPO_FICHAJE_LABEL[record.type] || record.type} de las ${record.time}? Vas a poder volver a identificarte y fichar de nuevo.`)) return;
-    record.corregidoPorDocente = true;
-    record.corregidoEn = new Date().toISOString();
+    if (!confirm(`¿Anular tu fichaje de ${TIPO_FICHAJE_LABEL[record.type] || record.type} de las ${record.time}? Se te va a pedir tu ubicación de nuevo para generar uno nuevo automáticamente, con la hora actual.`)) return;
+
+    const btn = document.getElementById('btnAnularMiFichaje');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Verificando tu ubicación...'; }
+
+    // Igual que cualquier fichaje normal (confirmFaceAttendance()): GPS
+    // automático del dispositivo, validado contra la geocerca - nunca
+    // se genera el reemplazo sin esa verificación, para no abrir una
+    // puerta a fichar "desde cualquier lado" con la excusa de corregir.
+    const geo = await verifyGeofence();
+    if (!geo.ok) {
+        showGeofenceBlockModal(geo);
+        renderMiUltimoFichaje();
+        return;
+    }
+
+    const now = new Date();
+    const date = now.toISOString().split('T')[0];
+    const time = now.toTimeString().split(' ')[0];
+    const attStatus = calcularEstadoFichajeAutomatico(currentUser, record.type, now, time);
+
+    record.anulado = true;
+    record.anuladoEn = now.toISOString();
+
+    const nuevoId = Date.now().toString();
+    attendance.push({
+        id: nuevoId,
+        teacherId: currentUser.id,
+        teacherName: `${currentUser.apellido} ${currentUser.nombre}`,
+        date, time, type: record.type, status: attStatus, timestamp: now.toISOString(),
+        horaFichajeReal: now.toISOString(),
+        categoria: 'regular',
+        materiaId: record.materiaId || null,
+        corregidoPorDocente: true,
+        fichajeAnuladoId: record.id,
+        ...pendingGeofenceFields(geo),
+        ...geoFichajeFields(geo),
+    });
     saveAttendance(attendance);
-    logAccion('CORRECCION_PROPIA_FICHAJE', `${currentUser.apellido} ${currentUser.nombre} corrigió su propio fichaje de ${TIPO_FICHAJE_LABEL[record.type] || record.type} (${record.time})`);
-    showToast('✅ Fichaje corregido. Ya podés volver a identificarte y fichar de nuevo.', 'success');
+    logAccion('CORRECCION_PROPIA_FICHAJE', `${currentUser.apellido} ${currentUser.nombre} anuló su fichaje de ${TIPO_FICHAJE_LABEL[record.type] || record.type} (${record.time}) y el sistema generó uno nuevo automático (${time})`, geo.coords || null);
+    showToast('✅ Fichaje anterior anulado. Se generó tu nuevo fichaje automático.', 'success');
     renderMiUltimoFichaje();
     updateAttendanceButtonsState();
 }
@@ -3733,7 +3800,7 @@ function hasExitToday(teacherId, categoria, eventoId) {
     const todayStr = new Date().toISOString().split('T')[0];
     return getAttendance().some(a => a.teacherId === teacherId && (a.type === 'exit' || a.type === 'early_exit') && a.date === todayStr &&
         (a.categoria || 'regular') === categoria &&
-        (categoria !== 'evento' || a.eventoId === eventoId) && !a.corregidoPorDocente);
+        (categoria !== 'evento' || a.eventoId === eventoId) && !a.anulado);
 }
 
 function openManualAttendanceModal(teacherId) {
@@ -5300,7 +5367,7 @@ function getScheduleEntriesForDate(dateStr) {
                 status = 'licencia';
             } else {
                 entryRecord = attendance.find(a => a.teacherId === teacher.id && a.type === 'entry' && a.date === dateStr &&
-                    (a.categoria || 'regular') === 'regular' && (h.materiaId != null ? a.materiaId === h.materiaId : true)) || null;
+                    (a.categoria || 'regular') === 'regular' && !a.anulado && (h.materiaId != null ? a.materiaId === h.materiaId : true)) || null;
                 if (entryRecord) {
                     status = entryRecord.status === 'late' ? 'late' : 'present';
                     const [sh, sm] = h.inicio.split(':').map(Number);
