@@ -2391,16 +2391,21 @@ function filterTeachersTable() {
     });
 }
 
+// Todos los contadores de "Hoy" se calculan sobre el set de docentes
+// que deberían presentarse hoy (getDocentesEsperadosHoyPorDocente),
+// nunca sobre el total de la planta: un docente sin grilla hoy, de
+// licencia, o en un día sin clases no debe contarse como ausente.
 function updateStats() {
     const teachers = getTeachers();
-    const attendance = getAttendance();
-    const today = new Date().toDateString();
     document.getElementById('totalTeachers').textContent = teachers.length;
-    const todayAttendance = attendance.filter(a => new Date(a.date).toDateString() === today);
-    const presentTeachers = new Set(todayAttendance.map(a => a.teacherId));
-    document.getElementById('presentToday').textContent = presentTeachers.size;
-    document.getElementById('absentToday').textContent = teachers.filter(t => !presentTeachers.has(t.id)).length;
-    document.getElementById('lateToday').textContent = todayAttendance.filter(a => a.status === 'late').length;
+
+    const esperadosHoy = getDocentesEsperadosHoyPorDocente();
+    document.getElementById('expectedToday').textContent = esperadosHoy.length;
+    document.getElementById('presentToday').textContent = esperadosHoy.filter(e => e.semaforo.code === 'presente').length;
+    document.getElementById('lateToday').textContent = esperadosHoy.filter(e => e.semaforo.code === 'tardanza').length;
+    document.getElementById('halfAbsentToday').textContent = esperadosHoy.filter(e => e.semaforo.code === 'media_falta').length;
+    document.getElementById('absentToday').textContent = esperadosHoy.filter(e => e.semaforo.code === 'ausente').length;
+
     renderDocentesEsperadosHoy();
 }
 
@@ -5535,6 +5540,19 @@ function getDocentesEsperadosHoy() {
             return { ...e, semaforo: calcularSemaforoPuntualidad(elapsedMin, criteria, !!e.entryRecord) };
         })
         .sort((a, b) => SEMAFORO_ORDEN[a.semaforo.code] - SEMAFORO_ORDEN[b.semaforo.code] || a.inicio.localeCompare(b.inicio));
+}
+
+// Un docente puede tener varios bloques hoy (varias materias/horarios).
+// Para los contadores de arriba (Esperados/Presentes/Ausentes/etc.) se
+// cuenta cada docente una sola vez, quedándose con su peor semáforo del
+// día (ausente > media falta > tardanza > esperado > presente), ya que
+// getDocentesEsperadosHoy() viene ordenada de peor a mejor.
+function getDocentesEsperadosHoyPorDocente() {
+    const porDocente = new Map();
+    getDocentesEsperadosHoy().forEach(e => {
+        if (!porDocente.has(e.teacherId)) porDocente.set(e.teacherId, e);
+    });
+    return Array.from(porDocente.values());
 }
 
 function renderDocentesEsperadosHoy() {
