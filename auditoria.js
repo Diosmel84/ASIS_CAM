@@ -80,10 +80,25 @@ async function cargarLogsAuditoria() {
 // archivo), pero logAccion() solo se llama en respuesta a acciones del
 // usuario, es decir, mucho después de que todos los <script> ya
 // terminaron de ejecutarse - para ese momento la variable ya existe.
+// ubicacion: 3 estados posibles, a propósito -
+//   - no se pasa (undefined): "todavía no se sabe" - se intenta
+//     conseguir GPS/IP en segundo plano (ver completarUbicacionLog()),
+//     SIN bloquear la acción que disparó el log. Es el caso por
+//     defecto: cubre LOGOUT, EDITAR_DOCENTE, ASIGNAR_MATERIAS, y en
+//     general cualquier logAccion(accion, detalle) de 2 argumentos.
+//   - null explícito: "no intentes" - login de docente (ya pide GPS
+//     al fichar segundos después, sería un permiso redundante).
+//   - un objeto {lat,lng,...}: ya viene resuelta por el llamador
+//     (FICHAJE/FICHAJE_EVENTO, que ya hicieron su propio pedido de GPS
+//     como parte de la validación de geocerca - no se vuelve a pedir
+//     una segunda vez para lo mismo).
 function logAccion(accion, detalle, ubicacion) {
     try {
         const user = typeof currentUser !== 'undefined' ? currentUser : null;
+        const intentarUbicacion = ubicacion === undefined;
+        const id = 'log_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
         const entry = {
+            id,
             fecha: formatFechaHoraLog(),
             timestamp: Date.now(),
             usuario: user ? (user.username || user.dni || '-') : '-',
@@ -92,11 +107,12 @@ function logAccion(accion, detalle, ubicacion) {
             detalle: detalle || '',
             dispositivo: navigator.userAgent,
             plataforma: navigator.platform,
-            ubicacion: ubicacion || null,
+            ubicacion: intentarUbicacion ? null : (ubicacion || null),
+            ubicacionPendiente: intentarUbicacion,
         };
 
         // Respaldo local: sincrónico, nunca depende de la red (para
-        // que un fichaje/login nunca se demore ni falle por esto).
+        // que ninguna acción se demore o falle por esto).
         const logsLocal = getLogsBackupLocal();
         logsLocal.push(entry);
         if (logsLocal.length > AUDIT_LOG_MAX) logsLocal.splice(0, logsLocal.length - AUDIT_LOG_MAX);
@@ -104,23 +120,132 @@ function logAccion(accion, detalle, ubicacion) {
         if (auditLogsCache !== null) auditLogsCache.push(entry);
 
         // Fuente principal: se sube en segundo plano (fire-and-forget,
-        // sin await) para no bloquear la acción real que disparó el
-        // log. Si falla (sin conexión), el registro ya quedó en el
-        // respaldo local y listo - no hay cola de reintento para
-        // logs, a diferencia de app_data, porque no es información
-        // crítica de negocio.
+        // sin await). Si falla (sin conexión u otro error), queda en
+        // una cola local para reintentar al reconectar (ver
+        // reintentarLogsPendientes(), enganchado a onReconnectSync()
+        // en script.js) - el registro ya está a salvo en el respaldo
+        // local mientras tanto.
         if (typeof sb !== 'undefined' && sb) {
             sb.from('auditoria_logs').insert({
                 fecha: entry.fecha, timestamp: entry.timestamp, usuario: entry.usuario, rol: entry.rol,
                 accion: entry.accion, detalle: entry.detalle, dispositivo: entry.dispositivo,
                 plataforma: entry.plataforma, ubicacion: entry.ubicacion,
-            }).then(({ error }) => {
-                if (error) console.error('No se pudo subir el log de auditoría a Supabase (queda en el respaldo local):', error);
+            }).select('id').single().then(({ data, error }) => {
+                if (error) {
+                    console.error('No se pudo subir el log de auditoría a Supabase, queda pendiente de reintentar:', error);
+                    encolarLogPendienteDeSync(entry);
+                    return;
+                }
+                actualizarLogLocal(entry.id, { supabaseId: data.id });
             });
+        } else {
+            encolarLogPendienteDeSync(entry);
         }
+
+        // La ubicación se intenta SIEMPRE en segundo plano cuando
+        // corresponde (intentarUbicacion), haya o no conexión a
+        // Supabase en este instante: si hay GPS pero no hay red
+        // todavía, igual queda guardada localmente y se sube sola
+        // cuando el log pendiente se reintente.
+        if (intentarUbicacion) completarUbicacionLog(entry.id);
     } catch (e) {
         console.error('No se pudo guardar el log de auditoría', e);
     }
+}
+
+// Busca un log por id (respaldo local + cache en memoria si está
+// cargado) y le aplica cambios - lo usan completarUbicacionLog() y el
+// insert a Supabase (para anotar el id real que le tocó ahí).
+function actualizarLogLocal(logId, cambios) {
+    const logsLocal = getLogsBackupLocal();
+    const idx = logsLocal.findIndex(l => l.id === logId);
+    if (idx !== -1) { Object.assign(logsLocal[idx], cambios); guardarLogsBackupLocal(logsLocal); }
+    if (auditLogsCache !== null) {
+        const entry = auditLogsCache.find(l => l.id === logId);
+        if (entry) Object.assign(entry, cambios);
+    }
+}
+
+// Intenta conseguir la ubicación (GPS o IP, ver obtenerUbicacionParaLog()
+// en script.js) DESPUÉS de haber guardado el log, sin bloquear la
+// acción que lo disparó - fecha/timestamp del log (el momento real del
+// hecho) nunca se tocan, solo se completa ubicacion una vez que se
+// consigue (ubicacionResueltaEn deja constancia de cuándo).
+async function completarUbicacionLog(logId) {
+    if (typeof obtenerUbicacionParaLog !== 'function') return;
+    const ubicacion = await obtenerUbicacionParaLog();
+    if (!ubicacion) {
+        // Ni GPS ni IP funcionaron (típicamente: sin conexión en este
+        // instante). Se deja ubicacionPendiente:true - reintentarLogsPendientes()
+        // lo vuelve a intentar al reconectar, en vez de darlo por
+        // perdido para siempre.
+        return;
+    }
+    const cambios = { ubicacion, ubicacionPendiente: false, ubicacionResueltaEn: new Date().toISOString() };
+    actualizarLogLocal(logId, cambios);
+    const entry = getLogsBackupLocal().find(l => l.id === logId);
+    if (entry && entry.supabaseId && typeof sb !== 'undefined' && sb) {
+        sb.from('auditoria_logs').update({ ubicacion: cambios.ubicacion }).eq('id', entry.supabaseId)
+            .then(({ error }) => { if (error) console.error('No se pudo actualizar la ubicación del log en Supabase:', error); });
+    }
+    // Si el panel de Auditoría está abierto en este momento, refleja la
+    // ubicación recién resuelta sin que el admin tenga que recargar.
+    if (typeof renderAuditoriaPanel === 'function' && document.getElementById('auditoriaTableBody')) renderAuditoriaPanel();
+}
+
+// Logs que no se pudieron subir a Supabase (sin conexión u otro error)
+// quedan acá para reintentar al reconectar.
+const LOGS_PENDIENTES_KEY = 'asiscam_logs_pendientes_sync';
+
+function encolarLogPendienteDeSync(entry) {
+    try {
+        const raw = localStorage.getItem(LOGS_PENDIENTES_KEY);
+        const pendientes = raw ? JSON.parse(raw) : [];
+        if (!pendientes.some(p => p.id === entry.id)) pendientes.push(entry);
+        localStorage.setItem(LOGS_PENDIENTES_KEY, JSON.stringify(pendientes));
+    } catch (e) { /* localStorage lleno o deshabilitado: no hay más respaldo posible */ }
+}
+
+// Se llama desde onReconnectSync() (window 'online', script.js) igual
+// que flushPendingSync()/revalidatePendingGeofenceAttendance(). Usa la
+// versión MÁS RECIENTE de cada log guardada en el respaldo local (por
+// si mientras tanto completarUbicacionLog() ya le resolvió la
+// ubicación), nunca la que tenía en el momento de encolarse.
+async function reintentarLogsPendientes() {
+    // 1) Reintentar la UBICACIÓN de cualquier log que haya quedado
+    // pendiente (haya podido subirse a Supabase en su momento o no) -
+    // ahora que hay señal, GPS/IP tienen otra chance.
+    const pendientesDeUbicacion = getLogsBackupLocal().filter(l => l.ubicacionPendiente);
+    for (const l of pendientesDeUbicacion) {
+        await completarUbicacionLog(l.id);
+    }
+
+    // 2) Reintentar el INSERT a Supabase de los que no se habían
+    // podido subir en absoluto, usando la versión más reciente del
+    // log (por si el paso 1 de arriba ya le resolvió la ubicación).
+    if (typeof sb === 'undefined' || !sb) return;
+    let pendientesDeInsert;
+    try {
+        pendientesDeInsert = JSON.parse(localStorage.getItem(LOGS_PENDIENTES_KEY) || '[]');
+    } catch (e) { return; }
+    if (pendientesDeInsert.length === 0) return;
+    const siguenPendientes = [];
+    for (const entry of pendientesDeInsert) {
+        const actual = getLogsBackupLocal().find(l => l.id === entry.id) || entry;
+        try {
+            const { data, error } = await sb.from('auditoria_logs').insert({
+                fecha: actual.fecha, timestamp: actual.timestamp, usuario: actual.usuario, rol: actual.rol,
+                accion: actual.accion, detalle: actual.detalle, dispositivo: actual.dispositivo,
+                plataforma: actual.plataforma, ubicacion: actual.ubicacion,
+            }).select('id').single();
+            if (error) throw error;
+            actualizarLogLocal(entry.id, { supabaseId: data.id });
+        } catch (e) {
+            console.error('Reintento de sincronización de log falló, sigue pendiente:', e);
+            siguenPendientes.push(entry);
+        }
+    }
+    localStorage.setItem(LOGS_PENDIENTES_KEY, JSON.stringify(siguenPendientes));
 }
 
 function contarAccionesHoy() {
@@ -162,20 +287,42 @@ function getLogsFiltrados() {
 // tiene ubicación en absoluto (login sin permiso GPS ni IP, o acciones
 // que nunca la piden, como guardar una materia). Tooltip con el
 // detalle completo (lat/lon/precisión/IP).
+// Nunca "-": o hay ubicación, o se está por conseguir (⏳), o se probó
+// de verdad y no se pudo (GPS apagado/permiso denegado, IP también
+// falló). "-" no distingue "no se pidió" de "se pidió y falló"; estos
+// 3 mensajes sí.
 function celdaUbicacionLog(l) {
-    if (!l.ubicacion || l.ubicacion.lat == null) return '-';
+    if (l.ubicacionPendiente) {
+        const desde = l.fecha ? l.fecha.split(' ')[1] || l.fecha : '';
+        return `<span class="badge bg-warning text-dark" title="Intentando conseguir GPS/IP desde las ${desde}"><i class="bi bi-hourglass-split"></i> Sin señal al momento de la acción (desde ${desde}) - pendiente ubicación</span>`;
+    }
+    if (!l.ubicacion || l.ubicacion.lat == null) {
+        // ubicacionPendiente ya es false acá: no es que falló, es que
+        // esta acción puntual no la pide a propósito (login de
+        // docente, que ya la pide al fichar; o un fichaje con bypass
+        // de admin/kiosco/modo prueba sin geocerca real de por medio).
+        return '<span class="text-muted small">Ubicación no solicitada para esta acción</span>';
+    }
     const lat = Number(l.ubicacion.lat), lng = Number(l.ubicacion.lng);
-    const tienedireccion = !!l.ubicacion.direccion;
-    const texto = tienedireccion ? l.ubicacion.direccion : `GPS: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-    const pendienteBadge = tienedireccion ? '' : ' <span class="badge bg-warning text-dark">pendiente sync</span>';
+    const texto = l.ubicacion.direccion || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
     const fakeGpsBadge = l.ubicacion.fakeGpsSospechoso ? ' <span class="badge bg-danger" title="Heurística débil, no es detección real de GPS falso">POSIBLE UBICACIÓN FALSA</span>' : '';
+    // Si tardó en resolverse (guardó el log antes de tener ubicación,
+    // ver ubicacionPendiente más arriba), se nota - no es lo mismo que
+    // "se resolvió al toque".
+    const horaAccion = l.fecha ? l.fecha.split(' ')[1] : null;
+    const horaResuelta = l.ubicacionResueltaEn ? new Date(l.ubicacionResueltaEn).toLocaleTimeString('es-AR').slice(0, 5) : null;
+    const recuperadaBadge = (horaResuelta && horaAccion && horaResuelta.slice(0, 5) !== horaAccion.slice(0, 5))
+        ? ` <span class="badge bg-info text-dark" title="La acción fue a las ${horaAccion}, la ubicación recién se pudo confirmar a las ${horaResuelta}">ubicación recuperada</span>`
+        : '';
     const tooltip = [
         `Lat/Lon: ${lat}, ${lng}`,
         l.ubicacion.precision != null ? `Precisión: ${l.ubicacion.precision}m` : null,
         l.ubicacion.ip ? `IP: ${l.ubicacion.ip}` : null,
         l.ubicacion.fuente ? `Fuente: ${l.ubicacion.fuente === 'gps' ? 'GPS del dispositivo' : 'aproximada por IP'}` : null,
+        horaAccion ? `Hecho a las: ${horaAccion}` : null,
+        horaResuelta ? `Ubicación confirmada a las: ${horaResuelta}` : null,
     ].filter(Boolean).join(' · ');
-    return `<a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener" title="${tooltip}"><i class="bi bi-geo-alt-fill"></i> ${texto}</a>${pendienteBadge}${fakeGpsBadge}`;
+    return `<a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener" title="${tooltip}"><i class="bi bi-geo-alt-fill"></i> ${texto}</a>${recuperadaBadge}${fakeGpsBadge}`;
 }
 
 function hayFiltrosActivosAuditoria() {

@@ -1075,6 +1075,7 @@ async function flushPendingSync() {
 async function onReconnectSync() {
     await flushPendingSync();
     await revalidatePendingGeofenceAttendance();
+    if (typeof reintentarLogsPendientes === 'function') await reintentarLogsPendientes();
 }
 
 window.addEventListener('online', onReconnectSync);
@@ -1402,7 +1403,12 @@ async function login() {
         const teacher = teachers.find(t => t.dni === user && t.password === pass);
         if (teacher) {
             currentUser = { role: 'teacher', rol: ROLES.DOCENTE, ...teacher };
-            logAccion('LOGIN', `Login docente DNI ${teacher.dni}`);
+            // ubicacion explícita en null (no "sin pasar"): a diferencia
+            // del resto de las acciones, acá NO se intenta GPS en
+            // segundo plano - el docente ya lo va a hacer segundos
+            // después al fichar (con todo el pipeline de geocerca), pedir
+            // el permiso 2 veces sería redundante y confuso.
+            logAccion('LOGIN', `Login docente DNI ${teacher.dni}`, null);
             ok = true;
         }
     } else if (selectedRole === ROLES.PROGRAMADOR) {
