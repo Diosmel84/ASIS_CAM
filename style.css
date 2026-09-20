@@ -661,6 +661,38 @@ body {
 .face-recognition-status.processing { background: var(--gray-hairline); color: var(--ink); border: 1px solid var(--gray-border); }
 .face-recognition-status.warning { background: var(--gray-hairline); color: var(--ink); border: 1px solid var(--gray-border); }
 
+/* ===== Prueba de vida / Anti-Spoofing (liveness.js): anillo guía
+   estilo MercadoPago sobre la cámara + pasos 1/3-2/3-3/3. ===== */
+.liveness-ring {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 64%;
+    aspect-ratio: 1 / 1;
+    transform: translate(-50%, -50%);
+    border: 4px solid rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+    pointer-events: none;
+    box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.18);
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.liveness-ring.ok { border-color: #2E7D4F; box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.05); }
+.liveness-ring.fail { border-color: #8B2E2E; }
+.liveness-ring.hidden { display: none; }
+
+.liveness-steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.liveness-steps.hidden { display: none; }
+.liveness-step {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 4px 9px;
+    border-radius: var(--radius-pill);
+    background: var(--gray-hairline);
+    color: var(--gray-600);
+    border: 1px solid var(--gray-border);
+}
+.liveness-step.active { background: var(--ink); color: var(--white); border-color: var(--ink); }
+.liveness-step.done { background: var(--gray-50); color: var(--ink); border-color: var(--ink); }
+
 .accordion-button:not(.collapsed) { background: var(--gray-50); color: var(--ink); box-shadow: none; }
 .accordion-button:focus { box-shadow: none; }
 .accordion-button::after { filter: none; }

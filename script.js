@@ -1457,6 +1457,7 @@ function logout() {
     recognizedTeacher = null;
     isFaceVerified = false;
     materiaFichajeSeleccionada = null;
+    lastLivenessResult = null;
     stopLiveOverlay();
     stopRegLiveOverlay();
     stopExitWindowPoll();
@@ -2932,6 +2933,7 @@ function loadTeacherDashboard() {
     updateTeacherInfo();
     isFaceVerified = false;
     recognizedTeacher = null;
+    lastLivenessResult = null;
     const status = document.getElementById('faceRecognitionStatus');
     status.className = 'face-recognition-status waiting';
     status.innerHTML = '<i class="bi bi-info-circle"></i> Esperando identificación...';
@@ -2940,6 +2942,12 @@ function loadTeacherDashboard() {
     startExitWindowPoll();
     renderFichajeContextBadges();
     renderMateriaFichajeInfo();
+    // Si este DNI sigue bloqueado por prueba de vida (ver liveness.js),
+    // que se vea desde que entra a la pantalla, no recién al primer
+    // intento fallido de "Identificarme".
+    if (typeof isLivenessLocked === 'function' && currentUser && isLivenessLocked(currentUser.dni)) {
+        livenessStartLockCountdown(currentUser.dni);
+    }
 }
 
 // Info/selector de con qué materia ficha el docente hoy - reemplaza la
@@ -3314,6 +3322,14 @@ async function detectFace() {
         return;
     }
 
+    // Anti-spoofing: si este DNI encadenó 3 pruebas de vida fallidas
+    // seguidas (ver liveness.js), el fichaje queda bloqueado 2 minutos.
+    // Se chequea antes que nada, ni siquiera se pide GPS.
+    if (typeof isLivenessLocked === 'function' && isLivenessLocked(currentUser.dni)) {
+        livenessStartLockCountdown(currentUser.dni);
+        return;
+    }
+
     // Geocerca obligatoria: antes de gastar tiempo en cámara/
     // reconocimiento, hay que estar dentro del radio permitido.
     status.className = 'face-recognition-status processing';
@@ -3329,6 +3345,30 @@ async function detectFace() {
         return;
     }
 
+    // Prueba de vida (Anti-Spoofing Nivel 1+2, ver liveness.js): mira
+    // al centro, gira levemente la cabeza y parpadea, ANTES de gastar
+    // el reconocimiento facial en una foto de un celular. Solo si esto
+    // pasa se sigue a la comparación de rostro de siempre.
+    if (typeof runLivenessCheck === 'function') {
+        const liveness = await runLivenessCheck(video, currentUser.dni);
+        if (!liveness.passed) {
+            // Una falla real de la prueba de vida (no giró, no parpadeó,
+            // más de un rostro) suma a las 3 seguidas que bloquean el DNI.
+            // Que el modelo no haya podido cargar (sin internet) NO cuenta:
+            // es un problema de conexión, no un intento de burlar el
+            // fichaje.
+            if (!liveness.unavailable) registerLivenessFailure(currentUser.dni);
+            status.className = 'face-recognition-status error';
+            status.innerHTML = `<i class="bi bi-shield-x"></i> ${liveness.reason}`;
+            showToast(liveness.reason, 'error');
+            if (isLivenessLocked(currentUser.dni)) livenessStartLockCountdown(currentUser.dni);
+            return;
+        }
+        resetLivenessFailures(currentUser.dni);
+        lastLivenessResult = liveness.checks;
+    }
+
+    if (typeof livenessReset === 'function') livenessReset(); // oculta el anillo/pasos de la prueba de vida, ya cumplida
     status.className = 'face-recognition-status processing';
     status.innerHTML = '<i class="bi bi-hourglass-split"></i> Verificando identidad...';
     progress.style.display = 'block';
@@ -3585,6 +3625,7 @@ function registerFaceEventoAttendance(type, teacher, eventoInfo, geo) {
         salidaAnticipada,
         ...pendingGeofenceFields(geo),
         ...geoFichajeFields(geo),
+        ...consumeLivenessFields(),
     });
     saveAttendance(attendance);
     logAccion('FICHAJE_EVENTO', `${type.toUpperCase()} evento "${eventoInfo.titulo}" - ${teacher.apellido} ${teacher.nombre} - ${time}`, geo && geo.coords ? geo.coords : null);
@@ -3671,6 +3712,7 @@ function cancelFaceAttendanceModal() {
     if (faceModalInstance) faceModalInstance.hide();
     isFaceVerified = false;
     recognizedTeacher = null;
+    lastLivenessResult = null; // no reusar una prueba de vida vieja en un fichaje futuro
     setFaceNavLocksDisabled(false);
     freezeTeacherVideo(false);
     const status = document.getElementById('faceRecognitionStatus');
@@ -3831,6 +3873,7 @@ function registerAttendance(type, geo) {
         materiaId: materiaFichajeSeleccionada || null,
         ...pendingGeofenceFields(geo),
         ...geoFichajeFields(geo),
+        ...consumeLivenessFields(),
     });
     saveAttendance(attendance);
     logAccion('FICHAJE', `${typeMap[type]} - ${teacherFullName} - ${time}`, geo && geo.coords ? geo.coords : null);

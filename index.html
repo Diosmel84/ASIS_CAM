@@ -729,11 +729,18 @@
                             <div class="camera-container">
                                 <video id="teacherVideo" autoplay playsinline muted></video>
                                 <canvas id="teacherOverlay" class="camera-overlay"></canvas>
+                                <div id="livenessRing" class="liveness-ring hidden"></div>
                                 <canvas id="teacherCanvas" style="display:none;"></canvas>
                             </div>
                             <div class="camera-controls">
                                 <div id="materiaFichajeInfo" class="mb-2"></div>
                                 <div id="fichajeContextBadges" class="mb-2 small"></div>
+                                <div id="livenessSteps" class="liveness-steps hidden">
+                                    <span class="liveness-step" data-step="mirando">1/3 Mirando</span>
+                                    <span class="liveness-step" data-step="girando">2/3 Girando</span>
+                                    <span class="liveness-step" data-step="parpadeo">3/3 Parpadeo</span>
+                                    <span class="liveness-step" data-step="ok">OK</span>
+                                </div>
                                 <div id="faceRecognitionStatus" class="face-recognition-status waiting">
                                     <i class="bi bi-info-circle"></i> Esperando identificación...
                                 </div>
@@ -1165,6 +1172,11 @@
     <script src="libs/supabase.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- MediaPipe Face Mesh (prueba de vida / anti-spoofing del fichaje,
+         ver liveness.js): a diferencia de face-api.js no está vendorizado
+         en el repo, se sirve desde CDN - requiere internet la primera vez
+         que se usa (no entra en el precache offline de sw.js). -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js" crossorigin="anonymous"></script>
     <!-- config.secrets.js no existe en el repo (ver .gitignore): si no
          está subido a mano en este servidor, el navegador lo ignora en
          silencio (404) y config.example.js entra en modo demo. -->
@@ -1173,6 +1185,7 @@
     <script src="roles.js"></script>
     <script src="auditoria.js"></script>
     <script src="script.js"></script>
+    <script src="liveness.js"></script>
     <script src="src/utils/checkSuscripcion.js"></script>
 </body>
 </html>
