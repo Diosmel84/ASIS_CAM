@@ -1080,6 +1080,57 @@ function getMinutosDesdeMedianocheArgentina(date) {
     return h * 60 + m;
 }
 
+// Repara `date`/`time` de fichajes que quedaron mal calculados por el
+// bug de huso horario de más arriba (ver getFechaHoyArgentina()):
+// registros escritos ANTES de ese fix guardaban `date` con
+// new Date().toISOString() (UTC), así que un fichaje de noche (21hs+
+// en Argentina) podía quedar fechado un día adelantado - y esos
+// fichajes viejos siguen mal en la base aunque el código ya esté
+// arreglado (el fix solo corrige los fichajes NUEVOS, no repara los
+// que ya se guardaron mal). `timestamp` (el instante real capturado
+// con Date.toISOString(), que es un instante único y no sufre este
+// problema - la ambigüedad es solo al separarlo en fecha/hora local)
+// nunca tuvo este problema, así que sirve de fuente de verdad para
+// recalcular `date`/`time` correctos. Bug real reportado: un fichaje
+// del domingo 21:50 seguía apareciendo como "hoy" en Esperados Hoy el
+// lunes siguiente, porque su `date` había quedado guardado con la
+// fecha del lunes.
+// Solo toca date/time (nunca status/type/geo/etc.) y solo en los
+// registros donde de verdad no coinciden - así es segura de correr
+// más de una vez (converge a "no hay nada para reparar").
+async function repararFechasFichajes() {
+    if (!tienePermiso(currentUser.rol, 'backup_restore')) {
+        showToast(mensajeSinPermiso('backup_restore'), 'error');
+        logAccion('PERMISO_DENEGADO', 'Intentó reparar fechas de fichajes sin permiso');
+        return;
+    }
+    const attendance = getAttendance();
+    const afectados = [];
+    attendance.forEach(a => {
+        if (!a.timestamp) return; // sin timestamp no hay de dónde recalcular: se deja como está
+        const instante = new Date(a.timestamp);
+        if (isNaN(instante.getTime())) return;
+        const fechaCorrecta = getFechaHoyArgentina(instante);
+        const horaCorrecta = getHoraHHMMSSArgentina(instante);
+        if (a.date !== fechaCorrecta) {
+            afectados.push({ id: a.id, teacherName: a.teacherName, dateAntes: a.date, dateDespues: fechaCorrecta });
+            a.date = fechaCorrecta;
+            a.time = horaCorrecta;
+        }
+    });
+    if (afectados.length === 0) {
+        showToast('No se encontraron fichajes con la fecha desincronizada. No hay nada para reparar.', 'info');
+        return;
+    }
+    if (!confirm(`Se encontraron ${afectados.length} fichaje(s) con la fecha mal calculada por un bug de huso horario ya corregido en el código (esto solo repara datos viejos, no cambia nada del comportamiento actual). ¿Corregir su fecha/hora ahora? No se puede deshacer - se recomienda descargar un backup antes si no se hizo.`)) return;
+
+    saveAttendance(attendance);
+    logAccion('REPARAR_FECHAS_FICHAJES', `Corrigió la fecha de ${afectados.length} fichaje(s) desincronizados por el bug de huso horario: ${afectados.map(a => `${a.teacherName} (${a.dateAntes} -> ${a.dateDespues})`).join('; ')}`);
+    showToast(`✅ Se corrigieron ${afectados.length} fichaje(s) con fecha desincronizada`, 'success');
+    renderDocentesEsperadosHoy();
+    checkFaltas();
+}
+
 const START_HOUR = 7;
 const END_HOUR = 23;
 const SCHEDULE_CALENDAR_YEAR = 2026;

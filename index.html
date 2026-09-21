@@ -629,6 +629,7 @@
                                 <button class="btn btn-outline-primary btn-sm" id="auditoriaBackupBtn" onclick="backupLocalStorage()"><i class="bi bi-download"></i> Backup (localStorage)</button>
                                 <button class="btn btn-outline-primary btn-sm" id="auditoriaRestoreBtn" onclick="document.getElementById('restoreLocalStorageInput').click()"><i class="bi bi-upload"></i> Restaurar Backup</button>
                                 <input type="file" id="restoreLocalStorageInput" accept="application/json" class="hidden" onchange="restoreLocalStorageFile(this)">
+                                <button class="btn btn-outline-warning btn-sm" id="auditoriaRepararFechasBtn" onclick="repararFechasFichajes()" title="Corrige fichajes viejos con fecha mal calculada por el bug de huso horario (ya arreglado en el código para los fichajes nuevos)"><i class="bi bi-wrench-adjustable"></i> Reparar fechas de fichajes viejos</button>
                             </div>
                             <div class="table-responsive">
                                 <table class="table table-sm table-striped">

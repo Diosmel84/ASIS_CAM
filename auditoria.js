@@ -420,6 +420,7 @@ function renderAuditoriaPanel() {
     document.getElementById('auditoriaBorrarLogBtn')?.classList.toggle('hidden', !puedeGestionar);
     document.getElementById('auditoriaBackupBtn')?.classList.toggle('hidden', !puedeBackupRestore);
     document.getElementById('auditoriaRestoreBtn')?.classList.toggle('hidden', !puedeBackupRestore);
+    document.getElementById('auditoriaRepararFechasBtn')?.classList.toggle('hidden', !puedeBackupRestore);
     document.getElementById('auditoriaCredencialesSection')?.classList.toggle('hidden', !puedeVerClaves);
 
     if (puedeVerClaves) renderCredencialesPanel();
