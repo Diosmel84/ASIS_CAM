@@ -1080,6 +1080,25 @@ function getMinutosDesdeMedianocheArgentina(date) {
     return h * 60 + m;
 }
 
+// Fecha REAL (Argentina) de un fichaje: se recalcula siempre desde
+// `timestamp` (el instante real capturado con toISOString(), nunca
+// ambiguo) en vez de confiar ciegamente en el campo `date` ya
+// guardado. Así, un fichaje cuyo `date` haya quedado desincronizado
+// por el bug viejo de huso horario (ver getFechaHoyArgentina() más
+// arriba) se filtra bien en "Esperados Hoy"/hasEntryToday/etc. SIN
+// depender de que alguien corra antes la reparación manual
+// (repararFechasFichajes()) - la corrección queda al día
+// automáticamente para cualquier lógica que compare "es de hoy".
+// Fallback al `date` guardado solo si no hay timestamp (fichajes
+// viejísimos, o el bypass offline_sin_gps que puede no tenerlo).
+function getFechaRealFichaje(registro) {
+    if (registro && registro.timestamp) {
+        const instante = new Date(registro.timestamp);
+        if (!isNaN(instante.getTime())) return getFechaHoyArgentina(instante);
+    }
+    return registro ? registro.date : null;
+}
+
 // Repara `date`/`time` de fichajes que quedaron mal calculados por el
 // bug de huso horario de más arriba (ver getFechaHoyArgentina()):
 // registros escritos ANTES de ese fix guardaban `date` con
@@ -2549,14 +2568,14 @@ async function loadAdminDashboard() {
 function loadTeachersTable() {
     const teachers = getTeachers();
     const tbody = document.getElementById('teachersTableBody');
-    const today = new Date().toDateString();
+    const today = getFechaHoyArgentina();
     document.getElementById('teacherCountBadge').textContent = teachers.length;
     if (teachers.length === 0) {
         tbody.innerHTML = '<tr><td colspan="12" class="text-center">No hay docentes registrados</td></tr>';
         return;
     }
     tbody.innerHTML = teachers.map(teacher => {
-        const attendance = getAttendance().filter(a => a.teacherId === teacher.id && new Date(a.date).toDateString() === today);
+        const attendance = getAttendance().filter(a => a.teacherId === teacher.id && getFechaRealFichaje(a) === today);
         const status = attendance.length > 0 ? `<span class="badge bg-success">Presente (${attendance.length})</span>` : `<span class="badge bg-danger">Ausente</span>`;
         const horarioTeacher = getHorarioEfectivo(teacher);
         const scheduleDisplay = horarioTeacher.length > 0 ?
@@ -3322,7 +3341,7 @@ function submitKioskAuthorizeCode() {
 function hasEntryToday(teacherId, categoria, eventoId) {
     categoria = categoria || 'regular';
     const todayStr = getFechaHoyArgentina();
-    return getAttendance().some(a => a.teacherId === teacherId && a.type === 'entry' && a.date === todayStr &&
+    return getAttendance().some(a => a.teacherId === teacherId && a.type === 'entry' && getFechaRealFichaje(a) === todayStr &&
         (a.categoria || 'regular') === categoria &&
         (categoria !== 'evento' || a.eventoId === eventoId) && !a.anulado);
 }
@@ -3466,7 +3485,7 @@ function renderMiUltimoFichaje() {
     const box = document.getElementById('miUltimoFichajeBox');
     if (!box || !currentUser || currentUser.role !== 'teacher') return;
     const todayStr = getFechaHoyArgentina();
-    const propios = getAttendance().filter(a => a.teacherId === currentUser.id && a.date === todayStr && (a.categoria || 'regular') === 'regular' && !a.anulado);
+    const propios = getAttendance().filter(a => a.teacherId === currentUser.id && getFechaRealFichaje(a) === todayStr && (a.categoria || 'regular') === 'regular' && !a.anulado);
     if (propios.length === 0) { box.innerHTML = ''; return; }
     const ultimo = propios.slice().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
     if (!puedeCorregirFichaje(ultimo)) { box.innerHTML = ''; return; }
@@ -4168,7 +4187,7 @@ let manualAttendanceTeacherId = null;
 function hasExitToday(teacherId, categoria, eventoId) {
     categoria = categoria || 'regular';
     const todayStr = getFechaHoyArgentina();
-    return getAttendance().some(a => a.teacherId === teacherId && (a.type === 'exit' || a.type === 'early_exit') && a.date === todayStr &&
+    return getAttendance().some(a => a.teacherId === teacherId && (a.type === 'exit' || a.type === 'early_exit') && getFechaRealFichaje(a) === todayStr &&
         (a.categoria || 'regular') === categoria &&
         (categoria !== 'evento' || a.eventoId === eventoId) && !a.anulado);
 }
@@ -4197,7 +4216,7 @@ function buildFichajeManualBlock(teacher, categoria, eventoId, onclickArgs, fnNa
         salida: categoria === 'evento' ? 'Salida Manual de Evento' : 'Salida Manual',
     };
     const todayStr = getFechaHoyArgentina();
-    const registros = getAttendance().filter(a => a.teacherId === teacher.id && a.date === todayStr &&
+    const registros = getAttendance().filter(a => a.teacherId === teacher.id && getFechaRealFichaje(a) === todayStr &&
         (a.categoria || 'regular') === categoria && (categoria !== 'evento' || a.eventoId === eventoId));
     const entrada = registros.find(a => a.type === 'entry');
     const salida = registros.find(a => a.type === 'exit' || a.type === 'early_exit');
@@ -5602,7 +5621,7 @@ function checkFaltas() {
                 if (nowMinutes <= scheduledMinutes + lateLimit) return; // todavía dentro del margen, no es falta (todavía)
             }
 
-            const hasEntry = attendance.some(a => a.teacherId === teacher.id && a.type === 'entry' && a.date === sd.date && (a.categoria || 'regular') === 'regular');
+            const hasEntry = attendance.some(a => a.teacherId === teacher.id && a.type === 'entry' && getFechaRealFichaje(a) === sd.date && (a.categoria || 'regular') === 'regular');
             if (hasEntry) return;
             const alreadyAlerted = alerts.some(a => a.teacherId === teacher.id && a.type === 'Falta' && a.faltaDate === sd.date);
             if (alreadyAlerted) return;
@@ -5738,7 +5757,7 @@ function getScheduleEntriesForDate(dateStr) {
             if (licencia) {
                 status = 'licencia';
             } else {
-                entryRecord = attendance.find(a => a.teacherId === teacher.id && a.type === 'entry' && a.date === dateStr &&
+                entryRecord = attendance.find(a => a.teacherId === teacher.id && a.type === 'entry' && getFechaRealFichaje(a) === dateStr &&
                     (a.categoria || 'regular') === 'regular' && !a.anulado && (h.materiaId != null ? a.materiaId === h.materiaId : true)) || null;
                 if (entryRecord) {
                     status = entryRecord.status === 'late' ? 'late' : 'present';
@@ -6138,8 +6157,8 @@ function showTeacherDetail(teacherId) {
     const faltaCount = alerts.filter(a => a.type === 'Falta' && !a.justified).length;
     const licencias = getLicencias().filter(l => l.teacherId === teacherId);
 
-    const today = new Date().toDateString();
-    const attendanceToday = attendance.filter(a => new Date(a.date).toDateString() === today);
+    const today = getFechaHoyArgentina();
+    const attendanceToday = attendance.filter(a => getFechaRealFichaje(a) === today);
     const estadoHoy = attendanceToday.length > 0 ? `Presente (${attendanceToday.length})` : 'Ausente';
 
     const horarioTeacherDetail = getHorarioEfectivo(teacher);
