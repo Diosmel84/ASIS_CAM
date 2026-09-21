@@ -4674,7 +4674,7 @@ async function loadEventoConvocatoriasPorDocente() {
 // eximen nada - son una obligación aparte, además de la cátedra normal.
 function teacherHasEventoConPerjuicioOnDate(teacherId, dateStr) {
     const eventos = eventoConvocatoriasPorDocente[Number(teacherId)] || [];
-    return eventos.some(ev => ev.fecha === dateStr && (ev.tipo_cumplimiento || 'con_perjuicio') === 'con_perjuicio');
+    return eventos.some(ev => ev.fecha === dateStr && (ev.tipo_cumplimiento || 'CON_PERJUICIO') === 'CON_PERJUICIO');
 }
 
 // Eventos especiales de HOY a los que está convocado un docente.
@@ -4793,7 +4793,7 @@ async function editEvento(idEvento) {
     document.getElementById('eventoHoraEntrada').value = (ev.hora_entrada || '').slice(0, 5);
     document.getElementById('eventoHoraSalida').value = (ev.hora_salida || '').slice(0, 5);
     document.getElementById('eventoLugar').value = ev.direccion_evento || '';
-    const esSinPerjuicio = ev.tipo_cumplimiento === 'sin_perjuicio';
+    const esSinPerjuicio = ev.tipo_cumplimiento === 'SIN_PERJUICIO';
     document.getElementById('eventoTipoCumplimientoSin').checked = esSinPerjuicio;
     document.getElementById('eventoTipoCumplimientoCon').checked = !esSinPerjuicio;
     document.getElementById('eventoTieneGeocerca').checked = !!ev.tiene_geocerca;
@@ -4831,7 +4831,7 @@ async function viewEvento(idEvento) {
     const geocercaInfo = ev.tiene_geocerca
         ? `Sí — radio ${ev.geocerca_radio}mts (<a href="https://www.google.com/maps?q=${ev.geocerca_lat},${ev.geocerca_lng}" target="_blank" rel="noopener">ver punto</a>)`
         : 'No';
-    const tipoCumplimientoTxt = ev.tipo_cumplimiento === 'sin_perjuicio'
+    const tipoCumplimientoTxt = ev.tipo_cumplimiento === 'SIN_PERJUICIO'
         ? 'SIN perjuicio (va al evento Y debe dar clases igual)'
         : 'CON perjuicio (solo va al evento, no da clases ese día)';
     document.getElementById('eventoViewBody').innerHTML = `
@@ -4928,7 +4928,7 @@ async function saveEvento() {
     const horaEntrada = document.getElementById('eventoHoraEntrada').value;
     const horaSalida = document.getElementById('eventoHoraSalida').value;
     const direccionEvento = document.getElementById('eventoLugar').value.trim();
-    const tipoCumplimiento = document.getElementById('eventoTipoCumplimientoSin').checked ? 'sin_perjuicio' : 'con_perjuicio';
+    const tipoCumplimiento = document.getElementById('eventoTipoCumplimientoSin').checked ? 'SIN_PERJUICIO' : 'CON_PERJUICIO';
     const tieneGeocerca = document.getElementById('eventoTieneGeocerca').checked;
 
     if (tieneGeocerca && !tienePermiso(currentUser.rol, 'editar_geo')) {
@@ -5866,7 +5866,7 @@ function getEventoEntriesParaHoy() {
                 entryRecord,
                 tardanzaMin: elapsedMin,
                 esEvento: true,
-                tipoCumplimiento: ev.tipo_cumplimiento || 'con_perjuicio',
+                tipoCumplimiento: ev.tipo_cumplimiento || 'CON_PERJUICIO',
                 semaforo: calcularSemaforoPuntualidad(elapsedMin, criteria, !!entryRecord),
             });
         });
@@ -5891,7 +5891,7 @@ function getDocentesEsperadosHoy() {
 
     const eventoEntries = getEventoEntriesParaHoy();
     const teacherIdsConPerjuicioHoy = new Set(
-        eventoEntries.filter(e => e.tipoCumplimiento === 'con_perjuicio').map(e => e.teacherId)
+        eventoEntries.filter(e => e.tipoCumplimiento === 'CON_PERJUICIO').map(e => e.teacherId)
     );
 
     const materiaEntries = getScheduleEntriesForDate(todayStr)
@@ -5957,7 +5957,7 @@ function renderDocentesEsperadosHoy() {
         // materia normal de un vistazo (ver getEventoEntriesParaHoy()).
         const claseFila = e.esEvento ? 'semaforo-row semaforo-row-evento' : 'semaforo-row';
         const badgeCumplimiento = e.esEvento
-            ? `<span class="badge-cumplimiento ${e.tipoCumplimiento === 'sin_perjuicio' ? 'badge-sin-perjuicio' : 'badge-con-perjuicio'}">${e.tipoCumplimiento === 'sin_perjuicio' ? 'SIN perjuicio' : 'CON perjuicio'}</span>`
+            ? `<span class="badge-cumplimiento ${e.tipoCumplimiento === 'SIN_PERJUICIO' ? 'badge-sin-perjuicio' : 'badge-con-perjuicio'}">${e.tipoCumplimiento === 'SIN_PERJUICIO' ? 'SIN perjuicio' : 'CON perjuicio'}</span>`
             : '';
         const etiquetaMateria = e.esEvento ? `<i class="bi bi-calendar-event"></i> Evento: ${e.materiaNombre}` : e.materiaNombre;
         return `

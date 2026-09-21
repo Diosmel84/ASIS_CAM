@@ -256,8 +256,8 @@ create table if not exists evento_especial (
     -- las tarjetas de materia). Sin perjuicio: va al evento Y además
     -- debe dar clases igual - son dos obligaciones independientes, cada
     -- una con su propio fichaje y su propia Falta si no cumple.
-    tipo_cumplimiento text not null default 'con_perjuicio'
-        constraint evento_especial_tipo_cumplimiento_check check (tipo_cumplimiento in ('con_perjuicio', 'sin_perjuicio')),
+    tipo_cumplimiento text not null default 'CON_PERJUICIO'
+        constraint evento_especial_tipo_cumplimiento_check check (tipo_cumplimiento in ('CON_PERJUICIO', 'SIN_PERJUICIO')),
     created_at        timestamptz not null default now(),
     constraint unique_evento_titulo_inicio unique (titulo, fecha_inicio)  -- freno anti doble-clic en "Guardar"
 );

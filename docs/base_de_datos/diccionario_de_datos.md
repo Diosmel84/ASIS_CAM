@@ -91,7 +91,7 @@ un almacén clave/valor (`app_data`).
 | geocerca_lat | double precision | SÍ | — | Solo si `tiene_geocerca`. |
 | geocerca_lng | double precision | SÍ | — | Solo si `tiene_geocerca`. |
 | geocerca_radio | integer | SÍ | — | Metros. Solo si `tiene_geocerca`. |
-| tipo_cumplimiento | text | NO | `'con_perjuicio'` | `'con_perjuicio'` (el docente solo va al evento, no da clases ese día) o `'sin_perjuicio'` (va al evento Y da clases igual - obligaciones separadas). Check constraint. |
+| tipo_cumplimiento | text | NO | `'CON_PERJUICIO'` | `'CON_PERJUICIO'` (el docente solo va al evento, no da clases ese día) o `'SIN_PERJUICIO'` (va al evento Y da clases igual - obligaciones separadas). Check constraint. |
 | created_at | timestamptz | NO | `now()` | |
 
 ### `evento_docente`
