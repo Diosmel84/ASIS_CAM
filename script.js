@@ -1325,10 +1325,13 @@ function getCriteria() {
         // Criterios de puntualidad (semáforo de "Docentes que deberían
         // presentarse hoy" en Inicio, ver getDocentesEsperadosHoy()):
         // minutos desde la hora asignada, cada uno el techo del
-        // anterior. Defaults 10/15/20 pedidos explícitamente.
-        limitePresenteMin: criteria.limitePresenteMin ?? 10,
-        limiteTardanzaMin: criteria.limiteTardanzaMin ?? 15,
-        limiteMediaFaltaMin: criteria.limiteMediaFaltaMin ?? 20,
+        // anterior. Defaults en CRITERIA_PUNTUALIDAD_DEFAULT
+        // (presencia-logic.js): 15/30/60, pedidos explícitamente por el
+        // instituto (0-15 Presente, 16-30 Tardanza, 31-60 Media Falta,
+        // +60 Ausente) - reemplaza al default viejo de 10/15/20.
+        limitePresenteMin: criteria.limitePresenteMin ?? CRITERIA_PUNTUALIDAD_DEFAULT.limitePresenteMin,
+        limiteTardanzaMin: criteria.limiteTardanzaMin ?? CRITERIA_PUNTUALIDAD_DEFAULT.limiteTardanzaMin,
+        limiteMediaFaltaMin: criteria.limiteMediaFaltaMin ?? CRITERIA_PUNTUALIDAD_DEFAULT.limiteMediaFaltaMin,
     };
 }
 function saveCriteriaToStorage(criteria) { dataStore.criteria = criteria; persistToSupabase('criteria', criteria); }
@@ -5681,33 +5684,13 @@ function getScheduleEntriesForDate(dateStr) {
 // ============================================================
 // INICIO: "Docentes que deberían presentarse hoy" (semáforo de
 // puntualidad, ver Configuración > Criterios de Puntualidad).
+// SEMAFORO_PUNTUALIDAD/SEMAFORO_ORDEN/calcularSemaforoPuntualidad/
+// CRITERIA_PUNTUALIDAD_DEFAULT viven en presencia-logic.js (cargado
+// ANTES que este script en index.html, así que quedan disponibles acá
+// como globales) para que test-presencia.js pueda testear la lógica
+// real con node, sin duplicar la función y arriesgar que las dos
+// copias se desincronicen.
 // ============================================================
-const SEMAFORO_PUNTUALIDAD = {
-    esperado:    { color: '#9ca3af', label: 'Esperado' },
-    presente:    { color: '#22c55e', label: 'Presente' },
-    tardanza:    { color: '#eab308', label: 'Tardanza' },
-    media_falta: { color: '#f97316', label: 'Media Falta' },
-    ausente:     { color: '#ef4444', label: 'Ausente' },
-};
-// Orden de la lista pedido: rojo, naranja, amarillo, gris, verde.
-const SEMAFORO_ORDEN = { ausente: 0, media_falta: 1, tardanza: 2, esperado: 3, presente: 4 };
-
-// elapsedMin: minutos desde la hora asignada (null si todavía no llegó
-// esa hora). yaFicho: si ya hay un fichaje de entrada para este bloque.
-// Regla pedida: mientras no fichó, se queda "Esperado" (gris) hasta que
-// se cumple limiteMediaFaltaMin sin fichar -> ahí pasa directo a
-// "Ausente" (rojo). Si fichó, el color depende de en qué franja cayó
-// esa hora real, sin importar si ya se hubiera "vencido" el margen.
-function calcularSemaforoPuntualidad(elapsedMin, criteria, yaFicho) {
-    if (yaFicho) {
-        if (elapsedMin <= criteria.limitePresenteMin) return { code: 'presente', ...SEMAFORO_PUNTUALIDAD.presente };
-        if (elapsedMin <= criteria.limiteTardanzaMin) return { code: 'tardanza', ...SEMAFORO_PUNTUALIDAD.tardanza };
-        if (elapsedMin <= criteria.limiteMediaFaltaMin) return { code: 'media_falta', ...SEMAFORO_PUNTUALIDAD.media_falta };
-        return { code: 'ausente', ...SEMAFORO_PUNTUALIDAD.ausente };
-    }
-    if (elapsedMin == null || elapsedMin <= criteria.limiteMediaFaltaMin) return { code: 'esperado', ...SEMAFORO_PUNTUALIDAD.esperado };
-    return { code: 'ausente', ...SEMAFORO_PUNTUALIDAD.ausente };
-}
 
 // Reutiliza getScheduleEntriesForDate() (mismo cruce horario+asistencia
 // que el calendario/grilla) y le suma el semáforo de puntualidad de
@@ -5757,7 +5740,15 @@ function renderDocentesEsperadosHoy() {
     }
     container.innerHTML = entries.map(e => {
         const cursoTxt = e.carreraNombre ? `${e.carreraNombre} - ${e.anio}° Año` : '';
-        const horaTxt = e.entryRecord && e.entryRecord.time ? ` · fichó ${e.entryRecord.time.slice(0, 5)}` : '';
+        // "(fuera de horario)": aclara el caso que confunde a primera
+        // vista - SÍ fichó, pero tan tarde respecto del inicio del
+        // bloque (no de la duración de la clase) que ya cae en Media
+        // Falta/Ausente. Sin esto, un admin ve "fichó 21:50" al lado de
+        // un badge rojo "Ausente" y no entiende por qué.
+        const fueraDeHorario = e.entryRecord && (e.semaforo.code === 'media_falta' || e.semaforo.code === 'ausente');
+        const horaTxt = e.entryRecord && e.entryRecord.time
+            ? ` · fichó ${e.entryRecord.time.slice(0, 5)}${fueraDeHorario ? ' (fuera de horario)' : ''}`
+            : '';
         return `
             <div class="semaforo-row" style="border-left-color:${e.semaforo.color}">
                 <div class="semaforo-row-main">

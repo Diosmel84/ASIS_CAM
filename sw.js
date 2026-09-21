@@ -22,7 +22,7 @@
  * sincroniza sola al reconectar.
  */
 
-const CACHE_VERSION = "v4";
+const CACHE_VERSION = "v5";
 const CACHE_NAME = "asiscam-cache-" + CACHE_VERSION;
 
 // App shell: mismo origen que este service worker.
@@ -30,6 +30,7 @@ const APP_SHELL_URLS = [
   "./",
   "./index.html",
   "./style.css",
+  "./presencia-logic.js",
   "./script.js",
   "./liveness.js",
 ];
@@ -108,6 +109,7 @@ function isAppShellRequest(url) {
     url.pathname === "/" ||
     url.pathname.endsWith("/index.html") ||
     url.pathname.endsWith("/style.css") ||
+    url.pathname.endsWith("/presencia-logic.js") ||
     url.pathname.endsWith("/script.js") ||
     url.pathname.endsWith("/liveness.js")
   );

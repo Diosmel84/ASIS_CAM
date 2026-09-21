@@ -522,9 +522,9 @@
                     <h4><i class="bi bi-stoplights"></i> Criterios de Puntualidad</h4>
                     <p class="text-muted">Umbrales del semáforo de "Docentes que deberían presentarse hoy" (pestaña Inicio). Solo Rectoría puede editarlos.</p>
                     <div class="row">
-                        <div class="col-md-4"><div class="form-group"><label>Límite Presente (min)</label><input type="number" class="form-control" id="limitePresenteMin" value="10" min="0" oninput="actualizarLeyendaCriteriosPuntualidad()"></div></div>
-                        <div class="col-md-4"><div class="form-group"><label>Límite Tardanza (min)</label><input type="number" class="form-control" id="limiteTardanzaMin" value="15" min="0" oninput="actualizarLeyendaCriteriosPuntualidad()"></div></div>
-                        <div class="col-md-4"><div class="form-group"><label>Límite Media Falta (min)</label><input type="number" class="form-control" id="limiteMediaFaltaMin" value="20" min="0" oninput="actualizarLeyendaCriteriosPuntualidad()"></div></div>
+                        <div class="col-md-4"><div class="form-group"><label>Límite Presente (min)</label><input type="number" class="form-control" id="limitePresenteMin" value="15" min="0" oninput="actualizarLeyendaCriteriosPuntualidad()"></div></div>
+                        <div class="col-md-4"><div class="form-group"><label>Límite Tardanza (min)</label><input type="number" class="form-control" id="limiteTardanzaMin" value="30" min="0" oninput="actualizarLeyendaCriteriosPuntualidad()"></div></div>
+                        <div class="col-md-4"><div class="form-group"><label>Límite Media Falta (min)</label><input type="number" class="form-control" id="limiteMediaFaltaMin" value="60" min="0" oninput="actualizarLeyendaCriteriosPuntualidad()"></div></div>
                     </div>
                     <ul class="small text-muted mb-3">
                         <li>Presente: desde la hora asignada hasta <strong id="leyendaPresenteMax">10</strong> min</li>
@@ -1201,6 +1201,7 @@
     <script src="config.example.js"></script>
     <script src="roles.js"></script>
     <script src="auditoria.js"></script>
+    <script src="presencia-logic.js"></script>
     <script src="script.js"></script>
     <script src="liveness.js"></script>
     <script src="src/utils/checkSuscripcion.js"></script>
