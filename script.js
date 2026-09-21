@@ -1034,6 +1034,52 @@ function deauthorizeKiosk() {
 
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const FULL_DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+// ============================================================
+// FECHA/HORA EN ARGENTINA: fuente única para "hoy"/"ahora" en toda
+// la lógica de asistencia (fichaje, faltas, "Esperados Hoy", ventana
+// de salida). Argentina está en UTC-3 todo el año (no tiene horario
+// de verano desde 2009), pero acá se fuerza la zona horaria EXPLÍCITA
+// con Intl en vez de confiar en:
+//   - new Date().toISOString() -> SIEMPRE es UTC, nunca la hora de
+//     Argentina.
+//   - new Date().getDay()/getHours() -> usan la zona horaria que
+//     tenga configurada el propio dispositivo (PC de secretaría,
+//     tablet de kiosco, celular del docente), que puede estar mal
+//     puesta o en otro huso.
+//
+// Bug real reportado ("Esperados Hoy" en 0 / día equivocado): varias
+// funciones de fichaje guardaban `date` con toISOString() (UTC) pero
+// calculaban a qué día de la semana correspondía ("todayDay") con
+// getDay() (hora local del dispositivo). A partir de las 21hs en
+// Argentina, toISOString() YA está en el día siguiente en UTC (21:50
+// ARG = 00:50 UTC del día siguiente) mientras que getDay() todavía
+// decía el día real - un fichaje de esa franja horaria quedaba
+// guardado con la fecha de MAÑANA, y dejaba de calzar con el bloque
+// de horario de HOY en "Esperados Hoy", "Mi último fichaje", Fichaje
+// Manual, etc. Reemplaza todos los new Date().toISOString()/getDay()/
+// getHours() usados para "hoy"/"ahora" en fichaje y asistencia.
+const ARGENTINA_TZ = 'America/Argentina/Buenos_Aires';
+function getFechaHoyArgentina(date) {
+    // en-CA imprime directo en formato YYYY-MM-DD (mismo formato que
+    // ya usaba toISOString().split('T')[0] en todos lados).
+    return (date || new Date()).toLocaleDateString('en-CA', { timeZone: ARGENTINA_TZ });
+}
+function getDiaSemanaArgentina(date) {
+    const nombre = (date || new Date()).toLocaleDateString('es-AR', { timeZone: ARGENTINA_TZ, weekday: 'long' });
+    return nombre.charAt(0).toUpperCase() + nombre.slice(1); // 'lunes' -> 'Lunes', matchea FULL_DAYS/DAYS
+}
+function getHoraHHMMArgentina(date) {
+    return (date || new Date()).toLocaleTimeString('es-AR', { timeZone: ARGENTINA_TZ, hour: '2-digit', minute: '2-digit', hour12: false });
+}
+function getHoraHHMMSSArgentina(date) {
+    return (date || new Date()).toLocaleTimeString('es-AR', { timeZone: ARGENTINA_TZ, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+}
+function getMinutosDesdeMedianocheArgentina(date) {
+    const [h, m] = getHoraHHMMArgentina(date).split(':').map(Number);
+    return h * 60 + m;
+}
+
 const START_HOUR = 7;
 const END_HOUR = 23;
 const SCHEDULE_CALENDAR_YEAR = 2026;
@@ -3224,7 +3270,7 @@ function submitKioskAuthorizeCode() {
 // automático que genera esa función sí cuenta normal.
 function hasEntryToday(teacherId, categoria, eventoId) {
     categoria = categoria || 'regular';
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getFechaHoyArgentina();
     return getAttendance().some(a => a.teacherId === teacherId && a.type === 'entry' && a.date === todayStr &&
         (a.categoria || 'regular') === categoria &&
         (categoria !== 'evento' || a.eventoId === eventoId) && !a.anulado);
@@ -3368,7 +3414,7 @@ const TIPO_FICHAJE_LABEL = { entry: 'Entrada', exit: 'Salida', early_exit: 'Sali
 function renderMiUltimoFichaje() {
     const box = document.getElementById('miUltimoFichajeBox');
     if (!box || !currentUser || currentUser.role !== 'teacher') return;
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getFechaHoyArgentina();
     const propios = getAttendance().filter(a => a.teacherId === currentUser.id && a.date === todayStr && (a.categoria || 'regular') === 'regular' && !a.anulado);
     if (propios.length === 0) { box.innerHTML = ''; return; }
     const ultimo = propios.slice().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
@@ -3390,12 +3436,12 @@ function calcularEstadoFichajeAutomatico(teacher, type, now, time) {
     if (type !== 'entry') return 'present';
     const criteria = getCriteria();
     const lateLimit = criteria.lateLimit || 15;
-    const todayDay = FULL_DAYS[now.getDay()];
+    const todayDay = getDiaSemanaArgentina(now);
     const earliestStart = getEarliestScheduleTime(teacher, todayDay, materiaFichajeSeleccionada);
     if (!earliestStart) return 'present';
     const [startH, startM] = earliestStart.split(':').map(Number);
     const scheduledMinutes = startH * 60 + startM;
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const nowMinutes = getMinutosDesdeMedianocheArgentina(now);
     if (nowMinutes > scheduledMinutes + lateLimit) {
         createAlert(teacher, 'Tardanza', `Llegó tarde (${time}). Hora prevista: ${earliestStart}. Más de ${lateLimit} minutos de retraso.`);
         return 'late';
@@ -3428,8 +3474,8 @@ async function anularYRegenerarPropioFichaje(id) {
     }
 
     const now = new Date();
-    const date = now.toISOString().split('T')[0];
-    const time = now.toTimeString().split(' ')[0];
+    const date = getFechaHoyArgentina(now);
+    const time = getHoraHHMMSSArgentina(now);
     const attStatus = calcularEstadoFichajeAutomatico(currentUser, record.type, now, time);
 
     record.anulado = true;
@@ -3706,8 +3752,7 @@ function getEventoExitInfo(eventoInfo) {
     if (!scheduledEnd) return { isExitTime: false, scheduledEnd: null };
     const [endH, endM] = scheduledEnd.split(':').map(Number);
     const scheduledMinutes = endH * 60 + endM;
-    const now = new Date();
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const nowMinutes = getMinutosDesdeMedianocheArgentina();
     const tolerance = CONFIG.EXIT_TOLERANCE_MINUTES;
     return { isExitTime: nowMinutes >= (scheduledMinutes - tolerance), scheduledEnd };
 }
@@ -3719,8 +3764,8 @@ function registerFaceEventoAttendance(type, teacher, eventoInfo, geo) {
     if ((type === 'exit' || type === 'early_exit') && (!yaEntro || yaSalio)) { showToast('⚠️ Todavía no registraste tu ingreso a este evento.', 'warning'); return false; }
 
     const now = new Date();
-    const date = now.toISOString().split('T')[0];
-    const time = now.toTimeString().split(' ')[0];
+    const date = getFechaHoyArgentina(now);
+    const time = getHoraHHMMSSArgentina(now);
     let attStatus = 'present';
 
     if (type === 'entry') {
@@ -3730,7 +3775,7 @@ function registerFaceEventoAttendance(type, teacher, eventoInfo, geo) {
             const lateLimit = criteria.lateLimit || 15;
             const [startH, startM] = earliestStart.split(':').map(Number);
             const scheduledMinutes = startH * 60 + startM;
-            const nowMinutes = now.getHours() * 60 + now.getMinutes();
+            const nowMinutes = getMinutosDesdeMedianocheArgentina(now);
             if (nowMinutes > scheduledMinutes + lateLimit) {
                 attStatus = 'late';
                 createAlert(teacher, 'Tardanza Evento', `Llegó tarde al evento "${eventoInfo.titulo}" (${time}). Hora prevista: ${earliestStart}.`);
@@ -3964,20 +4009,20 @@ function registerAttendance(type, geo) {
     }
 
     const now = new Date();
-    const date = now.toISOString().split('T')[0];
-    const time = now.toTimeString().split(' ')[0];
+    const date = getFechaHoyArgentina(now);
+    const time = getHoraHHMMSSArgentina(now);
     const status = document.getElementById('faceRecognitionStatus');
     let attStatus = 'present';
     const criteria = getCriteria();
     const lateLimit = criteria.lateLimit || 15;
 
     if (type === 'entry') {
-        const todayDay = FULL_DAYS[now.getDay()];
+        const todayDay = getDiaSemanaArgentina(now);
         const earliestStart = getEarliestScheduleTime(recognizedTeacher, todayDay, materiaFichajeSeleccionada);
         if (earliestStart) {
             const [startH, startM] = earliestStart.split(':').map(Number);
             const scheduledMinutes = startH * 60 + startM;
-            const nowMinutes = now.getHours() * 60 + now.getMinutes();
+            const nowMinutes = getMinutosDesdeMedianocheArgentina(now);
             if (nowMinutes > scheduledMinutes + lateLimit) {
                 attStatus = 'late';
                 createAlert(recognizedTeacher, 'Tardanza', `Llegó tarde (${time}). Hora prevista: ${earliestStart}. Más de ${lateLimit} minutos de retraso.`);
@@ -3995,7 +4040,7 @@ function registerAttendance(type, geo) {
     // "Salida" manipulando el DOM o llame a esta función desde la
     // consola, el registro se rechaza si en verdad no es la hora.
     const teacherFullName = `${recognizedTeacher.apellido} ${recognizedTeacher.nombre}`;
-    const todayDay = FULL_DAYS[now.getDay()];
+    const todayDay = getDiaSemanaArgentina(now);
     const exitInfo = getExitWindowInfo(recognizedTeacher, materiaFichajeSeleccionada);
 
     if (type === 'exit' && !exitInfo.isExitTime) {
@@ -4071,7 +4116,7 @@ let manualAttendanceTeacherId = null;
 
 function hasExitToday(teacherId, categoria, eventoId) {
     categoria = categoria || 'regular';
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getFechaHoyArgentina();
     return getAttendance().some(a => a.teacherId === teacherId && (a.type === 'exit' || a.type === 'early_exit') && a.date === todayStr &&
         (a.categoria || 'regular') === categoria &&
         (categoria !== 'evento' || a.eventoId === eventoId) && !a.anulado);
@@ -4100,7 +4145,7 @@ function buildFichajeManualBlock(teacher, categoria, eventoId, onclickArgs, fnNa
         entrada: categoria === 'evento' ? 'Ingreso Manual a Evento' : 'Ingreso Manual',
         salida: categoria === 'evento' ? 'Salida Manual de Evento' : 'Salida Manual',
     };
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getFechaHoyArgentina();
     const registros = getAttendance().filter(a => a.teacherId === teacher.id && a.date === todayStr &&
         (a.categoria || 'regular') === categoria && (categoria !== 'evento' || a.eventoId === eventoId));
     const entrada = registros.find(a => a.type === 'entry');
@@ -4178,8 +4223,8 @@ function registerManualAttendance(type, categoria, eventoId) {
     if (type === 'exit' && (!yaEntro || yaSalio)) { showToast('⚠️ No corresponde registrar salida en este estado', 'warning'); return; }
 
     const now = new Date();
-    const date = now.toISOString().split('T')[0];
-    const time = now.toTimeString().split(' ')[0];
+    const date = getFechaHoyArgentina(now);
+    const time = getHoraHHMMSSArgentina(now);
     let attStatus = 'present';
     const criteria = getCriteria();
     const lateLimit = criteria.lateLimit || 15;
@@ -4187,11 +4232,11 @@ function registerManualAttendance(type, categoria, eventoId) {
     if (type === 'entry') {
         const earliestStart = categoria === 'evento'
             ? ((eventoInfo.hora_entrada || '').slice(0, 5) || null)
-            : getEarliestScheduleTime(teacher, FULL_DAYS[now.getDay()]);
+            : getEarliestScheduleTime(teacher, getDiaSemanaArgentina(now));
         if (earliestStart) {
             const [startH, startM] = earliestStart.split(':').map(Number);
             const scheduledMinutes = startH * 60 + startM;
-            const nowMinutes = now.getHours() * 60 + now.getMinutes();
+            const nowMinutes = getMinutosDesdeMedianocheArgentina(now);
             if (nowMinutes > scheduledMinutes + lateLimit) {
                 attStatus = 'late';
                 if (categoria === 'evento') {
@@ -4308,12 +4353,12 @@ function getLatestScheduleEndTime(teacher, dayName, materiaId) {
 // como salida antes de tiempo (queda pendiente de autorización).
 function getExitWindowInfo(teacher, materiaId) {
     const now = new Date();
-    const todayDay = FULL_DAYS[now.getDay()];
+    const todayDay = getDiaSemanaArgentina(now);
     const scheduledEnd = getLatestScheduleEndTime(teacher, todayDay, materiaId);
     if (!scheduledEnd) return { isExitTime: false, scheduledEnd: null };
     const [endH, endM] = scheduledEnd.split(':').map(Number);
     const scheduledMinutes = endH * 60 + endM;
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const nowMinutes = getMinutosDesdeMedianocheArgentina(now);
     const tolerance = CONFIG.EXIT_TOLERANCE_MINUTES;
     const isExitTime = nowMinutes >= (scheduledMinutes - tolerance);
     return { isExitTime, scheduledEnd };
@@ -4563,7 +4608,7 @@ function teacherHasEventoOnDate(teacherId, dateStr) {
 // que loadAdminDashboard() garantiza fresco antes de que el admin
 // pueda abrir el modal de Fichaje Manual.
 function getEventosDeHoyParaDocente(teacherId) {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getFechaHoyArgentina();
     const eventos = eventoConvocatoriasPorDocente[Number(teacherId)] || [];
     const eventosDeHoy = eventos.filter(ev => ev.fecha === todayStr);
     // Deduplicar por id_evento: si evento_docente tiene más de una
@@ -5487,8 +5532,8 @@ function checkFaltas() {
     const criteria = getCriteria();
     const lateLimit = criteria.lateLimit || 15;
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const todayStr = getFechaHoyArgentina(now);
+    const nowMinutes = getMinutosDesdeMedianocheArgentina(now);
     let created = false;
 
     teachers.forEach(teacher => {
@@ -5547,8 +5592,8 @@ function checkFaltasEvento() {
     const criteria = getCriteria();
     const lateLimit = criteria.lateLimit || 15;
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const todayStr = getFechaHoyArgentina(now);
+    const nowMinutes = getMinutosDesdeMedianocheArgentina(now);
     let created = false;
 
     teachers.forEach(teacher => {
@@ -5623,8 +5668,8 @@ function getScheduleEntriesForDate(dateStr) {
     const criteria = getCriteria();
     const lateLimit = criteria.lateLimit || 15;
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const todayStr = getFechaHoyArgentina(now);
+    const nowMinutes = getMinutosDesdeMedianocheArgentina(now);
     const carrerasPorId = {};
     (typeof currentCarreras !== 'undefined' ? currentCarreras : []).forEach(c => { carrerasPorId[c.id] = c.nombre; });
     const materiasPorId = {};
@@ -5697,10 +5742,10 @@ function getScheduleEntriesForDate(dateStr) {
 // cada bloque de hoy. Las licencias no cuentan como "debería
 // presentarse" - se excluyen.
 function getDocentesEsperadosHoy() {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const criteria = getCriteria();
     const now = new Date();
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const todayStr = getFechaHoyArgentina(now);
+    const criteria = getCriteria();
+    const nowMinutes = getMinutosDesdeMedianocheArgentina(now);
     return getScheduleEntriesForDate(todayStr)
         .filter(e => e.status !== 'licencia')
         .map(e => {
@@ -5733,6 +5778,13 @@ function getDocentesEsperadosHoyPorDocente() {
 function renderDocentesEsperadosHoy() {
     const container = document.getElementById('docentesEsperadosHoyList');
     if (!container || !currentUser || currentUser.role !== 'admin') return;
+    // Cartelito de debug pedido: "hoy" y "ahora" calculados con la hora
+    // de Argentina explícita (ver ARGENTINA_TZ), no con el reloj/huso del
+    // dispositivo - así se puede confirmar de un vistazo si un reporte
+    // de "no aparecen los docentes de hoy" es un problema real del
+    // horario cargado o el dispositivo tenía la fecha/hora mal.
+    const debugEl = document.getElementById('hoyArgentinaDebug');
+    if (debugEl) debugEl.textContent = `Hoy es: ${getDiaSemanaArgentina()} ${getFechaHoyArgentina()} - ${getHoraHHMMArgentina()} ARG`;
     const entries = getDocentesEsperadosHoy();
     if (entries.length === 0) {
         container.innerHTML = '<p class="text-muted mb-0">No hay docentes con clase asignada hoy.</p>';
@@ -5773,8 +5825,12 @@ function renderDocentesEsperadosHoy() {
 // Lunes..Domingo (alineado con DAYS) de la semana actual + offset
 // semanas (0 = esta semana, -1 = anterior, 1 = siguiente).
 function getWeekDates(offsetWeeks) {
-    const now = new Date();
-    const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    // "Hoy" en Argentina (no en la zona horaria del dispositivo, ver
+    // ARGENTINA_TZ): a partir de ahí, el resto es aritmética de
+    // calendario pura en UTC (para no pisarse con horario de verano de
+    // otros husos, aunque Argentina ya no lo tenga).
+    const [yy, mm, dd] = getFechaHoyArgentina().split('-').map(Number);
+    const today = new Date(Date.UTC(yy, mm - 1, dd));
     const dow = today.getUTCDay(); // 0=Domingo..6=Sábado
     const diffToMonday = dow === 0 ? -6 : 1 - dow;
     const monday = new Date(today);
@@ -5887,7 +5943,7 @@ function renderFullScheduleGrid() {
     }
 
     const weekDates = getWeekDates(grillaSemanaOffset);
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getFechaHoyArgentina();
 
     const entriesByDate = {};
     weekDates.forEach(dateStr => { entriesByDate[dateStr] = getScheduleEntriesForDate(dateStr).filter(entryPasaFiltroGrilla); });
@@ -6122,7 +6178,7 @@ function generateIndividualReport(teacherId) {
     if (!teacher) return;
     document.getElementById('reportTeacher').value = teacherId;
     document.getElementById('reportFrom').value = teacher.createdAt ? teacher.createdAt.split('T')[0] : `${SCHEDULE_CALENDAR_YEAR}-01-01`;
-    document.getElementById('reportTo').value = new Date().toISOString().split('T')[0];
+    document.getElementById('reportTo').value = getFechaHoyArgentina();
     generateReport();
 }
 
@@ -6141,8 +6197,8 @@ function showTeacherCalendar(teacherId) {
     const criteria = getCriteria();
     const lateLimit = criteria.lateLimit || 15;
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const todayStr = getFechaHoyArgentina(now);
+    const nowMinutes = getMinutosDesdeMedianocheArgentina(now);
 
     document.getElementById('calendarModalTitle').textContent =
         `Calendario ${SCHEDULE_CALENDAR_YEAR} — ${teacher.apellido} ${teacher.nombre}`;
@@ -6187,14 +6243,16 @@ function showTeacherCalendar(teacherId) {
 // getScheduleEntriesForDate()); las licencias quedan incluidas como
 // un estado más (no se resta el día, se marca aparte).
 function showAnnualCalendar() {
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    // "Hoy" en Argentina (ver ARGENTINA_TZ) como año/mes/día de
+    // calendario puro, no la hora del dispositivo.
+    const [todayYear, todayMonth, todayDayNum] = getFechaHoyArgentina().split('-').map(Number);
+    const todayStr = `${todayYear}-${String(todayMonth).padStart(2, '0')}-${String(todayDayNum).padStart(2, '0')}`;
 
     // Mapa fecha -> entradas (materia+docente+estado) de ese día, desde
     // hoy hasta el 31/12 de SCHEDULE_CALENDAR_YEAR.
     const byDate = {};
-    const startTime = now.getFullYear() === SCHEDULE_CALENDAR_YEAR
-        ? Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+    const startTime = todayYear === SCHEDULE_CALENDAR_YEAR
+        ? Date.UTC(todayYear, todayMonth - 1, todayDayNum)
         : Date.UTC(SCHEDULE_CALENDAR_YEAR, 0, 1);
     const endTime = Date.UTC(SCHEDULE_CALENDAR_YEAR, 11, 31);
     for (let t = startTime; t <= endTime; t += 86400000) {
@@ -6205,8 +6263,7 @@ function showAnnualCalendar() {
     annualCalendarByDate = byDate;
 
     const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-    const todayDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-    const startMonth = todayDate.getUTCFullYear() === SCHEDULE_CALENDAR_YEAR ? todayDate.getUTCMonth() : 0;
+    const startMonth = todayYear === SCHEDULE_CALENDAR_YEAR ? (todayMonth - 1) : 0;
     let html = '';
     for (let m = startMonth; m < 12; m++) {
         html += `<div class="annual-month"><div class="annual-month-title">${monthNames[m]} ${SCHEDULE_CALENDAR_YEAR}</div><div class="annual-month-grid">`;
@@ -6458,7 +6515,7 @@ function exportStatsToPDF() {
     addChartImage('chartBar', 'Presentes y Tardanzas por Docente');
     addChartImage('chartLine', 'Evolución de Registros por Día');
 
-    doc.save(`resumen_estadisticas_${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`resumen_estadisticas_${getFechaHoyArgentina()}.pdf`);
     showToast('✅ Resumen exportado a PDF', 'success');
 }
 
