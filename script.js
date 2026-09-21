@@ -209,8 +209,82 @@ function haversineDistanceMeters(lat1, lng1, lat2, lng2) {
 function getCurrentPositionPromise(timeoutMs) {
     return new Promise((resolve, reject) => {
         if (!navigator.geolocation) { reject({ code: 'unsupported' }); return; }
-        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: timeoutMs || 15000 });
+        // maximumAge:0 a propósito: nunca reusar una posición cacheada por
+        // el navegador/SO, siempre pedir una lectura fresca (si no, en
+        // algunos Android queda pegada una posición vieja de otra app).
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: timeoutMs || 15000, maximumAge: 0 });
     });
+}
+
+// Reintenta getCurrentPositionPromise hasta 3 veces (1 intento + 2
+// reintentos) antes de dar el GPS por perdido. Bug real reportado: un
+// celular gama media/baja con 4G tarda en conseguir el primer fix de
+// alta precisión y el primer intento tira timeout aunque el usuario
+// esté parado en el punto correcto - con un solo intento eso se
+// traducía en "fuera de rango"/"GPS requerido" de forma intermitente.
+async function getCurrentPositionWithRetry(timeoutMs, intentos) {
+    const maxIntentos = intentos || 3;
+    let ultimoError;
+    for (let i = 1; i <= maxIntentos; i++) {
+        try {
+            const position = await getCurrentPositionPromise(timeoutMs);
+            console.log(`[GPS] posición obtenida en intento ${i}/${maxIntentos}, accuracy:`, position.coords.accuracy);
+            return position;
+        } catch (error) {
+            ultimoError = error;
+            console.error(`[GPS] intento ${i}/${maxIntentos} falló:`, error);
+        }
+    }
+    throw ultimoError;
+}
+
+// Cartelito de debug SIEMPRE visible (también con modo prueba
+// apagado) con la posición propia, precisión, punto objetivo,
+// distancia calculada, radio permitido y resultado. Bug real
+// reportado: docentes paradas en el punto correcto recibían "fuera de
+// rango" sin ninguna forma de ver por qué (a cuántos metros los
+// calculó, qué tan preciso era el GPS, etc.) - esto lo hace visible
+// para poder diagnosticarlo en el momento, en vez de a ciegas.
+// Último resultado de verifyGeofence(), cacheado para poder
+// re-renderizar el cartelito de debug (p. ej. cuando cambia el modo
+// prueba o se agrega ?debug=1) sin tener que pedir GPS de nuevo.
+let lastGeofenceDebugInfo = null;
+
+function renderGeofenceDebugPanel(info) {
+    lastGeofenceDebugInfo = info || lastGeofenceDebugInfo;
+    const panel = document.getElementById('geofenceDebugPanel');
+    if (!panel) return;
+    // Oculto por completo para un docente normal: es info interna
+    // (kiosco/modo prueba/coordenadas exactas) que solo hace falta para
+    // diagnosticar un problema puntual, no para el uso diario. Ver
+    // esVistaDebugActiva() y el bug real reportado: docentes veían
+    // "Tu kiosco: NO" / "Modo prueba: OFF" sin que signifique nada para
+    // ellos.
+    if (!esVistaDebugActiva()) { panel.classList.add('hidden'); panel.innerHTML = ''; return; }
+
+    const modoPrueba = getModoPrueba();
+    const esKiosco = isThisDeviceKiosk();
+    let html = `<div class="geofence-debug-line">Tu kiosco: ${esKiosco ? 'SI' : 'NO'} — Modo prueba: ${modoPrueba.activo ? 'ON' : 'OFF'}</div>`;
+
+    if (!info) {
+        html += `<div class="geofence-debug-line text-muted">Todavía no se verificó tu ubicación (tocá "Identificarme").</div>`;
+    } else if (info.bypass) {
+        html += `<div class="geofence-debug-line"><i class="bi bi-info-circle"></i> GPS no evaluado (motivo: ${info.bypass})</div>`;
+    } else if (info.reason === 'gps') {
+        html += `<div class="geofence-debug-line text-danger"><i class="bi bi-geo-alt-fill"></i> No se pudo obtener la ubicación GPS</div>`;
+    } else {
+        const resultado = info.ok ? 'DENTRO' : 'FUERA';
+        const claseResultado = info.ok ? 'text-success' : 'text-danger';
+        html += `
+            <div class="geofence-debug-line">Tu posición: ${info.coords.lat.toFixed(6)}, ${info.coords.lng.toFixed(6)}</div>
+            <div class="geofence-debug-line">Precisión GPS: ${info.precision != null ? info.precision + ' m' : 'desconocida'}</div>
+            <div class="geofence-debug-line">Punto objetivo: ${info.geofence.lat.toFixed(6)}, ${info.geofence.lng.toFixed(6)} (${info.geofence.nombreLugar || ''})</div>
+            <div class="geofence-debug-line">Distancia calculada: ${Math.round(info.distance)} m</div>
+            <div class="geofence-debug-line">Radio permitido: ${info.geofence.radio} m (efectivo con margen GPS: ${Math.round(info.radioEfectivo)} m)</div>
+            <div class="geofence-debug-line ${claseResultado}"><strong>Resultado: ${resultado}</strong></div>`;
+    }
+    panel.classList.remove('hidden');
+    panel.innerHTML = html;
 }
 
 // Id único de ESTE navegador/dispositivo (no del usuario: sirve
@@ -300,21 +374,24 @@ async function fetchFreshAppDataValue(key, fallbackGetter) {
 // el radio contra el que se mide la distancia.
 async function verifyGeofence(geofenceOverride) {
     const modoPrueba = await fetchFreshAppDataValue('modoPrueba', getModoPrueba);
-    if (modoPrueba.activo) return { ok: true, bypass: 'modoPrueba' };
-    if (currentUser && currentUser.role === 'admin') return { ok: true, bypass: 'admin' };
+    if (modoPrueba.activo) { renderGeofenceDebugPanel({ bypass: 'modoPrueba' }); return { ok: true, bypass: 'modoPrueba' }; }
+    if (currentUser && currentUser.role === 'admin') { renderGeofenceDebugPanel({ bypass: 'admin' }); return { ok: true, bypass: 'admin' }; }
 
     const kioskPrincipal = await fetchFreshAppDataValue('kioskPrincipal', getKioskPrincipal);
-    if (kioskPrincipal && kioskPrincipal.deviceId === getMyDeviceId()) return { ok: true, bypass: 'kiosk' };
+    if (kioskPrincipal && kioskPrincipal.deviceId === getMyDeviceId()) { renderGeofenceDebugPanel({ bypass: 'kiosk' }); return { ok: true, bypass: 'kiosk' }; }
 
     // Sin conexión, no tiene sentido hacerlo esperar los 15s completos:
     // sin datos móviles que asistan al GPS (A-GPS), conseguir una
-    // posición puede tardar mucho más que eso, así que se corta antes.
+    // posición puede tardar mucho más que eso, así que se corta antes
+    // (y sin reintentos: cada intento ya come varios segundos).
     const isOffline = !navigator.onLine;
     let position;
     try {
-        position = await getCurrentPositionPromise(isOffline ? 5000 : 15000);
+        position = isOffline
+            ? await getCurrentPositionPromise(5000)
+            : await getCurrentPositionWithRetry(15000, 3);
     } catch (error) {
-        console.error('No se pudo obtener la ubicación GPS:', error);
+        console.error('No se pudo obtener la ubicación GPS (agotados los reintentos):', error);
         // Sin conexión Y sin GPS: el reconocimiento facial (que ya se
         // hizo, y funciona 100% offline con los modelos autohospedados)
         // es la garantía fuerte de identidad acá. Bloquear el fichaje
@@ -323,12 +400,21 @@ async function verifyGeofence(geofenceOverride) {
         // deja pasar, marcado como pendiente de validar la ubicación
         // cuando vuelva la conexión (ver revalidatePendingGeofenceAttendance).
         if (isOffline) {
+            renderGeofenceDebugPanel({ bypass: 'offline_sin_gps' });
             return { ok: true, bypass: 'offline_sin_gps', pendingGeofence: true, coords: getLastKnownCoords() };
         }
+        renderGeofenceDebugPanel({ reason: 'gps' });
         return { ok: false, reason: 'gps' };
     }
     saveLastKnownCoords(position.coords);
-    const geofence = geofenceOverride || await fetchFreshAppDataValue('geofence', getGeofenceConfig);
+    const geofenceConfig = geofenceOverride || await fetchFreshAppDataValue('geofence', getGeofenceConfig);
+    // Radio mínimo forzado en código: un radio menor a 150m es
+    // irrealista con el GPS de un celular común en Argentina (con 4G,
+    // sin wifi/A-GPS de calidad, la precisión típica ronda 20-50m y
+    // rebota) - si quedó guardado un radio viejo/menor por error, no
+    // se confía en él para bloquear fichajes.
+    const radioBase = Math.max(Number(geofenceConfig.radio) || 150, 150);
+    const geofence = { ...geofenceConfig, radio: radioBase };
     const distance = haversineDistanceMeters(position.coords.latitude, position.coords.longitude, geofence.lat, geofence.lng);
     // coords real del fichaje (no solo si pasó o no la geocerca): se
     // guarda en el registro de asistencia para el reporte "ubicación
@@ -336,8 +422,22 @@ async function verifyGeofence(geofenceOverride) {
     const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
     const precision = Number.isFinite(position.coords.accuracy) ? Math.round(position.coords.accuracy) : null;
     const fakeGpsSospechoso = esGpsSospechoso(position.coords);
-    if (distance > geofence.radio) return { ok: false, reason: 'geofence', distance, geofence, coords, precision, fakeGpsSospechoso };
-    return { ok: true, distance, geofence, coords, precision, fakeGpsSospechoso };
+    // Buffer por precisión: el GPS de celular nunca da un punto exacto,
+    // da un círculo de "accuracy" metros de radio alrededor del punto
+    // reportado. Si no se descuenta ese margen, alguien parado EN el
+    // punto correcto pero con accuracy=40m puede figurar a 60m y
+    // rebotar contra un radio de 50m. Se suma además un colchón fijo de
+    // 50m para celulares baratos/GPS ruidoso. Bug real reportado:
+    // "fuera de rango" estando físicamente en el lugar.
+    const margen = Number.isFinite(precision) ? precision : 30;
+    const radioEfectivo = geofence.radio + margen + 50;
+    console.log('[GPS] distancia:', Math.round(distance), 'radio:', geofence.radio, 'accuracy:', precision, 'radio efectivo:', Math.round(radioEfectivo));
+    const dentro = distance <= radioEfectivo;
+    const resultado = dentro
+        ? { ok: true, distance, geofence, coords, precision, fakeGpsSospechoso, radioEfectivo }
+        : { ok: false, reason: 'geofence', distance, geofence, coords, precision, fakeGpsSospechoso, radioEfectivo };
+    renderGeofenceDebugPanel(resultado);
+    return resultado;
 }
 
 // Heurística DÉBIL, no detección real: desde un navegador/PWA no hay
@@ -482,8 +582,11 @@ function geoFichajeFields(geo) {
         fichajeFakeGpsSospechoso: !!geo.fakeGpsSospechoso,
         // dentroGeocerca: null cuando el fichaje pasó por un bypass sin
         // geocerca real (admin/kiosco/modo prueba/evento sin geocerca) -
-        // geo.distance no existe en esos casos.
-        dentroGeocerca: geo.distance != null ? geo.distance <= (geo.geofence?.radio ?? Infinity) : null,
+        // geo.distance no existe en esos casos. Se usa geo.ok directo (no
+        // se recalcula acá) porque ya incluye el margen de precisión del
+        // GPS aplicado en verifyGeofence() - recalcular sin ese margen
+        // marcaría como "fuera" fichajes que sí se dejaron pasar.
+        dentroGeocerca: geo.distance != null ? !!geo.ok : null,
         // horaSync/syncUbicacion se completan de verdad en
         // completarDireccionEIp() (fichaje online: enseguida en
         // segundo plano; offline: recién al reconectar, ver
@@ -515,15 +618,24 @@ function showGeofenceBlockModal(result) {
             <p class="text-muted small mb-0">Habilitá el permiso de ubicación de este sitio en tu navegador (o activá el GPS del dispositivo) e intentá de nuevo. El sitio necesita conexión HTTPS para poder pedir tu ubicación.</p>`;
     } else {
         const metros = Math.round(result.distance);
-        const metrosFaltantes = Math.round(result.distance - geofence.radio);
+        // radioEfectivo ya incluye el margen de precisión del GPS + el
+        // colchón fijo (ver verifyGeofence()): es el número real contra
+        // el que se decidió "fuera de rango", así que es el que se le
+        // muestra al docente (mostrar solo geofence.radio confundía,
+        // porque parecía que le faltaban menos metros de los reales).
+        const radioMostrado = result.radioEfectivo != null ? Math.round(result.radioEfectivo) : geofence.radio;
+        const metrosFaltantes = Math.round(result.distance - radioMostrado);
         title.innerHTML = esEvento
             ? '<i class="bi bi-geo-alt-fill"></i> Estás fuera del área del evento'
             : '<i class="bi bi-geo-alt-fill"></i> Fuera de la zona permitida';
         body.innerHTML = esEvento
             ? `<p class="mb-1">Estás a <strong>${metros} mts</strong> de ${geofence.nombreLugar}.</p>
-               <p class="mb-0">Te faltan <strong>${metrosFaltantes} mts</strong> para entrar al radio permitido (${geofence.radio}mts) del evento.</p>`
+               <p class="mb-0">Te faltan <strong>${metrosFaltantes} mts</strong> para entrar al radio permitido (${radioMostrado}mts) del evento.</p>`
             : `<p class="mb-1">Estás a <strong>${metros} mts</strong> de ${geofence.nombreLugar}.</p>
-               <p class="mb-0">Debes estar a menos de ${geofence.radio}mts.</p>`;
+               <p class="mb-0">Debes estar a menos de ${radioMostrado}mts.</p>`;
+        if (Number.isFinite(result.precision)) {
+            body.innerHTML += `<p class="text-muted small mb-0 mt-1">Precisión de tu GPS en este momento: ${result.precision} mts. Probá salir a un lugar más abierto (lejos de paredes/techos) y volver a intentar.</p>`;
+        }
     }
     new bootstrap.Modal(document.getElementById('geofenceModal')).show();
 }
@@ -818,7 +930,7 @@ async function saveGeofenceAdminForm() {
     const radio = parseInt(document.getElementById('geofenceRadius').value, 10);
     const nombreLugar = document.getElementById('geofenceName').value.trim() || DEFAULT_GEOFENCE_CONFIG.nombreLugar;
     if (!validarGeocerca('geofenceLat', 'geofenceLng')) { showToast('Marcá una ubicación en el mapa antes de guardar', 'error'); return; }
-    if (!Number.isFinite(radio) || radio < 50 || radio > 500) { showToast('El radio debe estar entre 50 y 500 metros', 'error'); return; }
+    if (!Number.isFinite(radio) || radio < 150 || radio > 500) { showToast('El radio debe estar entre 150 y 500 metros (con menos, el GPS de un celular común en Argentina rebota y bloquea fichajes válidos)', 'error'); return; }
     const resultado = await persistToSupabaseEsperando('geofence', {
         lat, lng, radio, nombreLugar,
         actualizadoPor: currentUser ? (currentUser.username || currentUser.dni || 'admin') : 'admin',
@@ -2991,37 +3103,66 @@ function seleccionarMateriaFichaje(materiaId) {
     renderMateriaFichajeInfo();
 }
 
-// Indicadores de la "pantalla de fichaje": punto activo, si esta PC
-// es el kiosco autorizado, y si el Modo Prueba está encendido (en
-// cuyo caso nadie necesita geocerca, ni siquiera GPS). También
-// muestra/oculta el link para autorizar esta PC como kiosco.
+// ¿Corresponde mostrarle a ESTE usuario los detalles internos de
+// kiosco/modo prueba (ruido para un docente normal en el día a día)?
+// Solo si modo prueba está prendido (ya afecta a todos, hay que
+// avisar), es admin, o se pidió explícitamente con ?debug=1 en la URL
+// (para que soporte/rectoría pueda diagnosticar un fichaje puntual sin
+// tener que prender modo prueba para todo el mundo).
+function esVistaDebugActiva() {
+    const modoPrueba = getModoPrueba();
+    const esAdmin = !!(currentUser && currentUser.role === 'admin');
+    let debugParam = false;
+    try { debugParam = new URLSearchParams(window.location.search).get('debug') === '1'; } catch (e) { /* URL no parseable: se ignora */ }
+    return modoPrueba.activo || esAdmin || debugParam;
+}
+
+// Indicadores de la "pantalla de fichaje": punto activo (siempre
+// visible, el docente necesita saber a qué lugar está fichando), y si
+// esta PC es el kiosco autorizado / si el Modo Prueba está encendido
+// (eso último queda oculto para un docente normal - ver
+// esVistaDebugActiva() - porque era ruido/info interna que un docente
+// no necesita ver en el día a día; se movió al cartelito de debug de
+// GPS, ver renderGeofenceDebugPanel()). También muestra/oculta el
+// link para autorizar esta PC como kiosco dentro de "Opciones avanzadas".
 function renderFichajeContextBadges() {
     const el = document.getElementById('fichajeContextBadges');
     if (!el) return;
     const geofence = getGeofenceConfig();
     const modoPrueba = getModoPrueba();
     const esKiosco = isThisDeviceKiosk();
+    const debug = esVistaDebugActiva();
 
     let html = `<div class="mb-1"><i class="bi bi-geo-alt"></i> Evento actual: <strong>${geofence.nombreLugar}</strong></div>`;
-    html += `<div class="mb-1">Tu kiosco: ${esKiosco ? '<span class="badge bg-success">SI</span>' : '<span class="badge bg-secondary">NO</span>'}</div>`;
-    html += `<div class="mb-1">Modo prueba: ${modoPrueba.activo ? '<span class="badge bg-danger">ON</span>' : '<span class="badge bg-secondary">OFF</span>'}</div>`;
-    if (modoPrueba.activo) {
-        html += `<div class="alert alert-danger py-1 px-2 small mb-1"><i class="bi bi-exclamation-triangle-fill"></i> MODO PRUEBA ACTIVO — la geocerca está desactivada para todos.</div>`;
-    }
-    if (esKiosco) {
-        html += `<div class="alert alert-success py-1 px-2 small mb-1"><i class="bi bi-pc-display"></i> KIOSCO AUTORIZADO - ${geofence.nombreLugar}</div>`;
-    }
-    if (currentUser && currentUser.role === 'admin') {
-        html += `<div class="alert alert-warning py-1 px-2 small mb-1"><i class="bi bi-person-badge"></i> MODO PRUEBA ADMIN - Geocerca desactivada para tu usuario</div>`;
+    if (debug) {
+        html += `<div class="mb-1">Tu kiosco: ${esKiosco ? '<span class="badge bg-success">SI</span>' : '<span class="badge bg-secondary">NO</span>'}</div>`;
+        html += `<div class="mb-1">Modo prueba: ${modoPrueba.activo ? '<span class="badge bg-danger">ON</span>' : '<span class="badge bg-secondary">OFF</span>'}</div>`;
+        if (modoPrueba.activo) {
+            html += `<div class="alert alert-danger py-1 px-2 small mb-1"><i class="bi bi-exclamation-triangle-fill"></i> MODO PRUEBA ACTIVO — la geocerca está desactivada para todos.</div>`;
+        }
+        if (esKiosco) {
+            html += `<div class="alert alert-success py-1 px-2 small mb-1"><i class="bi bi-pc-display"></i> KIOSCO AUTORIZADO - ${geofence.nombreLugar}</div>`;
+        }
+        if (currentUser && currentUser.role === 'admin') {
+            html += `<div class="alert alert-warning py-1 px-2 small mb-1"><i class="bi bi-person-badge"></i> MODO PRUEBA ADMIN - Geocerca desactivada para tu usuario</div>`;
+        }
     }
     el.innerHTML = html;
 
     const wrap = document.getElementById('kioskAuthorizeWrap');
     if (wrap) wrap.classList.toggle('hidden', esKiosco);
+    renderGeofenceDebugPanel(lastGeofenceDebugInfo);
 }
 
 function toggleKioskAuthorizeForm() {
     document.getElementById('kioskAuthorizeForm').classList.toggle('hidden');
+}
+
+// Sección "Opciones avanzadas" de la vista docente: agrupa lo que no
+// es uso diario (autorizar PC como kiosco, anular el propio fichaje)
+// para que la pantalla principal quede limpia (ver renderFichajeContextBadges()).
+function toggleOpcionesAvanzadasDocente() {
+    document.getElementById('opcionesAvanzadasDocente').classList.toggle('hidden');
 }
 
 // Valida el código de 6 dígitos contra kioskCodes (o "0000" si
@@ -4671,7 +4812,9 @@ async function saveEvento() {
     if (!sb) { showToast('Sin conexión a Supabase, no se puede guardar', 'error'); return; }
 
     // Geocerca del evento: opcional, solo si se tildó el switch. Mismo
-    // rango de radio que la geocerca del colegio (50-500mts).
+    // rango de radio que la geocerca del colegio (150-500mts: menos de
+    // 150m el GPS de un celular común en Argentina rebota y bloquea
+    // fichajes válidos, ver verifyGeofence()).
     let geocercaLat = null, geocercaLng = null, geocercaRadio = null;
     if (tieneGeocerca) {
         geocercaLat = parseFloat(document.getElementById('eventoGeocercaLat').value);
@@ -4681,8 +4824,8 @@ async function saveEvento() {
             showToast('Marcá una ubicación válida para la geocerca del evento (hacé clic en el mapa, buscá una dirección, o usá "Usar mi ubicación actual")', 'error');
             return;
         }
-        if (!Number.isFinite(geocercaRadio) || geocercaRadio < 50 || geocercaRadio > 500) {
-            showToast('El radio de la geocerca del evento debe estar entre 50 y 500 metros', 'error');
+        if (!Number.isFinite(geocercaRadio) || geocercaRadio < 150 || geocercaRadio > 500) {
+            showToast('El radio de la geocerca del evento debe estar entre 150 y 500 metros', 'error');
             return;
         }
     }

@@ -974,6 +974,13 @@ body {
 .models-banner.error { background: var(--gray-hairline); color: var(--ink); border-color: var(--gray-border); }
 .models-banner .spinner-border { width: 0.9rem; height: 0.9rem; }
 
+/* ===== DEBUG DE GEOCERCA (visible siempre, no solo en modo prueba) ===== */
+.geofence-debug-panel {
+    background: var(--gray-50); border: 1px dashed var(--gray-border); border-radius: var(--radius-md);
+    padding: 8px 12px; font-size: 0.75rem; color: var(--ink); margin-top: 8px; font-family: monospace;
+}
+.geofence-debug-line { line-height: 1.5; }
+
 /* ============================================================
    FORMULARIOS (global): inputs grandes y redondeados, sin foco azul
 ============================================================ */

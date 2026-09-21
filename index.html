@@ -544,7 +544,7 @@
                     </div>
                     <div class="form-group">
                         <label>Radio: <strong id="geofenceRadiusLabel">150</strong> metros</label>
-                        <input type="range" class="form-range" id="geofenceRadius" min="50" max="500" step="10" oninput="document.getElementById('geofenceRadiusLabel').textContent = this.value; updateGeocercaCircleRadius('config');">
+                        <input type="range" class="form-range" id="geofenceRadius" min="150" max="500" step="10" oninput="document.getElementById('geofenceRadiusLabel').textContent = this.value; updateGeocercaCircleRadius('config');">
                     </div>
                     <div class="d-flex flex-wrap gap-2 mb-3">
                         <button class="btn btn-primary" id="geofenceSaveBtn" onclick="saveGeofenceAdminForm()"><i class="bi bi-save"></i> Guardar</button>
@@ -728,14 +728,27 @@
                                 <button class="btn btn-exit" id="btnSalida" onclick="registerAttendance('exit')" disabled><i class="bi bi-box-arrow-left"></i> Salida</button>
                                 <button class="btn btn-early-exit" id="btnRetirada" onclick="registerAttendance('early_exit')" disabled><i class="bi bi-clock-history"></i> Salir antes de tiempo</button>
                                 <small class="text-muted d-block mt-1" id="attendanceButtonsHint">Tocá "Identificarme" antes de cada registro (entrada, salida o retirada).</small>
-                                <div id="kioskAuthorizeWrap" class="mt-2 hidden">
-                                    <button class="btn btn-link btn-sm p-0" onclick="toggleKioskAuthorizeForm()"><i class="bi bi-pc-display"></i> ¿Es esta la PC de la escuela? Autorizar con código</button>
-                                    <div id="kioskAuthorizeForm" class="hidden mt-2 d-flex gap-2 align-items-center">
-                                        <input type="text" class="form-control form-control-sm" id="kioskAuthorizeCodeInput" placeholder="Código de 6 dígitos" maxlength="6" style="max-width:160px;">
-                                        <button class="btn btn-sm btn-primary" onclick="submitKioskAuthorizeCode()">Autorizar</button>
+                                <div id="geofenceDebugPanel" class="geofence-debug-panel hidden"></div>
+                                <!-- Vista docente limpia: lo de acá abajo no es para el uso
+                                     diario (autorizar esta PC como kiosco, anular un fichaje
+                                     propio) - queda plegado por defecto para no ensuciar la
+                                     pantalla principal, pero sigue siendo accesible para
+                                     cualquier docente que lo necesite. -->
+                                <div class="mt-2">
+                                    <button class="btn btn-link btn-sm p-0 text-muted" type="button" onclick="toggleOpcionesAvanzadasDocente()">
+                                        <i class="bi bi-three-dots"></i> Opciones avanzadas
+                                    </button>
+                                    <div id="opcionesAvanzadasDocente" class="hidden mt-2">
+                                        <div id="kioskAuthorizeWrap" class="hidden">
+                                            <button class="btn btn-link btn-sm p-0" onclick="toggleKioskAuthorizeForm()"><i class="bi bi-pc-display"></i> ¿Es esta la PC de la escuela? Autorizar con código</button>
+                                            <div id="kioskAuthorizeForm" class="hidden mt-2 d-flex gap-2 align-items-center">
+                                                <input type="text" class="form-control form-control-sm" id="kioskAuthorizeCodeInput" placeholder="Código de 6 dígitos" maxlength="6" style="max-width:160px;">
+                                                <button class="btn btn-sm btn-primary" onclick="submitKioskAuthorizeCode()">Autorizar</button>
+                                            </div>
+                                        </div>
+                                        <div id="miUltimoFichajeBox" class="mt-2"></div>
                                     </div>
                                 </div>
-                                <div id="miUltimoFichajeBox" class="mt-2"></div>
                                 <button class="btn btn-secondary mt-2" id="teacherLogoutBtn" onclick="logout()"><i class="bi bi-box-arrow-right"></i> Salir</button>
                             </div>
                         </div>
@@ -984,7 +997,7 @@
                         <input type="hidden" id="eventoGeocercaLng">
                         <div class="form-group">
                             <label>Radio: <strong id="eventoGeocercaRadioLabel">150</strong> metros</label>
-                            <input type="range" class="form-range" id="eventoGeocercaRadio" min="50" max="500" step="10" value="150" oninput="document.getElementById('eventoGeocercaRadioLabel').textContent = this.value; updateGeocercaCircleRadius('evento');">
+                            <input type="range" class="form-range" id="eventoGeocercaRadio" min="150" max="500" step="10" value="150" oninput="document.getElementById('eventoGeocercaRadioLabel').textContent = this.value; updateGeocercaCircleRadius('evento');">
                         </div>
                         <div class="d-flex flex-wrap gap-2 mb-3">
                             <button type="button" class="btn btn-outline-secondary btn-sm" onclick="useCurrentLocationForEventoGeocerca()"><i class="bi bi-crosshair"></i> Usar mi ubicación actual</button>
