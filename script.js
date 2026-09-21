@@ -4649,7 +4649,7 @@ async function loadEventoConvocatoriasPorDocente() {
         const idsEventos = [...new Set(convocatorias.map(row => row.evento_id))];
         const { data: eventos, error: eventosError } = await sb
             .from('evento_especial')
-            .select('id,escuela_id,titulo,fecha_inicio,fecha_fin,tiene_geocerca,geocerca_lat,geocerca_lng,geocerca_radio,direccion_evento')
+            .select('id,escuela_id,titulo,fecha_inicio,fecha_fin,tiene_geocerca,geocerca_lat,geocerca_lng,geocerca_radio,direccion_evento,tipo_cumplimiento')
             .in('id', idsEventos);
         if (eventosError) throw eventosError;
 
@@ -4668,9 +4668,13 @@ async function loadEventoConvocatoriasPorDocente() {
     }
 }
 
-function teacherHasEventoOnDate(teacherId, dateStr) {
+// Solo cuenta los eventos "con perjuicio de funciones": son los únicos
+// que eximen al docente de su cátedra regular ese día (ver
+// checkFaltas() y getDocentesEsperadosHoy()). Los "sin perjuicio" NO
+// eximen nada - son una obligación aparte, además de la cátedra normal.
+function teacherHasEventoConPerjuicioOnDate(teacherId, dateStr) {
     const eventos = eventoConvocatoriasPorDocente[Number(teacherId)] || [];
-    return eventos.some(ev => ev.fecha === dateStr);
+    return eventos.some(ev => ev.fecha === dateStr && (ev.tipo_cumplimiento || 'con_perjuicio') === 'con_perjuicio');
 }
 
 // Eventos especiales de HOY a los que está convocado un docente.
@@ -4701,7 +4705,7 @@ async function loadEventosEspeciales() {
         // 2 queries separadas (sin join automático) y se cruzan acá.
         const { data: eventosData, error: eventosError } = await sb
             .from('evento_especial')
-            .select('id,escuela_id,titulo,descripcion,fecha_inicio,fecha_fin,tiene_geocerca,geocerca_lat,geocerca_lng,geocerca_radio,direccion_evento')
+            .select('id,escuela_id,titulo,descripcion,fecha_inicio,fecha_fin,tiene_geocerca,geocerca_lat,geocerca_lng,geocerca_radio,direccion_evento,tipo_cumplimiento')
             .order('fecha_inicio', { ascending: false });
         if (eventosError) throw eventosError;
         currentEventos = (eventosData || []).map(normalizeEventoEspecial);
@@ -4764,6 +4768,7 @@ function openEventoModal() {
     document.getElementById('eventoHoraEntrada').value = '';
     document.getElementById('eventoHoraSalida').value = '';
     document.getElementById('eventoLugar').value = '';
+    document.getElementById('eventoTipoCumplimientoCon').checked = true;
     document.getElementById('eventoTieneGeocerca').checked = false;
     document.getElementById('eventoTieneGeocerca').disabled = !tienePermiso(currentUser.rol, 'editar_geo');
     document.getElementById('eventoGeocercaLat').value = '';
@@ -4788,6 +4793,9 @@ async function editEvento(idEvento) {
     document.getElementById('eventoHoraEntrada').value = (ev.hora_entrada || '').slice(0, 5);
     document.getElementById('eventoHoraSalida').value = (ev.hora_salida || '').slice(0, 5);
     document.getElementById('eventoLugar').value = ev.direccion_evento || '';
+    const esSinPerjuicio = ev.tipo_cumplimiento === 'sin_perjuicio';
+    document.getElementById('eventoTipoCumplimientoSin').checked = esSinPerjuicio;
+    document.getElementById('eventoTipoCumplimientoCon').checked = !esSinPerjuicio;
     document.getElementById('eventoTieneGeocerca').checked = !!ev.tiene_geocerca;
     document.getElementById('eventoTieneGeocerca').disabled = !tienePermiso(currentUser.rol, 'editar_geo');
     document.getElementById('eventoGeocercaLat').value = ev.geocerca_lat ?? '';
@@ -4823,9 +4831,13 @@ async function viewEvento(idEvento) {
     const geocercaInfo = ev.tiene_geocerca
         ? `Sí — radio ${ev.geocerca_radio}mts (<a href="https://www.google.com/maps?q=${ev.geocerca_lat},${ev.geocerca_lng}" target="_blank" rel="noopener">ver punto</a>)`
         : 'No';
+    const tipoCumplimientoTxt = ev.tipo_cumplimiento === 'sin_perjuicio'
+        ? 'SIN perjuicio (va al evento Y debe dar clases igual)'
+        : 'CON perjuicio (solo va al evento, no da clases ese día)';
     document.getElementById('eventoViewBody').innerHTML = `
         <p><strong>Fecha:</strong> ${ev.fecha}</p>
         <p><strong>Horario:</strong> ${(ev.hora_entrada || '').slice(0, 5)} - ${(ev.hora_salida || '').slice(0, 5)}</p>
+        <p><strong>Cumplimiento:</strong> ${tipoCumplimientoTxt}</p>
         <p><strong>Escuela:</strong> ${ev.escuela_id}</p>
         <p><strong>Lugar / Dirección:</strong> ${ev.direccion_evento || '-'}</p>
         <p><strong>Geocerca:</strong> ${geocercaInfo}</p>
@@ -4916,6 +4928,7 @@ async function saveEvento() {
     const horaEntrada = document.getElementById('eventoHoraEntrada').value;
     const horaSalida = document.getElementById('eventoHoraSalida').value;
     const direccionEvento = document.getElementById('eventoLugar').value.trim();
+    const tipoCumplimiento = document.getElementById('eventoTipoCumplimientoSin').checked ? 'sin_perjuicio' : 'con_perjuicio';
     const tieneGeocerca = document.getElementById('eventoTieneGeocerca').checked;
 
     if (tieneGeocerca && !tienePermiso(currentUser.rol, 'editar_geo')) {
@@ -4956,6 +4969,7 @@ async function saveEvento() {
     const payload = {
         titulo, descripcion: descripcion || null, escuela_id: ESCUELA_ID, fecha_inicio: fechaInicio, fecha_fin: fechaFin,
         direccion_evento: direccionEvento || null,
+        tipo_cumplimiento: tipoCumplimiento,
         tiene_geocerca: tieneGeocerca,
         geocerca_lat: tieneGeocerca ? geocercaLat : null,
         geocerca_lng: tieneGeocerca ? geocercaLng : null,
@@ -5612,7 +5626,10 @@ function checkFaltas() {
         scheduleDates.forEach(sd => {
             if (sd.date < createdDateStr || sd.date > todayStr) return;
             if (getLicenciaForDate(teacher.id, sd.date)) return;
-            if (teacherHasEventoOnDate(teacher.id, sd.date)) return;
+            // Solo un evento CON perjuicio exime la cátedra regular ese
+            // día (ver teacherHasEventoConPerjuicioOnDate()) - uno SIN
+            // perjuicio no la exime, son obligaciones separadas.
+            if (teacherHasEventoConPerjuicioOnDate(teacher.id, sd.date)) return;
 
             if (sd.date === todayStr) {
                 const earliestStart = sd.startTimes.slice().sort()[0];
@@ -5807,17 +5824,79 @@ function getScheduleEntriesForDate(dateStr) {
 // copias se desincronicen.
 // ============================================================
 
+// Entradas de "Esperados Hoy" para los Eventos Especiales de hoy
+// (independiente de getScheduleEntriesForDate(), que solo mira
+// materias/horario) - mismo shape que esas entradas ({teacherId,
+// teacherName, materiaNombre, inicio, entryRecord, tardanzaMin,
+// semaforo}), más esEvento:true y tipoCumplimiento para que el render
+// pueda distinguir la tarjeta y getDocentesEsperadosHoy() sepa a
+// quién eximir de sus materias (ver ahí abajo).
+function getEventoEntriesParaHoy() {
+    const todayStr = getFechaHoyArgentina();
+    const criteria = getCriteria();
+    const nowMinutes = getMinutosDesdeMedianocheArgentina();
+    const attendance = getAttendance();
+    const entries = [];
+    getTeachers().forEach(teacher => {
+        const eventosHoy = (eventoConvocatoriasPorDocente[Number(teacher.id)] || []).filter(ev => ev.fecha === todayStr);
+        // Dedup por id (misma razón que getEventosDeHoyParaDocente()):
+        // evento_docente puede tener más de una fila para el mismo
+        // docente+evento.
+        const eventosUnicos = [...new Map(eventosHoy.map(e => [e.id, e])).values()];
+        eventosUnicos.forEach(ev => {
+            const entryRecord = attendance.find(a => a.teacherId === teacher.id && a.type === 'entry' &&
+                a.categoria === 'evento' && a.eventoId === ev.id && !a.anulado && getFechaRealFichaje(a) === todayStr) || null;
+            const [sh, sm] = (ev.hora_entrada || '00:00').split(':').map(Number);
+            const scheduledMinutes = sh * 60 + sm;
+            let elapsedMin;
+            if (entryRecord) {
+                const [eh, em] = (entryRecord.time || '00:00').split(':').map(Number);
+                elapsedMin = (eh * 60 + em) - scheduledMinutes;
+            } else {
+                elapsedMin = nowMinutes - scheduledMinutes;
+                if (elapsedMin < 0) elapsedMin = null;
+            }
+            entries.push({
+                teacherId: teacher.id,
+                teacherName: `${teacher.apellido} ${teacher.nombre}`,
+                materiaNombre: ev.titulo,
+                carreraNombre: null,
+                anio: null,
+                inicio: ev.hora_entrada || '',
+                entryRecord,
+                tardanzaMin: elapsedMin,
+                esEvento: true,
+                tipoCumplimiento: ev.tipo_cumplimiento || 'con_perjuicio',
+                semaforo: calcularSemaforoPuntualidad(elapsedMin, criteria, !!entryRecord),
+            });
+        });
+    });
+    return entries;
+}
+
 // Reutiliza getScheduleEntriesForDate() (mismo cruce horario+asistencia
 // que el calendario/grilla) y le suma el semáforo de puntualidad de
 // cada bloque de hoy. Las licencias no cuentan como "debería
 // presentarse" - se excluyen.
+// Eventos Especiales de hoy (ver getEventoEntriesParaHoy()) se suman
+// aparte: un evento CON perjuicio reemplaza las tarjetas de materia de
+// ESE docente ese día (no da clases, ver checkFaltas()); uno SIN
+// perjuicio se agrega además de sus materias normales - son
+// obligaciones independientes, cada una con su propio semáforo.
 function getDocentesEsperadosHoy() {
     const now = new Date();
     const todayStr = getFechaHoyArgentina(now);
     const criteria = getCriteria();
     const nowMinutes = getMinutosDesdeMedianocheArgentina(now);
-    return getScheduleEntriesForDate(todayStr)
+
+    const eventoEntries = getEventoEntriesParaHoy();
+    const teacherIdsConPerjuicioHoy = new Set(
+        eventoEntries.filter(e => e.tipoCumplimiento === 'con_perjuicio').map(e => e.teacherId)
+    );
+
+    const materiaEntries = getScheduleEntriesForDate(todayStr)
         .filter(e => e.status !== 'licencia')
+        .filter(e => !teacherIdsConPerjuicioHoy.has(e.teacherId))
         .map(e => {
             let elapsedMin;
             if (e.entryRecord) {
@@ -5828,7 +5907,9 @@ function getDocentesEsperadosHoy() {
                 if (elapsedMin < 0) elapsedMin = null;
             }
             return { ...e, semaforo: calcularSemaforoPuntualidad(elapsedMin, criteria, !!e.entryRecord) };
-        })
+        });
+
+    return [...materiaEntries, ...eventoEntries]
         .sort((a, b) => SEMAFORO_ORDEN[a.semaforo.code] - SEMAFORO_ORDEN[b.semaforo.code] || a.inicio.localeCompare(b.inicio));
 }
 
@@ -5871,11 +5952,19 @@ function renderDocentesEsperadosHoy() {
         const horaTxt = e.entryRecord && e.entryRecord.time
             ? ` · fichó ${e.entryRecord.time.slice(0, 5)}${fueraDeHorario ? ' (fuera de horario)' : ''}`
             : '';
+        // Tarjeta de Evento Especial: amarillo flúo + badge CON/SIN
+        // perjuicio pedido, para que se distinga de un bloque de
+        // materia normal de un vistazo (ver getEventoEntriesParaHoy()).
+        const claseFila = e.esEvento ? 'semaforo-row semaforo-row-evento' : 'semaforo-row';
+        const badgeCumplimiento = e.esEvento
+            ? `<span class="badge-cumplimiento ${e.tipoCumplimiento === 'sin_perjuicio' ? 'badge-sin-perjuicio' : 'badge-con-perjuicio'}">${e.tipoCumplimiento === 'sin_perjuicio' ? 'SIN perjuicio' : 'CON perjuicio'}</span>`
+            : '';
+        const etiquetaMateria = e.esEvento ? `<i class="bi bi-calendar-event"></i> Evento: ${e.materiaNombre}` : e.materiaNombre;
         return `
-            <div class="semaforo-row" style="border-left-color:${e.semaforo.color}">
+            <div class="${claseFila}" style="border-left-color:${e.semaforo.color}">
                 <div class="semaforo-row-main">
-                    <span class="semaforo-row-name">${e.teacherName}</span>
-                    <span class="semaforo-row-detail">${e.materiaNombre}${cursoTxt ? ' · ' + cursoTxt : ''} · ${e.inicio}${horaTxt}</span>
+                    <span class="semaforo-row-name">${e.teacherName}${badgeCumplimiento}</span>
+                    <span class="semaforo-row-detail">${etiquetaMateria}${cursoTxt ? ' · ' + cursoTxt : ''} · ${e.inicio}${horaTxt}</span>
                 </div>
                 <span class="semaforo-badge" style="background:${e.semaforo.color}">${e.semaforo.label}</span>
             </div>`;

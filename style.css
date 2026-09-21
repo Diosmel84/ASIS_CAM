@@ -524,6 +524,20 @@ body {
    una clase .status-tardanza más (ver semaforo.color en script.js). */
 .semaforo-badge[style*="eab308"] { color: #422006; }
 
+/* Tarjeta de Evento Especial dentro de "Esperados Hoy": amarillo flúo
+   pedido, para que se distinga de una tarjeta de materia normal de un
+   vistazo (ver getEventoEntriesParaHoy()/tipoCumplimiento en script.js).
+   El borde izquierdo sigue siendo el color del semáforo (mismo criterio
+   que las tarjetas de materia) - acá solo se le agrega el fondo. */
+.semaforo-row-evento { background: #f5ff00; border-color: #d4d900; }
+.semaforo-row-evento .semaforo-row-detail { color: #4a4a00; }
+.badge-cumplimiento {
+    display: inline-block; margin-left: 6px; font-size: 0.62rem; font-weight: 700;
+    padding: 2px 7px; border-radius: var(--radius-pill); vertical-align: middle; color: var(--white);
+}
+.badge-con-perjuicio { background: #7c2d12; }
+.badge-sin-perjuicio { background: #1e3a8a; }
+
 .required-field::after { content: " *"; color: var(--ink); font-weight: bold; }
 
 /* ===== BUSCADOR (lupa) ===== */
