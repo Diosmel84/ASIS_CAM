@@ -92,23 +92,35 @@ const LIVENESS_CHALLENGE_TIMEOUT_MS = 8000; // por challenge, según lo pedido
 const LIVENESS_YAW_RATIO_DELTA = 0.15;   // TURN_LEFT/TURN_RIGHT
 const LIVENESS_PITCH_RATIO_DELTA = 0.15; // LOOK_UP/LOOK_DOWN
 const LIVENESS_SMILE_RATIO_DELTA = 0.15; // SMILE
-// Cambio absoluto mínimo (no porcentual) para los ratios que parten
-// de una base cercana a 0 con boca/cejas en reposo (un % contra ~0
-// es inestable: un cambio minúsculo ya se vería como "infinito%").
-const LIVENESS_MOUTH_OPEN_DELTA = 0.15;  // MOUTH_OPEN
-const LIVENESS_BROW_DELTA = 0.06;        // EYEBROWS_UP (distancia ceja-párpado, sube al levantar cejas)
-// FROWN usa un ratio y un umbral DISTINTOS de EYEBROWS_UP (ver
-// LIVENESS_BROW_INNER_LEFT/RIGHT arriba): el punto de arco medio de
-// la ceja (105/334) apenas se mueve al fruncir, así que reusar el
-// mismo par y solo bajar el umbral no alcanzaba - el problema real
-// era la métrica, no el número. 0.025 es una primera estimación (más
-// chico que LIVENESS_BROW_DELTA porque el frunce mueve las cejas bastante
-// menos que levantarlas); mirá la consola (runAbsoluteRatioChallenge
-// loguea el ratio en vivo) para calibrarlo si hace falta.
-const LIVENESS_BROW_INNER_DELTA = 0.025; // FROWN (distancia entre cejas internas, baja al fruncir)
+// Cambio absoluto mínimo (no porcentual) para MOUTH_OPEN, que sí
+// parte de una base cercana a 0 (labios juntos) donde un % contra ~0
+// es inestable (un cambio minúsculo ya se vería como "infinito%").
+const LIVENESS_MOUTH_OPEN_DELTA = 0.15;
 
-const LIVENESS_BLINK_CLOSED_EAR = 0.22;  // "ojo cerrado"
-const LIVENESS_BLINK_OPEN_EAR = 0.28;    // "ojo abierto" (deja un margen contra 0.22 para que el ruido de una foto no cuente como parpadeo)
+// EYEBROWS_UP y FROWN: umbral PORCENTUAL contra su propia base (igual
+// mecánica que yaw/pitch/smile), no un delta absoluto. A diferencia
+// de la boca, la separación ceja-párpado y la distancia entre cejas
+// SIEMPRE son valores bien distintos de cero en reposo, así que un %
+// contra esa base es estable y además se auto-adapta a cada cara: a
+// alguien con cejas más separadas le va a pedir mover más píxeles
+// para el mismo %, en vez de un número fijo que le queda fácil a
+// unos y le queda imposible a otros. Bajados a 15%/12% (antes eran
+// deltas absolutos difíciles de alcanzar en la práctica - ver
+// runBrowChallenge() para los logs de calibración en vivo).
+const LIVENESS_BROW_UP_PCT = 0.15;   // EYEBROWS_UP: sube vs. base
+const LIVENESS_FROWN_PCT = 0.12;     // FROWN: baja vs. base
+
+// El parpadeo YA NO usa un EAR absoluto fijo: el EAR de "ojo abierto"
+// en reposo varía bastante de cara en cara (forma del ojo, ángulo de
+// cámara, anteojos) - con un umbral fijo, alguien cuyo EAR en reposo
+// ya estaba cerca del límite nunca iba a poder "abrir" lo suficiente
+// para que el parpadeo cuente, sin importar cuánto parpadeara de
+// verdad. Ahora se toma un EAR base fresco al mostrar el cartel de
+// este challenge (mismo time-gating que los demás gestos) y los
+// umbrales de abierto/cerrado salen de ahí - ver runBlinkChallenge().
+const LIVENESS_BLINK_OPEN_RATIO = 0.90;    // "abierto" = EAR >= base * 0.90
+const LIVENESS_BLINK_CLOSED_RATIO = 0.75;  // "cerrado" = EAR < base * 0.75
+const LIVENESS_BLINK_CLOSED_EAR_CAP = 0.25; // igual si la base da un número más laxo, nunca se pide menos que esto
 const LIVENESS_BLINK_VALLEY_MAX_MS = 1500; // abierto->cerrado->abierto tiene que pasar en <=1.5s
 const LIVENESS_BLINK_HISTORY_SAMPLES = 20; // "las últimas 20 frames" de EAR para buscar el valle
 const LIVENESS_FACE_WAIT_TIMEOUT_MS = 15000;
@@ -174,6 +186,15 @@ const LIVENESS_PROMPT_ICON = {
     LOOK_UP: 'bi-arrow-up',
     LOOK_DOWN: 'bi-arrow-down',
     FROWN: 'bi-emoji-frown',
+};
+// Feedback "¡Casi! ..." cuando el gesto detectado ya está cerca del
+// umbral pero todavía no lo cruzó (ver nearFeedback() en
+// runLivenessCheck) - solo se usa para BLINK/EYEBROWS_UP/FROWN por
+// ahora, los 3 gestos que se reportaron como difíciles de pasar.
+const LIVENESS_NEAR_HINT = {
+    BLINK: 'cerrá los ojos un toque más',
+    EYEBROWS_UP: 'levantá un poco más las cejas',
+    FROWN: 'frunce un poco más el ceño',
 };
 const LIVENESS_CHALLENGE_CHIP_LABEL = {
     BLINK: 'Parpadeo',
@@ -337,10 +358,14 @@ function livenessSpeak(text) {
     } catch (e) { /* TTS no disponible en este navegador/dispositivo: la consigna igual se ve en pantalla */ }
 }
 
+function livenessPromptHtml(type) {
+    return `<i class="bi ${LIVENESS_PROMPT_ICON[type]}"></i> ${LIVENESS_PROMPT_TEXT[type]}`;
+}
+
 // Muestra Y dictá una consigna (cartel titilando + voz) en un solo
 // paso - se usa tanto para "Mirá al frente" como para cada challenge.
 function livenessPrompt(type) {
-    livenessSetStatus(`<i class="bi ${LIVENESS_PROMPT_ICON[type]}"></i> ${LIVENESS_PROMPT_TEXT[type]}`, 'liveness-prompt');
+    livenessSetStatus(livenessPromptHtml(type), 'liveness-prompt');
     livenessSpeak(LIVENESS_PROMPT_TEXT[type]);
 }
 
@@ -465,32 +490,40 @@ function consumeLivenessFields() {
     return fields;
 }
 
-// Busca un parpadeo real (abierto -> cerrado (>=2 muestras seguidas)
-// -> abierto de nuevo) en el historial reciente de EAR, con el
-// "valle" completo en <=LIVENESS_BLINK_VALLEY_MAX_MS. history es un
-// array de { t, ear } (las últimas ~20 muestras, ver
-// LIVENESS_BLINK_HISTORY_SAMPLES). Devuelve { ms } si encuentra un
-// valle válido, o null. Que dos frames sueltos bajen de 0.22 por
-// ruido de detección (típico de una foto con reflejos/compresión) ya
-// NO alcanza: hace falta el "abierto" de antes Y el "abierto" de
-// después, dentro de la ventana de tiempo.
-function findBlinkValley(history) {
+// Busca un parpadeo real (abierto (>=1 muestra) -> cerrado (>=2
+// muestras seguidas) -> abierto de nuevo (>=2 muestras seguidas)) en
+// el historial reciente de EAR, con el "valle" completo en
+// <=LIVENESS_BLINK_VALLEY_MAX_MS. history es un array de { t, ear }
+// (las últimas ~20 muestras, ver LIVENESS_BLINK_HISTORY_SAMPLES).
+// openEar/closedEar son los umbrales dinámicos de ESTE intento (ver
+// baseline en runBlinkChallenge). Devuelve { ms } si encuentra un
+// valle válido, o null. Que un par de frames sueltos bajen del umbral
+// por ruido de detección (típico de una foto con reflejos/compresión)
+// ya NO alcanza: hace falta el "abierto" de antes Y volver a
+// sostenerse "abierto" después, dentro de la ventana de tiempo.
+function findBlinkValley(history, openEar, closedEar) {
     for (let i = 0; i < history.length; i++) {
-        if (history[i].ear <= LIVENESS_BLINK_OPEN_EAR) continue; // ancla: un frame claramente "abierto"
+        if (history[i].ear < openEar) continue; // ancla: un frame claramente "abierto"
         let j = i + 1;
         let closedStart = -1;
         let closedCount = 0;
-        while (j < history.length && history[j].ear < LIVENESS_BLINK_CLOSED_EAR) {
+        while (j < history.length && history[j].ear < closedEar) {
             if (closedCount === 0) closedStart = j;
             closedCount++;
             j++;
         }
         if (closedCount < 2) continue; // necesita al menos 2 muestras seguidas "cerrado"
+        let reopenCount = 0;
         for (let k = j; k < history.length; k++) {
-            if (history[k].ear > LIVENESS_BLINK_OPEN_EAR) {
-                const ms = history[k].t - history[closedStart].t;
-                if (ms <= LIVENESS_BLINK_VALLEY_MAX_MS) return { ms };
-                break; // reabrió pero tardó demasiado - no cuenta, sigue buscando otra ancla más adelante
+            if (history[k].ear >= openEar) {
+                reopenCount++;
+                if (reopenCount >= 2) {
+                    const ms = history[k].t - history[closedStart].t;
+                    if (ms <= LIVENESS_BLINK_VALLEY_MAX_MS) return { ms };
+                    break; // reabrió pero tardó demasiado - no cuenta, sigue buscando otra ancla más adelante
+                }
+            } else {
+                reopenCount = 0; // se volvió a cerrar antes de sostener los 2 "abierto"
             }
         }
     }
@@ -517,7 +550,7 @@ async function runLivenessCheck(video, dni) {
         return { passed: false, unavailable: true, reason: '⚠️ No se pudo cargar el módulo de prueba de vida. Verificá tu conexión a internet.' };
     }
 
-    const state = { multiFace: false, noseX: null, noseY: null, ear: null, ratios: null };
+    const state = { multiFace: false, noseX: null, noseY: null, ear: null, earL: null, earR: null, ratios: null };
     faceMesh.onResults((results) => {
         const faces = results.multiFaceLandmarks || [];
         state.multiFace = faces.length > 1;
@@ -528,12 +561,16 @@ async function runLivenessCheck(video, dni) {
             state.noseY = nose.y;
             const earL = computeEAR(lm, LIVENESS_LEFT_EYE, video.videoWidth, video.videoHeight);
             const earR = computeEAR(lm, LIVENESS_RIGHT_EYE, video.videoWidth, video.videoHeight);
+            state.earL = earL;
+            state.earR = earR;
             state.ear = (earL + earR) / 2;
             state.ratios = computeFaceRatios(lm, video.videoWidth, video.videoHeight);
         } else {
             state.noseX = null;
             state.noseY = null;
             state.ear = null;
+            state.earL = null;
+            state.earR = null;
             state.ratios = null;
         }
     });
@@ -541,6 +578,20 @@ async function runLivenessCheck(video, dni) {
     let running = true;
     let multiFaceStrikes = 0;
     let abortReason = null;
+    // "¡Casi! ..." (ver LIVENESS_NEAR_HINT): qué challenge está
+    // mostrando el hint de "cerca" ahora mismo, o null. Evita
+    // reescribir el cartel en cada poll (solo cambia en los bordes
+    // de entrar/salir de la zona "cerca").
+    let nearShownFor = null;
+    function updateNearFeedback(type, isNear) {
+        if (isNear && nearShownFor !== type) {
+            nearShownFor = type;
+            livenessSetStatus(`<i class="bi bi-emoji-wink"></i> ¡Casi! ${LIVENESS_NEAR_HINT[type] || 'un poco más'}`, 'liveness-prompt');
+        } else if (!isNear && nearShownFor === type) {
+            nearShownFor = null;
+            livenessSetStatus(livenessPromptHtml(type), 'liveness-prompt');
+        }
+    }
 
     (async function frameLoop() {
         while (running) {
@@ -577,9 +628,19 @@ async function runLivenessCheck(video, dni) {
     // ----- Challenges individuales: cada uno devuelve
     // { ok, abort?, detail? } - abort:true == se cortó por "más de
     // un rostro" (mensaje ya armado en abortReason). -----
-    async function runBlinkChallenge(timeoutMs) {
+    //
+    // baselineEar: EAR "en reposo" de ESTE challenge (tomado al
+    // mostrar su cartel, mismo time-gating que los demás gestos - ver
+    // el spread de `ear` en `challengeBaseline` más abajo). Si por
+    // algún motivo no llegó (no debería pasar), cae a un valor típico
+    // razonable en vez de romper el challenge.
+    async function runBlinkChallenge(baselineEar, timeoutMs) {
+        const safeBase = baselineEar || 0.30;
+        const openEar = Math.max(safeBase * LIVENESS_BLINK_OPEN_RATIO, LIVENESS_BLINK_CLOSED_EAR_CAP + 0.02);
+        const closedEar = Math.min(safeBase * LIVENESS_BLINK_CLOSED_RATIO, LIVENESS_BLINK_CLOSED_EAR_CAP);
         const history = [];
         let minEar = 1;
+        let lastLogAt = 0;
         const deadline = Date.now() + timeoutMs;
         while (Date.now() < deadline) {
             if (multiFaceDetected()) return { ok: false, abort: true };
@@ -587,12 +648,45 @@ async function runLivenessCheck(video, dni) {
                 minEar = Math.min(minEar, state.ear);
                 history.push({ t: Date.now(), ear: state.ear });
                 if (history.length > LIVENESS_BLINK_HISTORY_SAMPLES) history.shift();
-                const valley = findBlinkValley(history);
-                if (valley) return { ok: true, detail: { ear_value: Number(minEar.toFixed(2)), valley_ms: valley.ms } };
+                if (Date.now() - lastLogAt > 400) {
+                    lastLogAt = Date.now();
+                    console.log(`[parpadeo] EAR ojo izq: ${(state.earL || 0).toFixed(3)} der: ${(state.earR || 0).toFixed(3)} / umbral cierre: ${closedEar.toFixed(3)} (base=${safeBase.toFixed(3)})`);
+                }
+                updateNearFeedback('BLINK', state.ear < openEar && state.ear >= closedEar);
+                const valley = findBlinkValley(history, openEar, closedEar);
+                if (valley) {
+                    console.log('BLINK OK');
+                    return { ok: true, detail: { ear_value: Number(minEar.toFixed(2)), valley_ms: valley.ms, base_ear: Number(safeBase.toFixed(3)) } };
+                }
             }
             await sleep(80);
         }
         return { ok: false };
+    }
+
+    // EYEBROWS_UP/FROWN: % contra su propia base (igual mecánica que
+    // runRelativeRatioChallenge), con el formato de log pedido para
+    // calibrar ([cejas]/[ceño]) y el feedback "¡Casi!" cuando el
+    // cambio ya pasó ~55% del umbral pero todavía no lo cruzó.
+    async function runBrowChallenge(type, ratioKey, baselineValue, minPct, sign, timeoutMs) {
+        let lastLogAt = 0;
+        const logPrefix = type === 'FROWN' ? '[ceño] distancia entrecejo' : '[cejas] distancia_ceja_ojo';
+        const predicate = () => {
+            if (!state.ratios || state.ratios[ratioKey] == null || !baselineValue) return false;
+            const current = state.ratios[ratioKey];
+            const pctChange = ((current - baselineValue) / baselineValue) * sign; // positivo = yendo en el sentido pedido
+            if (Date.now() - lastLogAt > 400) {
+                lastLogAt = Date.now();
+                console.log(`${logPrefix}: ${current.toFixed(4)} (base ${baselineValue.toFixed(4)}) / umbral: ${(minPct * 100).toFixed(0)}% (actual ${(pctChange * 100).toFixed(1)}%)`);
+            }
+            updateNearFeedback(type, pctChange > 0 && pctChange / minPct >= 0.55 && pctChange <= minPct);
+            return pctChange > minPct;
+        };
+        const r = await waitFor(predicate, timeoutMs);
+        if (r === 'multiface') return { ok: false, abort: true };
+        if (r === 'timeout') return { ok: false };
+        const current = state.ratios[ratioKey];
+        return { ok: true, detail: { [`${ratioKey}_delta_pct`]: Number(((current - baselineValue) / baselineValue).toFixed(2)) } };
     }
 
     // Gesto medido como cambio RELATIVO (%) de un ratio contra su
@@ -611,10 +705,11 @@ async function runLivenessCheck(video, dni) {
         return { ok: true, detail: { [`${ratioKey}_delta_pct`]: Number(((current - baselineValue) / baselineValue).toFixed(2)) } };
     }
 
-    // Gesto medido como cambio ABSOLUTO de un ratio contra su base,
-    // en el sentido `sign` (+1 = aumenta, -1 = disminuye): para ratios
-    // que parten de una base cercana a 0 en reposo (boca cerrada,
-    // cejas relajadas), donde un % contra ~0 es inestable/gameable.
+    // Gesto medido como cambio ABSOLUTO de un ratio contra su base, en
+    // el sentido `sign` (+1 = aumenta, -1 = disminuye): usado solo por
+    // MOUTH_OPEN, que parte de una base cercana a 0 en reposo (labios
+    // juntos), donde un % contra ~0 es inestable/gameable. EYEBROWS_UP
+    // y FROWN usan runBrowChallenge() (% contra base), no esta.
     // debugLabel, si se pasa, loguea el ratio en vivo (throttleado a
     // ~400ms) para poder calibrar LIVENESS_*_DELTA mirando la consola.
     async function runAbsoluteRatioChallenge(ratioKey, baselineValue, minAbsDelta, sign, timeoutMs, debugLabel) {
@@ -638,7 +733,7 @@ async function runLivenessCheck(video, dni) {
     async function runChallenge(type, baseline, timeoutMs) {
         switch (type) {
             case 'BLINK':
-                return runBlinkChallenge(timeoutMs);
+                return runBlinkChallenge(baseline.ear, timeoutMs);
             case 'TURN_LEFT':
             case 'TURN_RIGHT':
                 return runRelativeRatioChallenge('yaw', baseline.yaw, LIVENESS_YAW_RATIO_DELTA, timeoutMs);
@@ -650,16 +745,14 @@ async function runLivenessCheck(video, dni) {
             case 'MOUTH_OPEN':
                 return runAbsoluteRatioChallenge('mouthOpen', baseline.mouthOpen, LIVENESS_MOUTH_OPEN_DELTA, 1, timeoutMs, 'MOUTH_OPEN');
             case 'EYEBROWS_UP':
-                return runAbsoluteRatioChallenge('brow', baseline.brow, LIVENESS_BROW_DELTA, 1, timeoutMs, 'EYEBROWS_UP');
+                return runBrowChallenge('EYEBROWS_UP', 'brow', baseline.brow, LIVENESS_BROW_UP_PCT, 1, timeoutMs);
             case 'FROWN':
-                // Antes reusaba el mismo ratio que EYEBROWS_UP (105/334,
-                // arco medio de la ceja) solo con el signo invertido - ese
-                // punto casi no se mueve al fruncir, por eso nunca
-                // detectaba. Ahora usa browInner (55/285, extremo interno
-                // de cada ceja, cerca de la glabela): fruncir el ceño las
-                // junta de verdad (músculo corrugador), así que esa
-                // distancia SÍ baja de forma medible.
-                return runAbsoluteRatioChallenge('browInner', baseline.browInner, LIVENESS_BROW_INNER_DELTA, -1, timeoutMs, 'FROWN');
+                // Ratio DISTINTO de EYEBROWS_UP (browInner: 55/285,
+                // extremo interno de cada ceja, cerca de la glabela) - el
+                // arco medio de la ceja (105/334, el que usa EYEBROWS_UP)
+                // casi no se mueve al fruncir, el frunce es sobre todo
+                // horizontal/interno (músculo corrugador), no vertical.
+                return runBrowChallenge('FROWN', 'browInner', baseline.browInner, LIVENESS_FROWN_PCT, -1, timeoutMs);
             default:
                 return { ok: false };
         }
@@ -707,7 +800,7 @@ async function runLivenessCheck(video, dni) {
         for (let i = 0; i < challenges.length; i++) {
             const type = challenges[i];
             if (!state.ratios) throw new Error('❌ Se perdió el rostro. Ubicate frente a la cámara con buena iluminación.');
-            const challengeBaseline = { ...state.ratios };
+            const challengeBaseline = { ...state.ratios, ear: state.ear };
             livenessSetActiveStepIndex(i);
             livenessPrompt(type);
             const result = await runChallenge(type, challengeBaseline, LIVENESS_CHALLENGE_TIMEOUT_MS);
