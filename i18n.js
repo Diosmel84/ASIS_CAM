@@ -99,14 +99,14 @@ function renderLanguageSwitcher() {
             return `<button type="button" class="lang-pill${activo ? ' lang-pill-active' : ''}" onclick="setLocale('${loc}')" aria-pressed="${activo}" aria-label="${loc.toUpperCase()}">` +
                 `<span class="lang-pill-flag">${info.flagSvg}</span><span class="lang-pill-label">${info.label}</span></button>`;
         }).join('');
-        // <option> no puede contener SVG - queda solo el texto acá.
-        const options = Object.keys(LOCALES_INFO).map(loc => {
-            const info = LOCALES_INFO[loc];
-            return `<option value="${loc}" ${loc === currentLocale ? 'selected' : ''}>${info.label}</option>`;
-        }).join('');
-        cont.innerHTML =
-            `<div class="lang-switcher-pills d-none d-sm-flex">${pills}</div>` +
-            `<select class="form-select form-select-sm lang-switcher-select d-sm-none" onchange="setLocale(this.value)" aria-label="Idioma / Language / Idioma">${options}</select>`;
+        // Mismas 3 pills en cualquier ancho de pantalla - antes había un
+        // <select> nativo aparte para mobile (<576px), pero terminaba
+        // mostrando un selector distinto (sin banderas, a veces con el
+        // <select> de un service worker viejo todavía cacheado) al de
+        // desktop. Una sola marcación para los dos evita esa divergencia;
+        // que entre en mobile lo resuelve el CSS (.lang-switcher-pills
+        // con flex-wrap y pills más chicas en <576px, ver style.css).
+        cont.innerHTML = `<div class="lang-switcher-pills">${pills}</div>`;
     });
 }
 
