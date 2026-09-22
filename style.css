@@ -538,6 +538,12 @@ body {
 .badge-con-perjuicio { background: #7c2d12; }
 .badge-sin-perjuicio { background: #1e3a8a; }
 
+/* Choque de horario real en los datos (ver resolverChoquesHorario()
+   en script.js): rojo encima de cualquier otro color, para que salte
+   a la vista antes que el semáforo normal. */
+.semaforo-row-choque { background: #fee2e2; border-color: #ef4444; }
+.semaforo-row-choque .semaforo-row-detail { color: #7f1d1d; }
+
 .required-field::after { content: " *"; color: var(--ink); font-weight: bold; }
 
 /* ===== BUSCADOR (lupa) ===== */

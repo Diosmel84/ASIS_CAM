@@ -5329,6 +5329,29 @@ function openMateriaModal(id) {
 
 function editMateria(id) { openMateriaModal(id); }
 
+// Choque de horario: mismo profesor, mismo día, franjas que se
+// solapan (no hace falta que sean exactamente iguales - un
+// solapamiento parcial ya es un choque real e igual de imposible de
+// cumplir). Se compara contra TODAS las materias ya cargadas de ese
+// profesor (cualquier carrera/año, no solo la misma), excluyendo la
+// propia materia si se está editando. Bug real reportado: Docente
+// DePrueba quedó con "BASE DE DATOS 1" y "PRÁCTICA PROFESIONALIZANTE
+// I" las dos Lunes 20:00-21:20 porque nada frenaba esto al guardar.
+function buscarChoqueHorarioProfesor(profesorId, horariosNuevos, materiaIdExcluir) {
+    if (!profesorId) return null;
+    const otras = currentMaterias.filter(m => m.profesor_id === profesorId && m.id !== materiaIdExcluir);
+    for (const otra of otras) {
+        for (const hExistente of materiaHorarios(otra)) {
+            for (const hNuevo of horariosNuevos) {
+                if (hExistente.dia === hNuevo.dia && hExistente.inicio < hNuevo.fin && hExistente.fin > hNuevo.inicio) {
+                    return { materia: otra, horario: hExistente };
+                }
+            }
+        }
+    }
+    return null;
+}
+
 async function saveMateria() {
     const accionPermiso = editingMateriaId ? 'editar_docente' : 'agregar_docente';
     if (!tienePermiso(currentUser.rol, accionPermiso)) {
@@ -5363,6 +5386,14 @@ async function saveMateria() {
     if (teacherIdSeleccionado) {
         const teacher = getTeachers().find(t => t.id === teacherIdSeleccionado);
         if (teacher) profesorId = await syncTeacherToDocenteTable(teacher);
+    }
+
+    if (profesorId) {
+        const choque = buscarChoqueHorarioProfesor(profesorId, horarios, editingMateriaId);
+        if (choque) {
+            showToast(`⚠️ El docente ya tiene "${choque.materia.nombre}" el ${choque.horario.dia} de ${choque.horario.inicio} a ${choque.horario.fin}`, 'error');
+            return;
+        }
     }
 
     // dias se sigue guardando (por compatibilidad con quien todavía lea
@@ -5874,6 +5905,42 @@ function getEventoEntriesParaHoy() {
     return entries;
 }
 
+// Defensa extra para datos que ya hayan quedado con un choque de
+// horario real (cargados antes de este fix, o editados directo en
+// Supabase sin pasar por saveMateria()/buscarChoqueHorarioProfesor()):
+// agrupa las tarjetas de materia de HOY por docente y detecta pares
+// que se solapan en horario. Si ya fichó UNA de las que chocan, se
+// muestra solo esa (si no, quedaba una tarjeta "Ausente" sin sentido
+// al lado de la que sí fichó). Si ninguna fichó todavía, o fichó más
+// de una (corrupción real), se marcan TODAS como conflicto en rojo
+// para que el admin lo vea y lo corrija en Materias.
+function resolverChoquesHorario(entries) {
+    const porDocente = new Map();
+    entries.forEach(e => {
+        if (!porDocente.has(e.teacherId)) porDocente.set(e.teacherId, []);
+        porDocente.get(e.teacherId).push(e);
+    });
+    const resultado = [];
+    porDocente.forEach(bloques => {
+        const usados = new Set();
+        bloques.forEach((e, i) => {
+            if (usados.has(i)) return;
+            const grupo = [i];
+            bloques.forEach((otro, j) => {
+                if (j === i || usados.has(j)) return;
+                if (otro.dia === e.dia && otro.inicio < e.fin && otro.fin > e.inicio) grupo.push(j);
+            });
+            grupo.forEach(idx => usados.add(idx));
+            if (grupo.length === 1) { resultado.push(e); return; }
+            const conGrupo = grupo.map(idx => bloques[idx]);
+            const fichados = conGrupo.filter(b => b.entryRecord);
+            if (fichados.length === 1) { resultado.push(fichados[0]); return; }
+            conGrupo.forEach(b => resultado.push({ ...b, choqueHorario: true }));
+        });
+    });
+    return resultado;
+}
+
 // Reutiliza getScheduleEntriesForDate() (mismo cruce horario+asistencia
 // que el calendario/grilla) y le suma el semáforo de puntualidad de
 // cada bloque de hoy. Las licencias no cuentan como "debería
@@ -5909,7 +5976,7 @@ function getDocentesEsperadosHoy() {
             return { ...e, semaforo: calcularSemaforoPuntualidad(elapsedMin, criteria, !!e.entryRecord) };
         });
 
-    return [...materiaEntries, ...eventoEntries]
+    return [...resolverChoquesHorario(materiaEntries), ...eventoEntries]
         .sort((a, b) => SEMAFORO_ORDEN[a.semaforo.code] - SEMAFORO_ORDEN[b.semaforo.code] || a.inicio.localeCompare(b.inicio));
 }
 
@@ -5960,13 +6027,21 @@ function renderDocentesEsperadosHoy() {
             ? `<span class="badge-cumplimiento ${e.tipoCumplimiento === 'SIN_PERJUICIO' ? 'badge-sin-perjuicio' : 'badge-con-perjuicio'}">${e.tipoCumplimiento === 'SIN_PERJUICIO' ? 'SIN perjuicio' : 'CON perjuicio'}</span>`
             : '';
         const etiquetaMateria = e.esEvento ? `<i class="bi bi-calendar-event"></i> Evento: ${e.materiaNombre}` : e.materiaNombre;
+        // Choque de horario real en los datos (ver resolverChoquesHorario()):
+        // se pinta todo en rojo encima de lo que sea, con un aviso
+        // explícito, en vez de dejar que se vea como un semáforo normal.
+        const filaConChoque = e.choqueHorario ? `${claseFila} semaforo-row-choque` : claseFila;
+        const avisoChoque = e.choqueHorario
+            ? `<div class="alert alert-danger py-1 px-2 small mb-0 mt-1"><i class="bi bi-exclamation-triangle-fill"></i> CONFLICTO DE HORARIO: este docente tiene otra materia superpuesta el mismo día/horario. Corregí en Materias.</div>`
+            : '';
         return `
-            <div class="${claseFila}" style="border-left-color:${e.semaforo.color}">
+            <div class="${filaConChoque}" style="border-left-color:${e.choqueHorario ? '#ef4444' : e.semaforo.color}">
                 <div class="semaforo-row-main">
                     <span class="semaforo-row-name">${e.teacherName}${badgeCumplimiento}</span>
                     <span class="semaforo-row-detail">${etiquetaMateria}${cursoTxt ? ' · ' + cursoTxt : ''} · ${e.inicio}${horaTxt}</span>
+                    ${avisoChoque}
                 </div>
-                <span class="semaforo-badge" style="background:${e.semaforo.color}">${e.semaforo.label}</span>
+                <span class="semaforo-badge" style="background:${e.choqueHorario ? '#ef4444' : e.semaforo.color}">${e.choqueHorario ? 'CONFLICTO' : e.semaforo.label}</span>
             </div>`;
     }).join('');
 }
