@@ -22,7 +22,7 @@
  * sincroniza sola al reconectar.
  */
 
-const CACHE_VERSION = "v7";
+const CACHE_VERSION = "v8";
 const CACHE_NAME = "asiscam-cache-" + CACHE_VERSION;
 
 // App shell: mismo origen que este service worker.
