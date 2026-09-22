@@ -25,41 +25,42 @@
         <div id="loginScreen">
             <div class="login-header">
                 <img src="/logo.png" alt="ASISCAM PRO" class="institution-logo">
-                <h1>ASIS-CAM</h1>
-                <p>Control de Asistencia Docente</p>
+                <div class="lang-switcher lang-switcher-login" role="group" aria-label="Idioma / Language / Idioma"></div>
+                <h1 data-i18n="login.title">ASIS-CAM</h1>
+                <p data-i18n="login.subtitle">Control de Asistencia Docente</p>
             </div>
             <!-- Paso 1: elegir rol -->
             <div class="login-form" id="roleSelectStep">
-                <p class="text-center text-muted mb-3">¿Cómo querés ingresar?</p>
-                <button type="button" class="btn btn-outline-dark d-block w-100 mb-2" onclick="selectRole('DOCENTE')"><i class="bi bi-person-badge"></i> Docente</button>
-                <button type="button" class="btn btn-outline-dark d-block w-100 mb-2" onclick="selectRole('SECRETARIA')"><i class="bi bi-person-workspace"></i> Secretaría</button>
-                <button type="button" class="btn btn-outline-dark d-block w-100 mb-2" onclick="selectRole('RECTOR')"><i class="bi bi-mortarboard"></i> Rector</button>
-                <button type="button" class="btn btn-outline-dark d-block w-100" onclick="selectRole('PROGRAMADOR')"><i class="bi bi-code-slash"></i> Programador</button>
+                <p class="text-center text-muted mb-3" data-i18n="login.chooseRole">¿Cómo querés ingresar?</p>
+                <button type="button" class="btn btn-outline-dark d-block w-100 mb-2" onclick="selectRole('DOCENTE')"><i class="bi bi-person-badge"></i> <span data-i18n="roles.DOCENTE">Docente</span></button>
+                <button type="button" class="btn btn-outline-dark d-block w-100 mb-2" onclick="selectRole('SECRETARIA')"><i class="bi bi-person-workspace"></i> <span data-i18n="roles.SECRETARIA">Secretaría</span></button>
+                <button type="button" class="btn btn-outline-dark d-block w-100 mb-2" onclick="selectRole('RECTOR')"><i class="bi bi-mortarboard"></i> <span data-i18n="roles.RECTOR">Rector</span></button>
+                <button type="button" class="btn btn-outline-dark d-block w-100" onclick="selectRole('PROGRAMADOR')"><i class="bi bi-code-slash"></i> <span data-i18n="roles.PROGRAMADOR">Programador</span></button>
             </div>
 
             <!-- Paso 2: usuario + contraseña del rol elegido -->
             <div class="login-form hidden" id="credentialsStep">
-                <button type="button" class="btn btn-link btn-sm p-0 mb-2" onclick="backToRoleSelect()"><i class="bi bi-arrow-left"></i> Cambiar rol</button>
-                <p class="text-muted small mb-2">Ingresando como <strong id="selectedRoleLabel"></strong></p>
+                <button type="button" class="btn btn-link btn-sm p-0 mb-2" onclick="backToRoleSelect()"><i class="bi bi-arrow-left"></i> <span data-i18n="login.changeRole">Cambiar rol</span></button>
+                <p class="text-muted small mb-2"><span data-i18n="login.enteringAs">Ingresando como</span> <strong id="selectedRoleLabel"></strong></p>
                 <div id="loginModelsBanner" class="models-banner">
-                    <span class="spinner-border spinner-border-sm"></span> Cargando módulo de reconocimiento facial...
+                    <span class="spinner-border spinner-border-sm"></span> <span data-i18n="fichaje.loadingModels">Cargando módulo de reconocimiento facial...</span>
                 </div>
                 <div class="form-group">
-                    <label for="loginUser" id="loginUserLabel">Usuario (DNI)</label>
-                    <input type="text" class="form-control" id="loginUser" placeholder="Ingresa tu DNI">
+                    <label for="loginUser" id="loginUserLabel" data-i18n="login.userLabelDocente">Usuario (DNI)</label>
+                    <input type="text" class="form-control" id="loginUser" placeholder="Ingresa tu DNI" data-i18n-placeholder="login.userPlaceholderDocente">
                 </div>
                 <div class="form-group">
-                    <label for="loginPass">Contraseña</label>
-                    <input type="password" class="form-control" id="loginPass" placeholder="Ingresa tu contraseña">
+                    <label for="loginPass" data-i18n="login.passwordLabel">Contraseña</label>
+                    <input type="password" class="form-control" id="loginPass" placeholder="Ingresa tu contraseña" data-i18n-placeholder="login.passwordPlaceholder">
                 </div>
                 <div id="loginError" class="login-error">
-                    <i class="bi bi-exclamation-triangle"></i> Usuario o contraseña incorrectos
+                    <i class="bi bi-exclamation-triangle"></i> <span data-i18n="login.errorCredentials">Usuario o contraseña incorrectos</span>
                 </div>
                 <button class="btn btn-primary" onclick="login()">
-                    <i class="bi bi-box-arrow-in-right"></i> Ingresar
+                    <i class="bi bi-box-arrow-in-right"></i> <span data-i18n="login.submit">Ingresar</span>
                 </button>
                 <div class="text-center mt-2" id="forgotPasswordBtnWrap">
-                    <button type="button" class="btn btn-link btn-sm p-0" data-bs-toggle="modal" data-bs-target="#forgotPasswordModal" onclick="resetForgotPasswordForm()">¿Olvidaste tu contraseña?</button>
+                    <button type="button" class="btn btn-link btn-sm p-0" data-bs-toggle="modal" data-bs-target="#forgotPasswordModal" onclick="resetForgotPasswordForm()" data-i18n="login.forgotPassword">¿Olvidaste tu contraseña?</button>
                 </div>
             </div>
         </div>
@@ -142,10 +143,11 @@
                     <img src="/logo.png" alt="ASISCAM PRO" class="dashboard-logo">
                     <h2 id="dashboardTitle">Panel de Control</h2>
                 </div>
-                <div>
+                <div class="dashboard-header-actions">
+                    <div class="lang-switcher" role="group" aria-label="Idioma / Language / Idioma"></div>
                     <span class="badge bg-primary me-2" id="userRoleBadge">Admin</span>
                     <button class="btn-logout" id="dashboardLogoutBtn" onclick="logout()">
-                        <i class="bi bi-box-arrow-right"></i> Salir
+                        <i class="bi bi-box-arrow-right"></i> <span data-i18n="header.logout">Salir</span>
                     </button>
                 </div>
             </div>
@@ -197,33 +199,33 @@
                     <div class="tab-pane fade show active" id="tabInicio" role="tabpanel">
                 <div class="row mb-3 g-2 inicio-resumen-compacto">
                     <div class="col-6 col-md-2">
-                        <div class="stat-card compact"><div class="number" id="totalTeachers">0</div><div class="label">Total Docentes</div></div>
+                        <div class="stat-card compact"><div class="number" id="totalTeachers">0</div><div class="label" data-i18n="stats.totalTeachers">Total Docentes</div></div>
                     </div>
                     <div class="col-6 col-md-2">
-                        <div class="stat-card compact"><div class="number" id="expectedToday">0</div><div class="label">Esperados Hoy</div></div>
+                        <div class="stat-card compact"><div class="number" id="expectedToday">0</div><div class="label" data-i18n="stats.expectedToday">Esperados Hoy</div></div>
                     </div>
                     <div class="col-6 col-md-2">
-                        <div class="stat-card compact"><div class="number" id="presentToday">0</div><div class="label">Presentes Hoy</div></div>
+                        <div class="stat-card compact"><div class="number" id="presentToday">0</div><div class="label" data-i18n="stats.presentToday">Presentes Hoy</div></div>
                     </div>
                     <div class="col-6 col-md-2">
-                        <div class="stat-card compact"><div class="number" id="absentToday">0</div><div class="label">Ausentes Hoy</div></div>
+                        <div class="stat-card compact"><div class="number" id="absentToday">0</div><div class="label" data-i18n="stats.absentToday">Ausentes Hoy</div></div>
                     </div>
                     <div class="col-6 col-md-2">
-                        <div class="stat-card compact"><div class="number" id="lateToday">0</div><div class="label">Tardanzas Hoy</div></div>
+                        <div class="stat-card compact"><div class="number" id="lateToday">0</div><div class="label" data-i18n="stats.lateToday">Tardanzas Hoy</div></div>
                     </div>
                     <div class="col-6 col-md-2">
-                        <div class="stat-card compact"><div class="number" id="halfAbsentToday">0</div><div class="label">Media Falta Hoy</div></div>
+                        <div class="stat-card compact"><div class="number" id="halfAbsentToday">0</div><div class="label" data-i18n="stats.halfAbsentToday">Media Falta Hoy</div></div>
                     </div>
                 </div>
                 <div class="form-section">
-                    <h4><i class="bi bi-people-fill"></i> Docentes que deberían presentarse hoy</h4>
+                    <h4><i class="bi bi-people-fill"></i> <span data-i18n="esperadosHoy.title">Docentes que deberían presentarse hoy</span></h4>
                     <p class="text-muted small mb-2" id="hoyArgentinaDebug"></p>
                     <div class="semaforo-legend mb-2">
-                        <span class="semaforo-legend-item"><span class="semaforo-dot" style="background:#9ca3af"></span> Esperado</span>
-                        <span class="semaforo-legend-item"><span class="semaforo-dot" style="background:#22c55e"></span> Presente</span>
-                        <span class="semaforo-legend-item"><span class="semaforo-dot" style="background:#eab308"></span> Tardanza</span>
-                        <span class="semaforo-legend-item"><span class="semaforo-dot" style="background:#f97316"></span> Media Falta</span>
-                        <span class="semaforo-legend-item"><span class="semaforo-dot" style="background:#ef4444"></span> Ausente</span>
+                        <span class="semaforo-legend-item"><span class="semaforo-dot" style="background:#9ca3af"></span> <span data-i18n="semaforo.esperado">Esperado</span></span>
+                        <span class="semaforo-legend-item"><span class="semaforo-dot" style="background:#22c55e"></span> <span data-i18n="semaforo.presente">Presente</span></span>
+                        <span class="semaforo-legend-item"><span class="semaforo-dot" style="background:#eab308"></span> <span data-i18n="semaforo.tardanza">Tardanza</span></span>
+                        <span class="semaforo-legend-item"><span class="semaforo-dot" style="background:#f97316"></span> <span data-i18n="semaforo.media_falta">Media Falta</span></span>
+                        <span class="semaforo-legend-item"><span class="semaforo-dot" style="background:#ef4444"></span> <span data-i18n="semaforo.ausente">Ausente</span></span>
                     </div>
                     <div id="docentesEsperadosHoyList"></div>
                 </div>
@@ -703,7 +705,7 @@
                 <div class="row">
                     <div class="col-md-6 order-1 order-md-1">
                         <div id="teacherModelsBanner" class="models-banner">
-                            <span class="spinner-border spinner-border-sm"></span> Cargando módulo de reconocimiento facial...
+                            <span class="spinner-border spinner-border-sm"></span> <span data-i18n="fichaje.loadingModels">Cargando módulo de reconocimiento facial...</span>
                         </div>
                         <div class="teacher-camera-layout">
                             <div class="camera-container">
@@ -720,16 +722,16 @@
                                      set de challenges es al azar (3 de 9, orden al azar). -->
                                 <div id="livenessSteps" class="liveness-steps hidden"></div>
                                 <div id="faceRecognitionStatus" class="face-recognition-status waiting">
-                                    <i class="bi bi-info-circle"></i> Esperando identificación...
+                                    <i class="bi bi-info-circle"></i> <span data-i18n="fichaje.waitingId">Esperando identificación...</span>
                                 </div>
                                 <div class="progress" id="recognitionProgress" style="display:none;">
                                     <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
                                 </div>
-                                <button class="btn btn-capture" onclick="detectFace()"><i class="bi bi-person-check"></i> Identificarme</button>
-                                <button class="btn btn-entry" id="btnEntrada" onclick="registerAttendance('entry')" disabled><i class="bi bi-box-arrow-in-right"></i> Entrada</button>
-                                <button class="btn btn-exit" id="btnSalida" onclick="registerAttendance('exit')" disabled><i class="bi bi-box-arrow-left"></i> Salida</button>
-                                <button class="btn btn-early-exit" id="btnRetirada" onclick="registerAttendance('early_exit')" disabled><i class="bi bi-clock-history"></i> Salir antes de tiempo</button>
-                                <small class="text-muted d-block mt-1" id="attendanceButtonsHint">Tocá "Identificarme" antes de cada registro (entrada, salida o retirada).</small>
+                                <button class="btn btn-capture" onclick="detectFace()"><i class="bi bi-person-check"></i> <span data-i18n="fichaje.identify">Identificarme</span></button>
+                                <button class="btn btn-entry" id="btnEntrada" onclick="registerAttendance('entry')" disabled><i class="bi bi-box-arrow-in-right"></i> <span data-i18n="fichaje.entry">Entrada</span></button>
+                                <button class="btn btn-exit" id="btnSalida" onclick="registerAttendance('exit')" disabled><i class="bi bi-box-arrow-left"></i> <span data-i18n="fichaje.exit">Salida</span></button>
+                                <button class="btn btn-early-exit" id="btnRetirada" onclick="registerAttendance('early_exit')" disabled><i class="bi bi-clock-history"></i> <span data-i18n="fichaje.earlyExit">Salir antes de tiempo</span></button>
+                                <small class="text-muted d-block mt-1" id="attendanceButtonsHint" data-i18n="fichaje.hint">Tocá "Identificarme" antes de cada registro (entrada, salida o retirada).</small>
                                 <div id="geofenceDebugPanel" class="geofence-debug-panel hidden"></div>
                                 <!-- Vista docente limpia: lo de acá abajo no es para el uso
                                      diario (autorizar esta PC como kiosco, anular un fichaje
@@ -738,20 +740,20 @@
                                      cualquier docente que lo necesite. -->
                                 <div class="mt-2">
                                     <button class="btn btn-link btn-sm p-0 text-muted" type="button" onclick="toggleOpcionesAvanzadasDocente()">
-                                        <i class="bi bi-three-dots"></i> Opciones avanzadas
+                                        <i class="bi bi-three-dots"></i> <span data-i18n="fichaje.advancedOptions">Opciones avanzadas</span>
                                     </button>
                                     <div id="opcionesAvanzadasDocente" class="hidden mt-2">
                                         <div id="kioskAuthorizeWrap" class="hidden">
-                                            <button class="btn btn-link btn-sm p-0" onclick="toggleKioskAuthorizeForm()"><i class="bi bi-pc-display"></i> ¿Es esta la PC de la escuela? Autorizar con código</button>
+                                            <button class="btn btn-link btn-sm p-0" onclick="toggleKioskAuthorizeForm()"><i class="bi bi-pc-display"></i> <span data-i18n="fichaje.kioskAuthorizePrompt">¿Es esta la PC de la escuela? Autorizar con código</span></button>
                                             <div id="kioskAuthorizeForm" class="hidden mt-2 d-flex gap-2 align-items-center">
-                                                <input type="text" class="form-control form-control-sm" id="kioskAuthorizeCodeInput" placeholder="Código de 6 dígitos" maxlength="6" style="max-width:160px;">
-                                                <button class="btn btn-sm btn-primary" onclick="submitKioskAuthorizeCode()">Autorizar</button>
+                                                <input type="text" class="form-control form-control-sm" id="kioskAuthorizeCodeInput" placeholder="Código de 6 dígitos" maxlength="6" style="max-width:160px;" data-i18n-placeholder="fichaje.kioskCodePlaceholder">
+                                                <button class="btn btn-sm btn-primary" onclick="submitKioskAuthorizeCode()" data-i18n="fichaje.authorize">Autorizar</button>
                                             </div>
                                         </div>
                                         <div id="miUltimoFichajeBox" class="mt-2"></div>
                                     </div>
                                 </div>
-                                <button class="btn btn-secondary mt-2" id="teacherLogoutBtn" onclick="logout()"><i class="bi bi-box-arrow-right"></i> Salir</button>
+                                <button class="btn btn-secondary mt-2" id="teacherLogoutBtn" onclick="logout()"><i class="bi bi-box-arrow-right"></i> <span data-i18n="header.logout">Salir</span></button>
                             </div>
                         </div>
                     </div>
@@ -1215,6 +1217,10 @@
     <script src="roles.js"></script>
     <script src="auditoria.js"></script>
     <script src="presencia-logic.js"></script>
+    <script src="locales/es.js"></script>
+    <script src="locales/en.js"></script>
+    <script src="locales/pt.js"></script>
+    <script src="i18n.js"></script>
     <script src="script.js"></script>
     <script src="liveness.js"></script>
     <script src="src/utils/checkSuscripcion.js"></script>

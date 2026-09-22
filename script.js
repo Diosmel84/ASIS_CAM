@@ -1603,14 +1603,27 @@ function selectRole(role) {
     selectedRole = role;
     document.getElementById('roleSelectStep').classList.add('hidden');
     document.getElementById('credentialsStep').classList.remove('hidden');
-    document.getElementById('selectedRoleLabel').textContent = ROL_LABEL[role] || role;
-    document.getElementById('loginUserLabel').textContent = role === ROLES.DOCENTE ? 'Usuario (DNI)' : 'Usuario';
-    document.getElementById('loginUser').placeholder = role === ROLES.DOCENTE ? 'Ingresa tu DNI' : 'Ingresa tu usuario';
+    document.getElementById('selectedRoleLabel').textContent = t('roles.' + role, ROL_LABEL[role] || role);
+    document.getElementById('loginUserLabel').textContent = role === ROLES.DOCENTE ? t('login.userLabelDocente') : t('login.userLabelDefault');
+    document.getElementById('loginUser').placeholder = role === ROLES.DOCENTE ? t('login.userPlaceholderDocente') : t('login.userPlaceholderDefault');
     document.getElementById('loginUser').value = '';
     document.getElementById('loginPass').value = '';
     document.getElementById('loginError').style.display = 'none';
     document.getElementById('loginUser').focus();
 }
+
+// El label/placeholder de usuario dependen del rol elegido (ver
+// selectRole()), así que data-i18n solo no alcanza para mantenerlos
+// traducidos si el idioma cambia CON el paso 2 del login ya abierto -
+// se vuelve a aplicar acá, enganchado a onLocaleChangeRerender() más
+// abajo.
+function reaplicarTraduccionLogin() {
+    if (!selectedRole || document.getElementById('credentialsStep').classList.contains('hidden')) return;
+    document.getElementById('selectedRoleLabel').textContent = t('roles.' + selectedRole, ROL_LABEL[selectedRole] || selectedRole);
+    document.getElementById('loginUserLabel').textContent = selectedRole === ROLES.DOCENTE ? t('login.userLabelDocente') : t('login.userLabelDefault');
+    document.getElementById('loginUser').placeholder = selectedRole === ROLES.DOCENTE ? t('login.userPlaceholderDocente') : t('login.userPlaceholderDefault');
+}
+if (typeof onLocaleChangeRerender === 'function') onLocaleChangeRerender(reaplicarTraduccionLogin);
 
 function backToRoleSelect() {
     selectedRole = null;
@@ -2023,8 +2036,8 @@ function showDashboard() {
     if (currentUser.role === 'admin') {
         document.getElementById('adminDashboard').classList.remove('hidden');
         document.getElementById('teacherDashboard').classList.add('hidden');
-        document.getElementById('dashboardTitle').textContent = `Panel de ${ROL_LABEL[currentUser.rol] || 'Administración'}`;
-        document.getElementById('userRoleBadge').textContent = ROL_LABEL[currentUser.rol] || 'Admin';
+        document.getElementById('dashboardTitle').textContent = `${t('header.panelOf')} ${t('roles.' + currentUser.rol, ROL_LABEL[currentUser.rol] || 'Administración')}`;
+        document.getElementById('userRoleBadge').textContent = t('roles.' + currentUser.rol, ROL_LABEL[currentUser.rol] || 'Admin');
         document.getElementById('userRoleBadge').className = 'badge bg-danger me-2';
 
         // El cambio de contraseña por e-mail (recuperación) es
@@ -2049,13 +2062,29 @@ function showDashboard() {
     } else {
         document.getElementById('adminDashboard').classList.add('hidden');
         document.getElementById('teacherDashboard').classList.remove('hidden');
-        document.getElementById('dashboardTitle').textContent = `Bienvenido, ${currentUser.nombre} ${currentUser.apellido}`;
-        document.getElementById('userRoleBadge').textContent = 'Docente';
+        document.getElementById('dashboardTitle').textContent = `${t('header.welcome')} ${currentUser.nombre} ${currentUser.apellido}`;
+        document.getElementById('userRoleBadge').textContent = t('roles.DOCENTE');
         document.getElementById('userRoleBadge').className = 'badge bg-success me-2';
         loadTeacherDashboard();
         if (currentUser.debeCambiarPassword) forceChangePasswordModal();
     }
 }
+
+// El título/badge del header dependen del rol logueado (ver
+// showDashboard()) - se vuelven a aplicar acá si cambia el idioma con
+// una sesión ya abierta, sin tener que recorrer todo showDashboard()
+// de nuevo (que además recarga datos).
+function reaplicarTraduccionHeader() {
+    if (!currentUser || document.getElementById('dashboardScreen').classList.contains('hidden')) return;
+    if (currentUser.role === 'admin') {
+        document.getElementById('dashboardTitle').textContent = `${t('header.panelOf')} ${t('roles.' + currentUser.rol, ROL_LABEL[currentUser.rol] || 'Administración')}`;
+        document.getElementById('userRoleBadge').textContent = t('roles.' + currentUser.rol, ROL_LABEL[currentUser.rol] || 'Admin');
+    } else {
+        document.getElementById('dashboardTitle').textContent = `${t('header.welcome')} ${currentUser.nombre} ${currentUser.apellido}`;
+        document.getElementById('userRoleBadge').textContent = t('roles.DOCENTE');
+    }
+}
+if (typeof onLocaleChangeRerender === 'function') onLocaleChangeRerender(reaplicarTraduccionHeader);
 
 // ============================================================
 // HORARIO LABORAL DEL DOCENTE (alta/edición: día + inicio + fin)
@@ -3766,26 +3795,26 @@ function renderFaceAttendanceModalBody() {
 
     if (regularCompleta && eventosPendientes.length === 0) {
         body.innerHTML = `
-            <h4>Hola ${teacher.nombre}!</h4>
-            <p class="text-muted">Ya completaste tu registro de hoy${eventosHoy.length > 0 ? ' (cátedra y eventos especiales)' : ' (ingreso y salida)'}.</p>
-            <button class="btn btn-secondary mt-2" onclick="cancelFaceAttendanceModal()">Cerrar</button>
+            <h4>${t('fichaje.hello', { name: teacher.nombre })}</h4>
+            <p class="text-muted">${eventosHoy.length > 0 ? t('fichaje.alreadyDoneTodayFull') : t('fichaje.alreadyDoneToday')}</p>
+            <button class="btn btn-secondary mt-2" onclick="cancelFaceAttendanceModal()">${t('fichaje.close')}</button>
         `;
         return;
     }
 
-    let html = `<h4 class="mb-1">Hola ${teacher.nombre}! 👋</h4><p class="text-muted mb-3">¿Qué deseas registrar?</p>`;
+    let html = `<h4 class="mb-1">${t('fichaje.hello', { name: teacher.nombre })} 👋</h4><p class="text-muted mb-3">${t('fichaje.whatToRegister')}</p>`;
 
     if (!regularCompleta) {
         const exitInfo = getExitWindowInfo(teacher);
         const exitType = exitInfo.isExitTime ? 'exit' : 'early_exit';
         html += `<div class="d-flex flex-column gap-2 mb-2">
-            ${!yaEntroRegular ? `<button class="btn btn-entry btn-lg" onclick="confirmFaceAttendance('entry')"><i class="bi bi-box-arrow-in-right"></i> REGISTRAR INGRESO</button>` : ''}
-            ${yaEntroRegular && !yaSalioRegular ? `<button class="btn btn-exit btn-lg" onclick="confirmFaceAttendance('${exitType}')"><i class="bi bi-box-arrow-left"></i> REGISTRAR SALIDA</button>` : ''}
+            ${!yaEntroRegular ? `<button class="btn btn-entry btn-lg" onclick="confirmFaceAttendance('entry')"><i class="bi bi-box-arrow-in-right"></i> ${t('fichaje.registerEntry')}</button>` : ''}
+            ${yaEntroRegular && !yaSalioRegular ? `<button class="btn btn-exit btn-lg" onclick="confirmFaceAttendance('${exitType}')"><i class="bi bi-box-arrow-left"></i> ${t('fichaje.registerExit')}</button>` : ''}
         </div>`;
     }
 
     if (eventosPendientes.length > 0) {
-        html += `<p class="mb-1 small text-muted text-start"><strong><i class="bi bi-calendar-event"></i> Eventos especiales de hoy</strong></p>`;
+        html += `<p class="mb-1 small text-muted text-start"><strong><i class="bi bi-calendar-event"></i> ${t('fichaje.specialEventsToday')}</strong></p>`;
         html += eventosPendientes.map(ev => {
             // Mismo criterio que la cátedra regular: el botón ya pide
             // el tipo correcto ('exit' o 'early_exit') según la hora
@@ -3797,14 +3826,15 @@ function renderFaceAttendanceModalBody() {
             return `
             <div class="border rounded p-2 mb-2 text-start">
                 <p class="mb-1"><strong>${ev.titulo}</strong> <small class="text-muted">(${(ev.hora_entrada || '').slice(0, 5)} - ${(ev.hora_salida || '').slice(0, 5)})</small></p>
-                ${buildFichajeManualBlock(teacher, 'evento', ev.id, `'evento', ${ev.id}`, 'confirmFaceAttendance', { entrada: 'REGISTRAR INGRESO A EVENTO', salida: 'REGISTRAR SALIDA DE EVENTO' }, evExitType)}
+                ${buildFichajeManualBlock(teacher, 'evento', ev.id, `'evento', ${ev.id}`, 'confirmFaceAttendance', { entrada: t('fichaje.registerEntryEvent'), salida: t('fichaje.registerExitEvent') }, evExitType)}
             </div>`;
         }).join('');
     }
 
-    html += `<div class="mt-3"><button class="btn btn-link btn-sm text-muted" onclick="cancelFaceAttendanceModal()">No soy yo / Cancelar</button></div>`;
+    html += `<div class="mt-3"><button class="btn btn-link btn-sm text-muted" onclick="cancelFaceAttendanceModal()">${t('fichaje.notMeCancel')}</button></div>`;
     body.innerHTML = html;
 }
+if (typeof onLocaleChangeRerender === 'function') onLocaleChangeRerender(renderFaceAttendanceModalBody);
 
 // Registra la asistencia a UN Evento Especial puntual (independiente
 // de la cátedra regular): usa categoria:'evento' + eventoId, así que
@@ -6005,7 +6035,7 @@ function renderDocentesEsperadosHoy() {
     if (debugEl) debugEl.textContent = `Hoy es: ${getDiaSemanaArgentina()} ${getFechaHoyArgentina()} - ${getHoraHHMMArgentina()} ARG`;
     const entries = getDocentesEsperadosHoy();
     if (entries.length === 0) {
-        container.innerHTML = '<p class="text-muted mb-0">No hay docentes con clase asignada hoy.</p>';
+        container.innerHTML = `<p class="text-muted mb-0">${t('esperadosHoy.noTeachers')}</p>`;
         return;
     }
     container.innerHTML = entries.map(e => {
@@ -6017,22 +6047,22 @@ function renderDocentesEsperadosHoy() {
         // un badge rojo "Ausente" y no entiende por qué.
         const fueraDeHorario = e.entryRecord && (e.semaforo.code === 'media_falta' || e.semaforo.code === 'ausente');
         const horaTxt = e.entryRecord && e.entryRecord.time
-            ? ` · fichó ${e.entryRecord.time.slice(0, 5)}${fueraDeHorario ? ' (fuera de horario)' : ''}`
+            ? ` · ${t('esperadosHoy.checkedIn')} ${e.entryRecord.time.slice(0, 5)}${fueraDeHorario ? ' ' + t('esperadosHoy.outOfSchedule') : ''}`
             : '';
         // Tarjeta de Evento Especial: amarillo flúo + badge CON/SIN
         // perjuicio pedido, para que se distinga de un bloque de
         // materia normal de un vistazo (ver getEventoEntriesParaHoy()).
         const claseFila = e.esEvento ? 'semaforo-row semaforo-row-evento' : 'semaforo-row';
         const badgeCumplimiento = e.esEvento
-            ? `<span class="badge-cumplimiento ${e.tipoCumplimiento === 'SIN_PERJUICIO' ? 'badge-sin-perjuicio' : 'badge-con-perjuicio'}">${e.tipoCumplimiento === 'SIN_PERJUICIO' ? 'SIN perjuicio' : 'CON perjuicio'}</span>`
+            ? `<span class="badge-cumplimiento ${e.tipoCumplimiento === 'SIN_PERJUICIO' ? 'badge-sin-perjuicio' : 'badge-con-perjuicio'}">${e.tipoCumplimiento === 'SIN_PERJUICIO' ? t('esperadosHoy.sinPerjuicio') : t('esperadosHoy.conPerjuicio')}</span>`
             : '';
-        const etiquetaMateria = e.esEvento ? `<i class="bi bi-calendar-event"></i> Evento: ${e.materiaNombre}` : e.materiaNombre;
+        const etiquetaMateria = e.esEvento ? `<i class="bi bi-calendar-event"></i> ${t('esperadosHoy.event')}: ${e.materiaNombre}` : e.materiaNombre;
         // Choque de horario real en los datos (ver resolverChoquesHorario()):
         // se pinta todo en rojo encima de lo que sea, con un aviso
         // explícito, en vez de dejar que se vea como un semáforo normal.
         const filaConChoque = e.choqueHorario ? `${claseFila} semaforo-row-choque` : claseFila;
         const avisoChoque = e.choqueHorario
-            ? `<div class="alert alert-danger py-1 px-2 small mb-0 mt-1"><i class="bi bi-exclamation-triangle-fill"></i> CONFLICTO DE HORARIO: este docente tiene otra materia superpuesta el mismo día/horario. Corregí en Materias.</div>`
+            ? `<div class="alert alert-danger py-1 px-2 small mb-0 mt-1"><i class="bi bi-exclamation-triangle-fill"></i> ${t('esperadosHoy.conflictWarning')}</div>`
             : '';
         return `
             <div class="${filaConChoque}" style="border-left-color:${e.choqueHorario ? '#ef4444' : e.semaforo.color}">
@@ -6041,10 +6071,11 @@ function renderDocentesEsperadosHoy() {
                     <span class="semaforo-row-detail">${etiquetaMateria}${cursoTxt ? ' · ' + cursoTxt : ''} · ${e.inicio}${horaTxt}</span>
                     ${avisoChoque}
                 </div>
-                <span class="semaforo-badge" style="background:${e.choqueHorario ? '#ef4444' : e.semaforo.color}">${e.choqueHorario ? 'CONFLICTO' : e.semaforo.label}</span>
+                <span class="semaforo-badge" style="background:${e.choqueHorario ? '#ef4444' : e.semaforo.color}">${e.choqueHorario ? t('esperadosHoy.conflict') : t('semaforo.' + e.semaforo.code)}</span>
             </div>`;
     }).join('');
 }
+if (typeof onLocaleChangeRerender === 'function') onLocaleChangeRerender(renderDocentesEsperadosHoy);
 
 // ============================================================
 // GRILLA COMPLETA DE HORARIOS (vista semana, con estado de

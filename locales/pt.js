@@ -1,0 +1,88 @@
+// ============================================================
+// ASISCAM PRO - Dicionário PT (português do Brasil). Ver es.js para a
+// nota de cobertura - esta primeira etapa cobre Login, Cabeçalho,
+// Registro de ponto por reconhecimento facial (Entrada/Saída) e
+// "Esperados Hoje" (incl. eventos especiais COM/SEM prejuízo).
+// Qualquer chave que falte aqui cai para o espanhol (t() em i18n.js),
+// nunca quebra nem mostra uma chave crua.
+// ============================================================
+window.ASISCAM_I18N = window.ASISCAM_I18N || {};
+window.ASISCAM_I18N.pt = {
+    login: {
+        title: 'ASIS-CAM',
+        subtitle: 'Controle de Presença Docente',
+        chooseRole: 'Como você quer entrar?',
+        changeRole: 'Trocar perfil',
+        enteringAs: 'Entrando como',
+        userLabelDefault: 'Usuário',
+        userLabelDocente: 'Usuário (CPF/RG)',
+        userPlaceholderDefault: 'Digite seu usuário',
+        userPlaceholderDocente: 'Digite seu documento',
+        passwordLabel: 'Senha',
+        passwordPlaceholder: 'Digite sua senha',
+        errorCredentials: 'Usuário ou senha incorretos',
+        submit: 'Entrar',
+        forgotPassword: 'Esqueceu sua senha?',
+    },
+    roles: {
+        DOCENTE: 'Professor(a)',
+        SECRETARIA: 'Secretaria',
+        RECTOR: 'Diretor(a)',
+        PROGRAMADOR: 'Desenvolvedor(a)',
+    },
+    header: {
+        logout: 'Sair',
+        welcome: 'Bem-vindo(a),',
+        panelOf: 'Painel de',
+    },
+    fichaje: {
+        loadingModels: 'Carregando módulo de reconhecimento facial...',
+        waitingId: 'Aguardando identificação...',
+        identify: 'Identificar-me',
+        entry: 'Entrada',
+        exit: 'Saída',
+        earlyExit: 'Sair mais cedo',
+        hint: 'Toque em "Identificar-me" antes de cada registro (entrada, saída ou saída antecipada).',
+        advancedOptions: 'Opções avançadas',
+        kioskAuthorizePrompt: 'Este é o PC da escola? Autorizar com código',
+        kioskCodePlaceholder: 'Código de 6 dígitos',
+        authorize: 'Autorizar',
+        hello: 'Olá {name}!',
+        whatToRegister: 'O que você deseja registrar?',
+        registerEntry: 'REGISTRAR ENTRADA',
+        registerExit: 'REGISTRAR SAÍDA',
+        registerEntryEvent: 'REGISTRAR ENTRADA NO EVENTO',
+        registerExitEvent: 'REGISTRAR SAÍDA DO EVENTO',
+        notMeCancel: 'Não sou eu / Cancelar',
+        alreadyDoneTodayFull: 'Você já completou o registro de hoje (aulas regulares e eventos especiais).',
+        alreadyDoneToday: 'Você já completou o registro de hoje (entrada e saída).',
+        close: 'Fechar',
+        specialEventsToday: 'Eventos especiais de hoje',
+    },
+    stats: {
+        totalTeachers: 'Total de Professores',
+        expectedToday: 'Esperados Hoje',
+        presentToday: 'Presentes Hoje',
+        absentToday: 'Ausentes Hoje',
+        lateToday: 'Atrasos Hoje',
+        halfAbsentToday: 'Meia Falta Hoje',
+    },
+    esperadosHoy: {
+        title: 'Professores que deveriam comparecer hoje',
+        noTeachers: 'Nenhum professor tem aula atribuída hoje.',
+        checkedIn: 'registrou às',
+        outOfSchedule: '(fora do horário)',
+        event: 'Evento',
+        conPerjuicio: 'COM prejuízo',
+        sinPerjuicio: 'SEM prejuízo',
+        conflict: 'CONFLITO',
+        conflictWarning: 'CONFLITO DE HORÁRIO: este professor tem outra disciplina sobreposta no mesmo dia/horário. Corrija em Disciplinas.',
+    },
+    semaforo: {
+        esperado: 'Esperado',
+        presente: 'Presente',
+        tardanza: 'Atraso',
+        media_falta: 'Meia Falta',
+        ausente: 'Ausente',
+    },
+};
