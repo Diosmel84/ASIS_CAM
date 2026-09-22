@@ -4,6 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ASISCAM PRO</title>
+    <!-- Anti-flash de modo oscuro: aplica la preferencia guardada (si el
+         usuario ya tocó el toggle alguna vez, ver theme.js) ANTES de que
+         se pinte la página. Sin esto se ve un flash del tema equivocado
+         en cada carga cuando el guardado no coincide con el del sistema
+         operativo. Sin preferencia guardada, no toca nada: el CSS sigue
+         prefers-color-scheme solo (ver style.css). -->
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('app_theme');
+                if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+            } catch (e) { /* localStorage deshabilitado: se ignora, sigue al sistema operativo */ }
+        })();
+    </script>
     <link rel="icon" type="image/png" href="/favicon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,7 +39,10 @@
         <div id="loginScreen">
             <div class="login-header">
                 <img src="/logo.png" alt="ASISCAM PRO" class="institution-logo">
-                <div class="lang-switcher lang-switcher-login" role="group" aria-label="Idioma / Language / Idioma"></div>
+                <div class="d-flex justify-content-center align-items-center gap-2 mt-2 mb-1">
+                    <div class="lang-switcher lang-switcher-login" role="group" aria-label="Idioma / Language / Idioma"></div>
+                    <div class="theme-switcher"></div>
+                </div>
                 <h1 data-i18n="login.title">ASIS-CAM</h1>
                 <p data-i18n="login.subtitle">Control de Asistencia Docente</p>
             </div>
@@ -145,6 +162,7 @@
                 </div>
                 <div class="dashboard-header-actions">
                     <div class="lang-switcher" role="group" aria-label="Idioma / Language / Idioma"></div>
+                    <div class="theme-switcher"></div>
                     <span class="badge bg-primary me-2" id="userRoleBadge">Admin</span>
                     <button class="btn-logout" id="dashboardLogoutBtn" onclick="logout()">
                         <i class="bi bi-box-arrow-right"></i> <span data-i18n="header.logout">Salir</span>
@@ -1227,6 +1245,7 @@
     <script src="locales/en.js"></script>
     <script src="locales/pt.js"></script>
     <script src="i18n.js"></script>
+    <script src="theme.js"></script>
     <script src="script.js"></script>
     <script src="liveness.js"></script>
     <script src="src/utils/checkSuscripcion.js"></script>

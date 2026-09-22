@@ -105,6 +105,163 @@
     --status-licencia-bg: #F2F2F2;
     --status-scheduled: #9A9A94;
     --status-scheduled-bg: #F7F7F5;
+
+    /* Explícito: sigue el tema del sistema operativo por default (ver
+       bloque @media prefers-color-scheme más abajo). Cuando el toggle
+       de theme.js fija una preferencia manual, JS agrega
+       data-theme="light"/"dark" en <html> y ESE valor manda. */
+    color-scheme: light;
+}
+
+/* ============================================================
+   MODO OSCURO
+   Misma paleta monocroma (negro/blanco/gris + acento azul), invertida:
+   --ink y --white intercambian rol (--ink pasa a ser el tono claro de
+   texto/superficie "fuerte", --white pasa a ser el fondo oscuro de
+   pagina/tarjetas) porque casi toda la hoja de estilos ya arma sus
+   componentes combinando SIEMPRE estas dos variables juntas
+   (background:var(--ink)+color:var(--white) o al revés) - invertir
+   ambas a la vez preserva el contraste de cada combinacion existente
+   sin tocar cada regla una por una. La escala de grises se invierte
+   con el mismo criterio.
+
+   Dos formas de activarlo, mismo bloque de variables en los dos casos:
+   1) @media prefers-color-scheme: dark - automático si el sistema
+      operativo esta en oscuro y el usuario todavia no eligio nada a
+      mano (ver "html:not([data-theme])" - sin data-theme, sigue al
+      SO). data-theme="light" explicito lo desactiva.
+   2) [data-theme="dark"] - eleccion manual del usuario via el toggle
+      del header (theme.js), persistida en localStorage, manda por
+      encima del SO.
+
+   Excepciones que NO se invierten (colores fijos, no ligados al tema
+   claro/oscuro): los badges CON/SIN perjuicio, el verde de WhatsApp,
+   el amarillo de Evento Especial/choque de horario, y los estados de
+   asistencia (present/late/falta/licencia/scheduled - se mantienen
+   los mismos acentos, solo se oscurece su fondo pastel, ver abajo)
+   - todos ya estaban documentados como "excepcion puntual" mas arriba
+   en este archivo, antes de este cambio.
+============================================================ */
+@media (prefers-color-scheme: dark) {
+    html:not([data-theme]) {
+        --ink: #F5F5F7;
+        --ink-soft: #E5E5EA;
+        --white: #1C1C1E;
+        --gray-hairline: #313135;
+        --gray-border: #3A3A3D;
+        --gray-50: #232325;
+        --gray-100: #2C2C2E;
+        --gray-200: #3A3A3D;
+        --gray-400: #6E6E73;
+        --gray-500: #8E8E93;
+        --gray-600: #AEAEB2;
+        --gray-800: #E5E5EA;
+
+        --olive-900: #F5F5F7;
+        --olive-800: #F5F5F7;
+        --olive-700: #F5F5F7;
+        --olive-600: #E5E5EA;
+        --olive-500: #C7C7CC;
+        --olive-tint: #2C2C2E;
+        --primary-color: #F5F5F7;
+        --secondary-color: #E5E5EA;
+        --success-color: #F5F5F7;
+        --danger-color: #E5E5EA;
+        --warning-color: #E5E5EA;
+        --info-muted: #AEAEB2;
+        --danger-muted: #E5E5EA;
+        --warning-muted: #AEAEB2;
+        --light-bg: #232325;
+
+        --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.45);
+        --shadow-softer: 0 2px 12px rgba(0, 0, 0, 0.4);
+        --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.35);
+
+        --bs-primary: #F5F5F7;
+        --bs-primary-rgb: 245, 245, 247;
+        --bs-secondary: #AEAEB2;
+        --bs-secondary-rgb: 174, 174, 178;
+        --bs-success: #F5F5F7;
+        --bs-success-rgb: 245, 245, 247;
+        --bs-danger: #E5E5EA;
+        --bs-danger-rgb: 229, 229, 234;
+        --bs-warning: #AEAEB2;
+        --bs-warning-rgb: 174, 174, 178;
+        --bs-info: #AEAEB2;
+        --bs-info-rgb: 174, 174, 178;
+        --bs-link-color: #F5F5F7;
+        --bs-link-color-rgb: 245, 245, 247;
+        --bs-link-hover-color: #F5F5F7;
+
+        /* Acentos de estado (present/late/falta/licencia/scheduled) sin
+           tocar: solo se oscurece el fondo pastel para que el texto
+           (ahora claro) siga leyendose bien encima. */
+        --status-present-bg: #12261A;
+        --status-late-bg: #332508;
+        --status-falta-bg: #2E1412;
+        --status-licencia-bg: #29292B;
+        --status-scheduled-bg: #1F1F21;
+
+        color-scheme: dark;
+    }
+}
+html[data-theme="dark"] {
+    --ink: #F5F5F7;
+    --ink-soft: #E5E5EA;
+    --white: #1C1C1E;
+    --gray-hairline: #313135;
+    --gray-border: #3A3A3D;
+    --gray-50: #232325;
+    --gray-100: #2C2C2E;
+    --gray-200: #3A3A3D;
+    --gray-400: #6E6E73;
+    --gray-500: #8E8E93;
+    --gray-600: #AEAEB2;
+    --gray-800: #E5E5EA;
+
+    --olive-900: #F5F5F7;
+    --olive-800: #F5F5F7;
+    --olive-700: #F5F5F7;
+    --olive-600: #E5E5EA;
+    --olive-500: #C7C7CC;
+    --olive-tint: #2C2C2E;
+    --primary-color: #F5F5F7;
+    --secondary-color: #E5E5EA;
+    --success-color: #F5F5F7;
+    --danger-color: #E5E5EA;
+    --warning-color: #E5E5EA;
+    --info-muted: #AEAEB2;
+    --danger-muted: #E5E5EA;
+    --warning-muted: #AEAEB2;
+    --light-bg: #232325;
+
+    --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.45);
+    --shadow-softer: 0 2px 12px rgba(0, 0, 0, 0.4);
+    --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.35);
+
+    --bs-primary: #F5F5F7;
+    --bs-primary-rgb: 245, 245, 247;
+    --bs-secondary: #AEAEB2;
+    --bs-secondary-rgb: 174, 174, 178;
+    --bs-success: #F5F5F7;
+    --bs-success-rgb: 245, 245, 247;
+    --bs-danger: #E5E5EA;
+    --bs-danger-rgb: 229, 229, 234;
+    --bs-warning: #AEAEB2;
+    --bs-warning-rgb: 174, 174, 178;
+    --bs-info: #AEAEB2;
+    --bs-info-rgb: 174, 174, 178;
+    --bs-link-color: #F5F5F7;
+    --bs-link-color-rgb: 245, 245, 247;
+    --bs-link-hover-color: #F5F5F7;
+
+    --status-present-bg: #12261A;
+    --status-late-bg: #332508;
+    --status-falta-bg: #2E1412;
+    --status-licencia-bg: #29292B;
+    --status-scheduled-bg: #1F1F21;
+
+    color-scheme: dark;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -192,7 +349,7 @@ body {
     cursor: pointer; transition: background var(--transition-base), color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-base);
 }
 .lang-pill:hover:not(.lang-pill-active) { background: var(--gray-200); color: var(--ink); }
-.lang-pill-active { background: var(--accent-blue); color: var(--white); box-shadow: 0 3px 10px rgba(0, 102, 255, 0.35); transform: scale(1.06); }
+.lang-pill-active { background: var(--accent-blue); color: #FFFFFF; box-shadow: 0 3px 10px rgba(0, 102, 255, 0.35); transform: scale(1.06); }
 .lang-pill-flag {
     display: inline-flex; align-items: center; justify-content: center;
     width: 16px; height: 16px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
@@ -200,6 +357,23 @@ body {
 }
 .lang-pill-flag svg { width: 100%; height: 100%; display: block; object-fit: cover; }
 .lang-switcher-select { width: auto; min-width: 84px; }
+
+/* ===== TOGGLE DE MODO OSCURO =====
+   Un solo botón circular (icono sol/luna, mismo alto que un lang-pill)
+   pintado por theme.js en cada contenedor .theme-switcher (login +
+   header del dashboard, junto al selector de idioma). Muestra el
+   icono de a DÓNDE se va a cambiar al tocarlo (sol = "pasar a claro"
+   cuando ya está oscuro, luna = "pasar a oscuro" cuando está claro),
+   mismo criterio que cualquier toggle de tema estándar. */
+.theme-switcher { display: flex; align-items: center; }
+.theme-toggle-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px;
+    background: var(--gray-100); color: var(--gray-600); border: 1px solid transparent;
+    border-radius: 50%; font-size: 0.9rem; cursor: pointer; flex-shrink: 0;
+    transition: background var(--transition-base), color var(--transition-base), transform var(--transition-base);
+}
+.theme-toggle-btn:hover { background: var(--gray-200); color: var(--ink); transform: scale(1.06); }
 
 .login-form {
     width: 100%;
@@ -545,7 +719,7 @@ body {
 .semaforo-row-main { display: flex; flex-direction: column; gap: 1px; }
 .semaforo-row-name { font-weight: 700; color: var(--ink); font-size: 0.9rem; }
 .semaforo-row-detail { font-size: 0.75rem; color: var(--gray-600); }
-.semaforo-badge { color: var(--white); font-size: 0.72rem; font-weight: 700; padding: 4px 10px; border-radius: var(--radius-pill); white-space: nowrap; }
+.semaforo-badge { color: #FFFFFF; font-size: 0.72rem; font-weight: 700; padding: 4px 10px; border-radius: var(--radius-pill); white-space: nowrap; }
 /* El amarillo (#eab308) no tiene contraste suficiente con texto
    blanco (WCAG) - se lo pinta acá por color exacto en vez de agregar
    una clase .status-tardanza más (ver semaforo.color en script.js). */
@@ -560,7 +734,7 @@ body {
 .semaforo-row-evento .semaforo-row-detail { color: #4a4a00; }
 .badge-cumplimiento {
     display: inline-block; margin-left: 6px; font-size: 0.62rem; font-weight: 700;
-    padding: 2px 7px; border-radius: var(--radius-pill); vertical-align: middle; color: var(--white);
+    padding: 2px 7px; border-radius: var(--radius-pill); vertical-align: middle; color: #FFFFFF;
 }
 .badge-con-perjuicio { background: #7c2d12; }
 .badge-sin-perjuicio { background: #1e3a8a; }
@@ -703,13 +877,13 @@ body {
 .annual-day-num { font-weight: 700; font-size: 0.6rem; color: var(--gray-600); }
 .annual-teacher-chip {
     display: block; font-size: 0.5rem; line-height: 1.3; padding: 0 2px; border-radius: 2px;
-    margin-top: 1px; color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-top: 1px; color: #FFFFFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .annual-teacher-chip.status-present { background: var(--status-present); }
 .annual-teacher-chip.status-late { background: var(--status-late); }
 .annual-teacher-chip.status-falta { background: var(--status-falta); }
 .annual-teacher-chip.status-licencia { background: var(--status-licencia); }
-.annual-teacher-chip.status-scheduled { background: var(--status-scheduled); color: var(--ink); }
+.annual-teacher-chip.status-scheduled { background: var(--status-scheduled); color: #1A1A1A; }
 .annual-day-cell.has-entries { cursor: pointer; }
 .annual-day-cell.has-entries:hover { box-shadow: 0 0 0 2px var(--ink) inset; background: var(--gray-50); }
 
@@ -717,7 +891,7 @@ body {
 .day-detail-teacher {
     display: flex; justify-content: space-between; align-items: center; gap: 10px;
     padding: 14px 16px; border-radius: var(--radius-md); margin-bottom: 10px; cursor: pointer;
-    font-size: 1.1rem; font-weight: 700; color: var(--white); transition: filter 0.15s ease;
+    font-size: 1.1rem; font-weight: 700; color: #FFFFFF; transition: filter 0.15s ease;
 }
 .day-detail-teacher:hover { filter: brightness(1.15); }
 .day-detail-teacher .day-detail-status {
@@ -728,7 +902,7 @@ body {
 .day-detail-teacher.status-late { background: var(--status-late); }
 .day-detail-teacher.status-falta { background: var(--status-falta); }
 .day-detail-teacher.status-licencia { background: var(--status-licencia); }
-.day-detail-teacher.status-scheduled { background: var(--status-scheduled); color: var(--ink); }
+.day-detail-teacher.status-scheduled { background: var(--status-scheduled); color: #1A1A1A; }
 .day-detail-teacher .day-detail-name { font-size: 0.9rem; }
 
 /* ===== GRILLA COMPLETA DE HORARIOS (vista semana, con estado de

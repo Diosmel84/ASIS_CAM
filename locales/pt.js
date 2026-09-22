@@ -41,6 +41,8 @@ window.ASISCAM_I18N.pt = {
         logout: 'Sair',
         welcome: 'Bem-vindo(a),',
         panelOf: 'Painel de',
+        themeToDark: 'Modo escuro',
+        themeToLight: 'Modo claro',
     },
     fichaje: {
         loadingModels: 'Carregando módulo de reconhecimento facial...',
