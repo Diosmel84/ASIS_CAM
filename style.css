@@ -758,6 +758,35 @@ body {
 .semaforo-row-choque { background: #fee2e2; border-color: #ef4444; }
 .semaforo-row-choque .semaforo-row-detail { color: #7f1d1d; }
 
+/* ===== TURNOS (Mañana/Tarde/Noche) =====
+   Header de sección en "Esperados Hoy" (agrupa la lista por franja,
+   ver renderDocentesEsperadosHoy() en script.js) + badge de turno en
+   el form de Materia (autocalculado al cargar el horario por día, ver
+   actualizarTurnoMateriaBadge()). Colores fijos (no ligados al tema
+   claro/oscuro, mismo criterio que WhatsApp/CON-SIN perjuicio):
+   distinguir la franja tiene que verse igual en los dos modos, y el
+   texto blanco de los badges necesita el fondo saturado siempre. */
+.esperados-turno-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 4px 6px; margin: 16px 0 8px;
+    border-bottom: 2px solid var(--gray-hairline);
+    font-weight: 800; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink);
+}
+.esperados-turno-header:first-child { margin-top: 0; }
+.esperados-turno-count { font-weight: 600; font-size: 0.72rem; color: var(--gray-600); text-transform: none; letter-spacing: 0; }
+.turno-header-manana { border-bottom-color: #E8A33D; }
+.turno-header-tarde { border-bottom-color: #E8672A; }
+.turno-header-noche { border-bottom-color: #3B3F8C; }
+
+.turno-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 0.72rem; font-weight: 700; padding: 3px 10px;
+    border-radius: var(--radius-pill); color: #FFFFFF; margin-top: 2px;
+}
+.turno-badge-manana { background: #E8A33D; }
+.turno-badge-tarde { background: #E8672A; }
+.turno-badge-noche { background: #3B3F8C; }
+
 .required-field::after { content: " *"; color: var(--ink); font-weight: bold; }
 
 /* ===== BUSCADOR (lupa) ===== */

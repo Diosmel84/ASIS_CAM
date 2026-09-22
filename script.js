@@ -5291,6 +5291,26 @@ function populateMateriaProfesorSelect(selectedTeacherId) {
     sel.value = selectedTeacherId || '';
 }
 
+// Turno (Mañana/Tarde/Noche, ver TURNOS/getTurnoPorHora() en
+// presencia-logic.js) de cada día cargado en el form de Materia: se
+// autocalcula en vivo a partir de la hora de INICIO (oninput de los
+// campos de hora, ver toggleMateriaHorarioDia() debajo) y se muestra
+// como badge de color junto al horario, para que quede claro de un
+// vistazo en qué franja cae la clase ANTES de guardar. El campo real
+// que se persiste sale de acá mismo al armar `horarios` en
+// saveMateria() (turno: getTurnoPorHora(inicio) por cada bloque).
+const TURNO_I18N_KEY = { MANANA: 'turnos.manana', TARDE: 'turnos.tarde', NOCHE: 'turnos.noche' };
+const TURNO_BADGE_CLASS = { MANANA: 'turno-badge-manana', TARDE: 'turno-badge-tarde', NOCHE: 'turno-badge-noche' };
+function actualizarTurnoMateriaBadge(diaSinTilde) {
+    const badge = document.getElementById('materiaHorarioTurno_' + diaSinTilde);
+    if (!badge) return;
+    const inicio = document.getElementById('materiaHorarioInicio_' + diaSinTilde)?.value;
+    const turno = inicio ? getTurnoPorHora(inicio) : null;
+    if (!turno) { badge.className = 'turno-badge hidden'; badge.textContent = ''; return; }
+    badge.className = 'turno-badge ' + TURNO_BADGE_CLASS[turno];
+    badge.innerHTML = `<i class="bi bi-clock-history"></i> ${t(TURNO_I18N_KEY[turno])}`;
+}
+
 // Fila dinámica "Lunes: [inicio] - [fin]" que aparece/desaparece al
 // tildar/destildar el checkbox de ese día (ver onchange en
 // index.html). inicioPrefill/finPrefill se usan al editar una materia
@@ -5311,13 +5331,15 @@ function toggleMateriaHorarioDia(diaSinTilde, checked, inicioPrefill, finPrefill
         <div class="col-4"><span class="fw-semibold">${diaMateriaLabel(diaSinTilde)}</span></div>
         <div class="col-4">
             <label class="form-label small mb-1 text-muted">Inicio</label>
-            <input type="time" class="form-control form-control-sm" id="materiaHorarioInicio_${diaSinTilde}" value="${inicioPrefill || ''}">
+            <input type="time" class="form-control form-control-sm" id="materiaHorarioInicio_${diaSinTilde}" value="${inicioPrefill || ''}" oninput="actualizarTurnoMateriaBadge('${diaSinTilde}')">
         </div>
         <div class="col-4">
             <label class="form-label small mb-1 text-muted">Fin</label>
             <input type="time" class="form-control form-control-sm" id="materiaHorarioFin_${diaSinTilde}" value="${finPrefill || ''}">
-        </div>`;
+        </div>
+        <div class="col-12"><span class="turno-badge hidden" id="materiaHorarioTurno_${diaSinTilde}"></span></div>`;
     cont.appendChild(fila);
+    actualizarTurnoMateriaBadge(diaSinTilde);
 }
 
 function openMateriaModal(id) {
@@ -5401,6 +5423,10 @@ async function saveMateria() {
 
     // Un horario por día (ver toggleMateriaHorarioDia): cada día
     // tildado tiene que tener su propia fila con inicio/fin cargados.
+    // `turno` (Mañana/Tarde/Noche, ver getTurnoPorHora() en
+    // presencia-logic.js) se recalcula acá mismo a partir del inicio
+    // real en vez de leer el badge ya pintado en pantalla - así queda
+    // siempre correcto aunque el badge no se haya alcanzado a repintar.
     const horarios = [];
     for (const diaSinTilde of diasTildados) {
         const label = diaMateriaLabel(diaSinTilde);
@@ -5408,7 +5434,7 @@ async function saveMateria() {
         const fin = document.getElementById('materiaHorarioFin_' + diaSinTilde)?.value;
         if (!inicio || !fin) { showToast(`Completá el horario de ${label}`, 'error'); return; }
         if (fin <= inicio) { showToast(`En ${label}, la hora de fin debe ser posterior a la de inicio`, 'error'); return; }
-        horarios.push({ dia: label, inicio, fin });
+        horarios.push({ dia: label, inicio, fin, turno: getTurnoPorHora(inicio) });
     }
 
     let profesorId = null;
@@ -5470,6 +5496,47 @@ async function deleteMateria(id) {
         console.error('No se pudo eliminar la materia:', error);
         showToast('No se pudo eliminar la materia (' + describeSupabaseError(error) + ')', 'error');
     }
+}
+
+// Migración one-shot: agrega `turno` (Mañana/Tarde/Noche) a cada
+// bloque de `horarios` de las materias que ya estaban cargadas ANTES
+// de este cambio (saveMateria() ya lo calcula solo para materias
+// nuevas/editadas desde ahora). Recalcula con la misma
+// getTurnoPorHora() a partir del `inicio` real de cada bloque -
+// también arma `horarios` desde cero para materias viejísimas que
+// todavía no lo tenían poblado (ver materiaHorarios()). Segura de
+// correr más de una vez: una materia con todos sus bloques ya
+// migrados no se vuelve a tocar.
+async function migrarTurnosMaterias() {
+    if (!tienePermiso(currentUser.rol, 'backup_restore')) {
+        showToast(mensajeSinPermiso('backup_restore'), 'error');
+        logAccion('PERMISO_DENEGADO', 'Intentó migrar el turno de las materias sin permiso');
+        return;
+    }
+    await loadMaterias();
+    const pendientes = currentMaterias.filter(m => materiaHorarios(m).some(h => !h.turno));
+    if (pendientes.length === 0) {
+        showToast('Todas las materias ya tienen el turno calculado. No hay nada para migrar.', 'info');
+        return;
+    }
+    if (!confirm(`Se va a calcular el turno (Mañana/Tarde/Noche) de ${pendientes.length} materia(s) que todavía no lo tienen. ¿Continuar?`)) return;
+
+    let migradas = 0, fallidas = 0;
+    for (const m of pendientes) {
+        const horariosConTurno = materiaHorarios(m).map(h => ({ ...h, turno: h.turno || getTurnoPorHora(h.inicio) }));
+        try {
+            const { error } = await sb.from('materias').update({ horarios: horariosConTurno, dias: horariosConTurno.map(h => h.dia) }).eq('id', m.id);
+            if (error) throw error;
+            migradas++;
+        } catch (error) {
+            console.error(`No se pudo migrar el turno de la materia ${m.id} (${m.nombre}):`, error);
+            fallidas++;
+        }
+    }
+    logAccion('MIGRAR_TURNOS_MATERIAS', `Calculó el turno de ${migradas} materia(s)${fallidas ? ` (${fallidas} fallaron)` : ''}`);
+    await loadMaterias();
+    renderGrillaMaterias();
+    showToast(`✅ Turno calculado en ${migradas} materia(s)${fallidas ? ` (${fallidas} fallaron, ver consola)` : ''}`, fallidas ? 'error' : 'success');
 }
 
 // ===== "Materias asignadas" dentro del alta/edición de docente: chips
@@ -5835,8 +5902,15 @@ function getScheduleEntriesForDate(dateStr) {
             if (licencia) {
                 status = 'licencia';
             } else {
+                // fichajeValidoParaClase() (presencia-logic.js): además de
+                // coincidir teacherId+materiaId+fecha, el fichaje tiene que
+                // haber caído DENTRO de la ventana del turno de ESTE bloque
+                // (ver comentario ahí) - sin esto, un fichaje real pero de
+                // otra franja horaria (ej. 00:29 para una clase de las
+                // 21:00) podía marcar presente una clase a la que nunca fue.
                 entryRecord = attendance.find(a => a.teacherId === teacher.id && a.type === 'entry' && getFechaRealFichaje(a) === dateStr &&
-                    (a.categoria || 'regular') === 'regular' && !a.anulado && (h.materiaId != null ? a.materiaId === h.materiaId : true)) || null;
+                    (a.categoria || 'regular') === 'regular' && !a.anulado && (h.materiaId != null ? a.materiaId === h.materiaId : true) &&
+                    fichajeValidoParaClase(a.time, h.inicio)) || null;
                 if (entryRecord) {
                     status = entryRecord.status === 'late' ? 'late' : 'present';
                     const [sh, sm] = h.inicio.split(':').map(Number);
@@ -6023,6 +6097,57 @@ function getDocentesEsperadosHoyPorDocente() {
     return Array.from(porDocente.values());
 }
 
+// Una fila de "Esperados Hoy" (una materia, o un Evento Especial). Se
+// usa una sola vez por entrada, sin importar en qué sección de turno
+// termine cayendo - ver renderDocentesEsperadosHoy().
+function renderFilaEsperadoHoy(e) {
+    const cursoTxt = e.carreraNombre ? `${e.carreraNombre} - ${e.anio}° Año` : '';
+    // "(fuera de horario)": aclara el caso que confunde a primera
+    // vista - SÍ fichó, pero tan tarde respecto del inicio del
+    // bloque (no de la duración de la clase) que ya cae en Media
+    // Falta/Ausente. Sin esto, un admin ve "fichó 21:50" al lado de
+    // un badge rojo "Ausente" y no entiende por qué.
+    const fueraDeHorario = e.entryRecord && (e.semaforo.code === 'media_falta' || e.semaforo.code === 'ausente');
+    const horaTxt = e.entryRecord && e.entryRecord.time
+        ? ` · ${t('esperadosHoy.checkedIn')} ${e.entryRecord.time.slice(0, 5)}${fueraDeHorario ? ' ' + t('esperadosHoy.outOfSchedule') : ''}`
+        : '';
+    // Tarjeta de Evento Especial: amarillo flúo + badge CON/SIN
+    // perjuicio pedido, para que se distinga de un bloque de
+    // materia normal de un vistazo (ver getEventoEntriesParaHoy()).
+    const claseFila = e.esEvento ? 'semaforo-row semaforo-row-evento' : 'semaforo-row';
+    const badgeCumplimiento = e.esEvento
+        ? `<span class="badge-cumplimiento ${e.tipoCumplimiento === 'SIN_PERJUICIO' ? 'badge-sin-perjuicio' : 'badge-con-perjuicio'}">${e.tipoCumplimiento === 'SIN_PERJUICIO' ? t('esperadosHoy.sinPerjuicio') : t('esperadosHoy.conPerjuicio')}</span>`
+        : '';
+    const etiquetaMateria = e.esEvento ? `<i class="bi bi-calendar-event"></i> ${t('esperadosHoy.event')}: ${e.materiaNombre}` : e.materiaNombre;
+    // Choque de horario real en los datos (ver resolverChoquesHorario()):
+    // se pinta todo en rojo encima de lo que sea, con un aviso
+    // explícito, en vez de dejar que se vea como un semáforo normal.
+    const filaConChoque = e.choqueHorario ? `${claseFila} semaforo-row-choque` : claseFila;
+    const avisoChoque = e.choqueHorario
+        ? `<div class="alert alert-danger py-1 px-2 small mb-0 mt-1"><i class="bi bi-exclamation-triangle-fill"></i> ${t('esperadosHoy.conflictWarning')}</div>`
+        : '';
+    return `
+        <div class="${filaConChoque}" style="border-left-color:${e.choqueHorario ? '#ef4444' : e.semaforo.color}">
+            <div class="semaforo-row-main">
+                <span class="semaforo-row-name">${e.teacherName}${badgeCumplimiento}</span>
+                <span class="semaforo-row-detail">${etiquetaMateria}${cursoTxt ? ' · ' + cursoTxt : ''} · ${e.inicio}${horaTxt}</span>
+                ${avisoChoque}
+            </div>
+            <span class="semaforo-badge" style="background:${e.choqueHorario ? '#ef4444' : e.semaforo.color}">${e.choqueHorario ? t('esperadosHoy.conflict') : t('semaforo.' + e.semaforo.code)}</span>
+        </div>`;
+}
+
+// Agrupa TODAS las entradas de hoy (getDocentesEsperadosHoy() ya trae
+// todo el día completo, desde las 00:00, sin filtrar por si ya pasó o
+// no esa hora) en 3 secciones fijas Mañana/Tarde/Noche según el turno
+// de cada bloque (getTurnoPorHora(), sobre `inicio`) - a diferencia de
+// getDocentesEsperadosHoy() (ordenada de peor a mejor semáforo), acá
+// DENTRO de cada sección se ordena por hora real, para que se lea como
+// la agenda del día. El contador del header ("Noche 2/3 presentes")
+// cuenta cuántos de esa franja ya tienen fichaje registrado
+// (entryRecord), sin importar si llegaron a horario o tarde, sobre el
+// total de bloques esperados en esa franja. Las secciones sin ninguna
+// entrada no se muestran.
 function renderDocentesEsperadosHoy() {
     const container = document.getElementById('docentesEsperadosHoyList');
     if (!container || !currentUser || currentUser.role !== 'admin') return;
@@ -6038,41 +6163,21 @@ function renderDocentesEsperadosHoy() {
         container.innerHTML = `<p class="text-muted mb-0">${t('esperadosHoy.noTeachers')}</p>`;
         return;
     }
-    container.innerHTML = entries.map(e => {
-        const cursoTxt = e.carreraNombre ? `${e.carreraNombre} - ${e.anio}° Año` : '';
-        // "(fuera de horario)": aclara el caso que confunde a primera
-        // vista - SÍ fichó, pero tan tarde respecto del inicio del
-        // bloque (no de la duración de la clase) que ya cae en Media
-        // Falta/Ausente. Sin esto, un admin ve "fichó 21:50" al lado de
-        // un badge rojo "Ausente" y no entiende por qué.
-        const fueraDeHorario = e.entryRecord && (e.semaforo.code === 'media_falta' || e.semaforo.code === 'ausente');
-        const horaTxt = e.entryRecord && e.entryRecord.time
-            ? ` · ${t('esperadosHoy.checkedIn')} ${e.entryRecord.time.slice(0, 5)}${fueraDeHorario ? ' ' + t('esperadosHoy.outOfSchedule') : ''}`
-            : '';
-        // Tarjeta de Evento Especial: amarillo flúo + badge CON/SIN
-        // perjuicio pedido, para que se distinga de un bloque de
-        // materia normal de un vistazo (ver getEventoEntriesParaHoy()).
-        const claseFila = e.esEvento ? 'semaforo-row semaforo-row-evento' : 'semaforo-row';
-        const badgeCumplimiento = e.esEvento
-            ? `<span class="badge-cumplimiento ${e.tipoCumplimiento === 'SIN_PERJUICIO' ? 'badge-sin-perjuicio' : 'badge-con-perjuicio'}">${e.tipoCumplimiento === 'SIN_PERJUICIO' ? t('esperadosHoy.sinPerjuicio') : t('esperadosHoy.conPerjuicio')}</span>`
-            : '';
-        const etiquetaMateria = e.esEvento ? `<i class="bi bi-calendar-event"></i> ${t('esperadosHoy.event')}: ${e.materiaNombre}` : e.materiaNombre;
-        // Choque de horario real en los datos (ver resolverChoquesHorario()):
-        // se pinta todo en rojo encima de lo que sea, con un aviso
-        // explícito, en vez de dejar que se vea como un semáforo normal.
-        const filaConChoque = e.choqueHorario ? `${claseFila} semaforo-row-choque` : claseFila;
-        const avisoChoque = e.choqueHorario
-            ? `<div class="alert alert-danger py-1 px-2 small mb-0 mt-1"><i class="bi bi-exclamation-triangle-fill"></i> ${t('esperadosHoy.conflictWarning')}</div>`
-            : '';
+    const secciones = TURNO_ORDEN
+        .map(codigo => ({
+            codigo,
+            entries: entries.filter(e => getTurnoPorHora(e.inicio) === codigo).sort((a, b) => a.inicio.localeCompare(b.inicio)),
+        }))
+        .filter(s => s.entries.length > 0);
+
+    container.innerHTML = secciones.map(s => {
+        const presentes = s.entries.filter(e => e.entryRecord).length;
         return `
-            <div class="${filaConChoque}" style="border-left-color:${e.choqueHorario ? '#ef4444' : e.semaforo.color}">
-                <div class="semaforo-row-main">
-                    <span class="semaforo-row-name">${e.teacherName}${badgeCumplimiento}</span>
-                    <span class="semaforo-row-detail">${etiquetaMateria}${cursoTxt ? ' · ' + cursoTxt : ''} · ${e.inicio}${horaTxt}</span>
-                    ${avisoChoque}
-                </div>
-                <span class="semaforo-badge" style="background:${e.choqueHorario ? '#ef4444' : e.semaforo.color}">${e.choqueHorario ? t('esperadosHoy.conflict') : t('semaforo.' + e.semaforo.code)}</span>
-            </div>`;
+            <div class="esperados-turno-header turno-header-${s.codigo.toLowerCase()}">
+                <span>${t(TURNO_I18N_KEY[s.codigo])}</span>
+                <span class="esperados-turno-count">${presentes}/${s.entries.length} ${t('esperadosHoy.present')}</span>
+            </div>
+            ${s.entries.map(renderFilaEsperadoHoy).join('')}`;
     }).join('');
 }
 if (typeof onLocaleChangeRerender === 'function') onLocaleChangeRerender(renderDocentesEsperadosHoy);

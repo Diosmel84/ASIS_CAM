@@ -95,6 +95,12 @@ window.ASISCAM_I18N.es = {
         sinPerjuicio: 'SIN perjuicio',
         conflict: 'CONFLICTO',
         conflictWarning: 'CONFLICTO DE HORARIO: este docente tiene otra materia superpuesta el mismo día/horario. Corregí en Materias.',
+        present: 'presentes',
+    },
+    turnos: {
+        manana: 'Mañana',
+        tarde: 'Tarde',
+        noche: 'Noche',
     },
     semaforo: {
         esperado: 'Esperado',
@@ -330,6 +336,7 @@ window.ASISCAM_I18N.es = {
         backup: 'Backup (localStorage)',
         restoreBackup: 'Restaurar Backup',
         repairDates: 'Reparar fechas de fichajes viejos',
+        migrateTurnos: 'Migrar turnos de materias',
         colDateTime: 'Fecha/Hora',
         colUser: 'Usuario',
         colAction: 'Acción',

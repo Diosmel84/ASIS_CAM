@@ -650,6 +650,7 @@
                                 <button class="btn btn-outline-primary btn-sm" id="auditoriaRestoreBtn" onclick="document.getElementById('restoreLocalStorageInput').click()"><i class="bi bi-upload"></i> <span data-i18n="auditoria.restoreBackup">Restaurar Backup</span></button>
                                 <input type="file" id="restoreLocalStorageInput" accept="application/json" class="hidden" onchange="restoreLocalStorageFile(this)">
                                 <button class="btn btn-outline-warning btn-sm" id="auditoriaRepararFechasBtn" onclick="repararFechasFichajes()" title="Corrige fichajes viejos con fecha mal calculada por el bug de huso horario (ya arreglado en el código para los fichajes nuevos)"><i class="bi bi-wrench-adjustable"></i> <span data-i18n="auditoria.repairDates">Reparar fechas de fichajes viejos</span></button>
+                                <button class="btn btn-outline-warning btn-sm" id="auditoriaMigrarTurnosBtn" onclick="migrarTurnosMaterias()" title="Calcula el turno (Mañana/Tarde/Noche) de las materias que ya estaban cargadas antes de este cambio"><i class="bi bi-clock-history"></i> <span data-i18n="auditoria.migrateTurnos">Migrar turnos de materias</span></button>
                             </div>
                             <div class="table-responsive">
                                 <table class="table table-sm table-striped">

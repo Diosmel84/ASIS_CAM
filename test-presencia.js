@@ -9,7 +9,7 @@
 //
 // Correr con: node test-presencia.js
 // ============================================================
-const { calcularSemaforoPuntualidad, CRITERIA_PUNTUALIDAD_DEFAULT, SEMAFORO_ORDEN } = require('./presencia-logic.js');
+const { calcularSemaforoPuntualidad, CRITERIA_PUNTUALIDAD_DEFAULT, SEMAFORO_ORDEN, getTurnoPorHora, fichajeValidoParaClase } = require('./presencia-logic.js');
 
 const criteria = CRITERIA_PUNTUALIDAD_DEFAULT; // { limitePresenteMin:15, limiteTardanzaMin:30, limiteMediaFaltaMin:60 }
 
@@ -104,3 +104,51 @@ console.log('Caso 10 (medianoche): NO se cuenta como pass/fail de calcularSemafo
 console.log('el bug real está en getScheduleEntriesForDate() de script.js (tardanzaMin no considera');
 console.log('el cruce de fecha). Reportado aparte, no se tocó sin confirmar con el usuario si el');
 console.log('instituto tiene bloques que cruzan medianoche.');
+
+// ============================================================
+// TURNOS (getTurnoPorHora / fichajeValidoParaClase) - sistema de
+// turnos Mañana/Tarde/Noche agregado para el fix del bug real
+// reportado con el docente Nuñez: un fichaje de 00:29 validaba por
+// error una clase de las 21:00 (turno Noche) del día anterior, porque
+// getScheduleEntriesForDate() (script.js) solo cruzaba
+// teacherId+materiaId+fecha, sin mirar si la HORA del fichaje caía
+// dentro de la ventana real de esa clase.
+// ============================================================
+console.log('');
+console.log('== Turnos (getTurnoPorHora / fichajeValidoParaClase) ==');
+
+const casosTurno = [
+    { caso: 'getTurnoPorHora(07:00) -> Mañana', fn: () => getTurnoPorHora('07:00'), esperado: 'MANANA' },
+    { caso: 'getTurnoPorHora(11:59) -> Mañana (límite superior)', fn: () => getTurnoPorHora('11:59'), esperado: 'MANANA' },
+    { caso: 'getTurnoPorHora(12:00) -> Tarde (límite inferior)', fn: () => getTurnoPorHora('12:00'), esperado: 'TARDE' },
+    { caso: 'getTurnoPorHora(17:59) -> Tarde (límite superior)', fn: () => getTurnoPorHora('17:59'), esperado: 'TARDE' },
+    { caso: 'getTurnoPorHora(18:00) -> Noche (límite inferior)', fn: () => getTurnoPorHora('18:00'), esperado: 'NOCHE' },
+    { caso: 'getTurnoPorHora(21:00) -> Noche', fn: () => getTurnoPorHora('21:00'), esperado: 'NOCHE' },
+    { caso: 'getTurnoPorHora(00:29) -> Noche (madrugada, cae en Noche por default)', fn: () => getTurnoPorHora('00:29'), esperado: 'NOCHE' },
+
+    // Caso real reportado: clase 21:00 (Noche, ventana 17:50-23:00) -
+    // un fichaje de 00:29 (ya del día siguiente en términos de reloj,
+    // pero la fecha calendario ya la filtra getFechaRealFichaje() en
+    // script.js antes de llegar acá) NO puede validar esa clase.
+    { caso: 'Fix Nuñez: clase 21:00, fichaje 00:29 -> NO vale', fn: () => fichajeValidoParaClase('00:29', '21:00'), esperado: false },
+    { caso: 'Clase 21:00, fichaje 20:55 (5 min antes) -> vale', fn: () => fichajeValidoParaClase('20:55', '21:00'), esperado: true },
+    { caso: 'Clase 21:00, fichaje 21:10 (10 min tarde) -> vale', fn: () => fichajeValidoParaClase('21:10', '21:00'), esperado: true },
+    { caso: 'Clase 21:00, fichaje 23:00 (fin de ventana Noche) -> vale', fn: () => fichajeValidoParaClase('23:00', '21:00'), esperado: true },
+    { caso: 'Clase 21:00, fichaje 23:01 (1 min después del fin) -> NO vale', fn: () => fichajeValidoParaClase('23:01', '21:00'), esperado: false },
+    { caso: 'Clase 07:00, fichaje 05:50 (inicio ventana Mañana) -> vale', fn: () => fichajeValidoParaClase('05:50', '07:00'), esperado: true },
+    { caso: 'Clase 07:00, fichaje 05:49 (1 min antes de la ventana) -> NO vale', fn: () => fichajeValidoParaClase('05:49', '07:00'), esperado: false },
+];
+
+const resultadosTurno = casosTurno.map(c => {
+    const obtenido = c.fn();
+    return { Caso: c.caso, Esperado: c.esperado, Obtenido: obtenido, Resultado: obtenido === c.esperado ? '✓ OK' : '✗ FALLÓ' };
+});
+console.table(resultadosTurno);
+
+const fallidosTurno = resultadosTurno.filter(r => r.Resultado === '✗ FALLÓ');
+if (fallidosTurno.length === 0) {
+    console.log(`✓ ${resultadosTurno.length}/${resultadosTurno.length} casos de turnos pasaron.`);
+} else {
+    console.log(`✗ ${fallidosTurno.length}/${resultadosTurno.length} casos de turnos FALLARON.`);
+    process.exitCode = 1;
+}

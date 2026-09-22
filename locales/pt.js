@@ -86,6 +86,12 @@ window.ASISCAM_I18N.pt = {
         sinPerjuicio: 'SEM prejuízo',
         conflict: 'CONFLITO',
         conflictWarning: 'CONFLITO DE HORÁRIO: este professor tem outra disciplina sobreposta no mesmo dia/horário. Corrija em Disciplinas.',
+        present: 'presentes',
+    },
+    turnos: {
+        manana: 'Manhã',
+        tarde: 'Tarde',
+        noche: 'Noite',
     },
     semaforo: {
         esperado: 'Esperado',
@@ -315,6 +321,7 @@ window.ASISCAM_I18N.pt = {
         backup: 'Backup (localStorage)',
         restoreBackup: 'Restaurar Backup',
         repairDates: 'Corrigir datas de registros antigos',
+        migrateTurnos: 'Migrar turnos das disciplinas',
         colDateTime: 'Data/Hora',
         colUser: 'Usuário',
         colAction: 'Ação',

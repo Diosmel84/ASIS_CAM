@@ -85,6 +85,12 @@ window.ASISCAM_I18N.en = {
         sinPerjuicio: 'IN ADDITION TO CLASS',
         conflict: 'CONFLICT',
         conflictWarning: 'SCHEDULE CONFLICT: this teacher has another subject overlapping the same day/time. Fix it under Subjects.',
+        present: 'present',
+    },
+    turnos: {
+        manana: 'Morning',
+        tarde: 'Afternoon',
+        noche: 'Evening',
     },
     semaforo: {
         esperado: 'Expected',
@@ -314,6 +320,7 @@ window.ASISCAM_I18N.en = {
         backup: 'Backup (localStorage)',
         restoreBackup: 'Restore Backup',
         repairDates: 'Repair old check-in dates',
+        migrateTurnos: 'Migrate subject shifts',
         colDateTime: 'Date/Time',
         colUser: 'User',
         colAction: 'Action',
