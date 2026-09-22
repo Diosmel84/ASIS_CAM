@@ -2600,7 +2600,7 @@ function loadTeachersTable() {
     const today = getFechaHoyArgentina();
     document.getElementById('teacherCountBadge').textContent = teachers.length;
     if (teachers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="12" class="text-center">No hay docentes registrados</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="12" class="text-center">${t('teachers.noneRegistered')}</td></tr>`;
         return;
     }
     tbody.innerHTML = teachers.map(teacher => {
@@ -2678,7 +2678,7 @@ function loadAlerts() {
     // Más reciente arriba, más antigua abajo.
     const alerts = getAlerts().slice().sort((a, b) => new Date(b.date) - new Date(a.date));
     const container = document.getElementById('alertsList');
-    if (alerts.length === 0) { container.innerHTML = '<p class="text-muted">No hay alertas pendientes</p>'; return; }
+    if (alerts.length === 0) { container.innerHTML = `<p class="text-muted">${t('alerts.none')}</p>`; return; }
     const puedeJustificar = tienePermiso(currentUser.rol, 'justificar_alerta');
     const puedeBorrarAlerta = tienePermiso(currentUser.rol, 'borrar');
     container.innerHTML = alerts.map((alert) => {
@@ -3178,7 +3178,7 @@ function populateTeacherSelect() {
     const select = document.getElementById('licenciaTeacher');
     if (select) {
         const currentValue = select.value;
-        select.innerHTML = '<option value="">Seleccionar...</option>';
+        select.innerHTML = `<option value="">${t('licencias.select')}</option>`;
         teachers.forEach(t => {
             const option = document.createElement('option');
             option.value = t.id;
@@ -4530,7 +4530,7 @@ function loadLicenciasList() {
     if (!tbody) return;
     const licencias = getLicencias().slice().sort((a, b) => b.from.localeCompare(a.from));
     if (licencias.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin licencias registradas</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">${t('licencias.none')}</td></tr>`;
         return;
     }
     tbody.innerHTML = licencias.map(l => `
@@ -4741,7 +4741,7 @@ async function loadEventosEspeciales() {
         currentEventos = (eventosData || []).map(normalizeEventoEspecial);
 
         if (currentEventos.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No hay eventos</td></tr>';
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">${t('eventos.none')}</td></tr>`;
             return;
         }
 
@@ -4791,7 +4791,7 @@ async function loadEventosEspeciales() {
 function openEventoModal() {
     editingEventoId = null;
     eventoSelectedTeacherIds = [];
-    document.getElementById('eventoModalTitle').innerHTML = '<i class="bi bi-calendar-event"></i> Nuevo Evento Especial';
+    document.getElementById('eventoModalTitle').innerHTML = `<i class="bi bi-calendar-event"></i> ${t('eventos.modalNewTitle')}`;
     document.getElementById('eventoTitulo').value = '';
     document.getElementById('eventoDescripcion').value = '';
     document.getElementById('eventoFecha').value = '';
@@ -4816,7 +4816,7 @@ async function editEvento(idEvento) {
     const ev = currentEventos.find(e => e.id === idEvento);
     if (!ev) { showToast('Evento no encontrado', 'error'); return; }
     editingEventoId = idEvento;
-    document.getElementById('eventoModalTitle').innerHTML = '<i class="bi bi-pencil"></i> Editar Evento Especial';
+    document.getElementById('eventoModalTitle').innerHTML = `<i class="bi bi-pencil"></i> ${t('eventos.modalEditTitle')}`;
     document.getElementById('eventoTitulo').value = ev.titulo || '';
     document.getElementById('eventoDescripcion').value = ev.descripcion || '';
     document.getElementById('eventoFecha').value = ev.fecha || '';
@@ -4910,7 +4910,7 @@ function renderEventoDocenteChecklist() {
     });
 
     container.innerHTML = teachers.length === 0
-        ? '<div class="dropdown-empty">No se encontraron docentes</div>'
+        ? `<div class="dropdown-empty">${t('teachers.noneFound')}</div>`
         : teachers.map(t => {
             const checked = eventoSelectedTeacherIds.includes(t.id) ? 'checked' : '';
             return `
@@ -5159,12 +5159,12 @@ function populateCarrerasSelects() {
     const grillaSel = document.getElementById('grillaMateriasCarrera');
     if (materiaSel) {
         const actual = materiaSel.value;
-        materiaSel.innerHTML = '<option value="">Seleccioná...</option>' + opciones;
+        materiaSel.innerHTML = `<option value="">${t('teachers.selectEllipsis')}</option>` + opciones;
         if (actual) materiaSel.value = actual;
     }
     if (grillaSel) {
         const actual = grillaSel.value;
-        grillaSel.innerHTML = '<option value="">Seleccioná una carrera...</option>' + opciones;
+        grillaSel.innerHTML = `<option value="">${t('materias.selectCareer')}</option>` + opciones;
         if (actual && currentCarreras.some(c => String(c.id) === actual)) grillaSel.value = actual;
     }
 }
@@ -5255,14 +5255,14 @@ function renderGrillaMaterias() {
     if (!tbody) return;
     const carreraId = document.getElementById('grillaMateriasCarrera')?.value;
     if (!carreraId) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Elegí una carrera</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">${t('materias.chooseCareer')}</td></tr>`;
         return;
     }
     // Anual = dura todo el año: aparece en los 2 cuatrimestres sin
     // importar en cuál se haya cargado, no se duplica en la base.
     const filtradas = currentMaterias.filter(m => String(m.carrera_id) === String(carreraId) && m.anio === grillaAnioSeleccionado && (esMateriaAnual(m) || m.cuatrimestre === grillaCuatSeleccionado));
     if (filtradas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin materias cargadas para este año/cuatrimestre</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">${t('materias.noneForPeriod')}</td></tr>`;
         return;
     }
     const puedeBorrar = tienePermiso(currentUser.rol, 'borrar');
@@ -5287,7 +5287,7 @@ function populateMateriaProfesorSelect(selectedTeacherId) {
     const sel = document.getElementById('materiaProfesor');
     if (!sel) return;
     const teachers = getTeachers().slice().sort((a, b) => a.apellido.localeCompare(b.apellido));
-    sel.innerHTML = '<option value="">Sin asignar</option>' + teachers.map(t => `<option value="${t.id}">${t.apellido} ${t.nombre}</option>`).join('');
+    sel.innerHTML = `<option value="">${t('materias.unassigned')}</option>` + teachers.map(t => `<option value="${t.id}">${t.apellido} ${t.nombre}</option>`).join('');
     sel.value = selectedTeacherId || '';
 }
 
@@ -5328,8 +5328,8 @@ function openMateriaModal(id) {
     }
     editingMateriaId = id || null;
     document.getElementById('materiaModalTitle').innerHTML = id
-        ? '<i class="bi bi-pencil"></i> Editar Materia'
-        : '<i class="bi bi-journal-bookmark"></i> Nueva Materia';
+        ? `<i class="bi bi-pencil"></i> ${t('materias.modalEditTitle')}`
+        : `<i class="bi bi-journal-bookmark"></i> ${t('materias.modalNewTitle')}`;
     DIAS_MATERIA_IDS.forEach(d => {
         const el = document.getElementById('materiaDia' + d);
         if (el) el.checked = false;
@@ -5537,7 +5537,7 @@ function quitarMateriaSeleccionadaDocente(materiaId) {
 function poblarSelectCarreraAsignar() {
     const sel = document.getElementById('materiaAsignarCarrera');
     if (!sel) return;
-    sel.innerHTML = '<option value="">Seleccioná...</option>' +
+    sel.innerHTML = `<option value="">${t('teachers.selectEllipsis')}</option>` +
         currentCarreras.map(c => `<option value="${c.id}" ${String(c.id) === String(materiaAsignarCarreraFiltro) ? 'selected' : ''}>${c.nombre}</option>`).join('');
 }
 
@@ -5555,7 +5555,7 @@ function poblarSelectAnioAsignar() {
     const sel = document.getElementById('materiaAsignarAnio');
     if (!sel) return;
     if (!materiaAsignarCarreraFiltro) {
-        sel.innerHTML = '<option value="">Elegí una carrera primero</option>';
+        sel.innerHTML = `<option value="">${t('teachers.selectCareerFirst')}</option>`;
         sel.disabled = true;
         return;
     }
@@ -6203,7 +6203,7 @@ function renderFullScheduleGrid() {
     if (!body) return;
 
     if (teachers.length === 0) {
-        body.innerHTML = '<p class="text-muted text-center mb-0">No hay docentes registrados</p>';
+        body.innerHTML = `<p class="text-muted text-center mb-0">${t('teachers.noneRegistered')}</p>`;
         return;
     }
 

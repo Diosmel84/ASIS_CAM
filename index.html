@@ -157,16 +157,16 @@
                 <!-- Barra de acciones: fila de botones en PC, menú hamburguesa en celular -->
                 <div class="d-none d-md-flex justify-content-end mb-3 gap-2 flex-wrap">
                     <button class="btn btn-info btn-sm" onclick="showAnnualCalendar()">
-                        <i class="bi bi-calendar3"></i> Calendario Anual del Establecimiento
+                        <i class="bi bi-calendar3"></i> <span data-i18n="nav.annualCalendar">Calendario Anual del Establecimiento</span>
                     </button>
                     <button class="btn btn-outline-primary btn-sm" onclick="showFullScheduleGrid()">
-                        <i class="bi bi-grid-3x3"></i> Ver Grilla Completa de Horarios
+                        <i class="bi bi-grid-3x3"></i> <span data-i18n="nav.fullGrid">Ver Grilla Completa de Horarios</span>
                     </button>
                     <button class="btn btn-primary btn-sm" onclick="showStatsScreen()">
-                        <i class="bi bi-graph-up-arrow"></i> Ver Estadísticas
+                        <i class="bi bi-graph-up-arrow"></i> <span data-i18n="nav.viewStats">Ver Estadísticas</span>
                     </button>
                     <button class="btn btn-secondary btn-sm" id="adminChangePasswordBtnDesktop" onclick="resetAdminChangePasswordForm()" data-bs-toggle="modal" data-bs-target="#adminChangePasswordModal">
-                        <i class="bi bi-key"></i> Cambiar Contraseña
+                        <i class="bi bi-key"></i> <span data-i18n="nav.changePassword">Cambiar Contraseña</span>
                     </button>
                 </div>
                 <div class="d-flex d-md-none justify-content-end mb-3">
@@ -175,25 +175,25 @@
                             <i class="bi bi-list"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><button class="dropdown-item" onclick="showAnnualCalendar()"><i class="bi bi-calendar3"></i> Calendario Anual del Establecimiento</button></li>
-                            <li><button class="dropdown-item" onclick="showFullScheduleGrid()"><i class="bi bi-grid-3x3"></i> Ver Grilla Completa de Horarios</button></li>
-                            <li><button class="dropdown-item" onclick="showStatsScreen()"><i class="bi bi-graph-up-arrow"></i> Ver Estadísticas</button></li>
-                            <li id="adminChangePasswordBtnMobile"><button class="dropdown-item" onclick="resetAdminChangePasswordForm()" data-bs-toggle="modal" data-bs-target="#adminChangePasswordModal"><i class="bi bi-key"></i> Cambiar Contraseña</button></li>
+                            <li><button class="dropdown-item" onclick="showAnnualCalendar()"><i class="bi bi-calendar3"></i> <span data-i18n="nav.annualCalendar">Calendario Anual del Establecimiento</span></button></li>
+                            <li><button class="dropdown-item" onclick="showFullScheduleGrid()"><i class="bi bi-grid-3x3"></i> <span data-i18n="nav.fullGrid">Ver Grilla Completa de Horarios</span></button></li>
+                            <li><button class="dropdown-item" onclick="showStatsScreen()"><i class="bi bi-graph-up-arrow"></i> <span data-i18n="nav.viewStats">Ver Estadísticas</span></button></li>
+                            <li id="adminChangePasswordBtnMobile"><button class="dropdown-item" onclick="resetAdminChangePasswordForm()" data-bs-toggle="modal" data-bs-target="#adminChangePasswordModal"><i class="bi bi-key"></i> <span data-i18n="nav.changePassword">Cambiar Contraseña</span></button></li>
                         </ul>
                     </div>
                 </div>
                 <!-- Pestanas del panel de admin: agrupa todo en pestanas en vez de
                      una sola pantalla larga, para reducir el scroll vertical. -->
                 <ul class="nav nav-tabs admin-tabs" id="adminTabs" role="tablist">
-                    <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabInicio" type="button" role="tab"><i class="bi bi-house"></i> Inicio</button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabAlertas" type="button" role="tab"><i class="bi bi-bell"></i> Alertas <span class="badge bg-danger ms-1" id="alertCount">0</span></button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabDocentes" type="button" role="tab"><i class="bi bi-people"></i> Docentes</button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabLicencias" type="button" role="tab"><i class="bi bi-file-medical"></i> Licencias</button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabEventos" type="button" role="tab"><i class="bi bi-calendar-event"></i> Eventos</button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabMaterias" type="button" role="tab" onclick="loadMateriasTab()"><i class="bi bi-journal-bookmark"></i> Materias</button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabConfiguracion" type="button" role="tab"><i class="bi bi-gear"></i> Configuracion</button></li>
-                    <li class="nav-item" id="tabReportesNavItem" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabReportes" type="button" role="tab"><i class="bi bi-file-earmark-text"></i> Reportes</button></li>
-                    <li class="nav-item hidden" id="tabAuditoriaNavItem" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabAuditoria" type="button" role="tab" onclick="cargarLogsAuditoria().then(renderAuditoriaPanel)"><i class="bi bi-shield-lock"></i> Auditoría</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabInicio" type="button" role="tab"><i class="bi bi-house"></i> <span data-i18n="nav.home">Inicio</span></button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabAlertas" type="button" role="tab"><i class="bi bi-bell"></i> <span data-i18n="nav.alerts">Alertas</span> <span class="badge bg-danger ms-1" id="alertCount">0</span></button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabDocentes" type="button" role="tab"><i class="bi bi-people"></i> <span data-i18n="nav.teachers">Docentes</span></button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabLicencias" type="button" role="tab"><i class="bi bi-file-medical"></i> <span data-i18n="nav.leaves">Licencias</span></button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabEventos" type="button" role="tab"><i class="bi bi-calendar-event"></i> <span data-i18n="nav.events">Eventos</span></button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabMaterias" type="button" role="tab" onclick="loadMateriasTab()"><i class="bi bi-journal-bookmark"></i> <span data-i18n="nav.subjects">Materias</span></button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabConfiguracion" type="button" role="tab"><i class="bi bi-gear"></i> <span data-i18n="nav.settings">Configuracion</span></button></li>
+                    <li class="nav-item" id="tabReportesNavItem" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabReportes" type="button" role="tab"><i class="bi bi-file-earmark-text"></i> <span data-i18n="nav.reports">Reportes</span></button></li>
+                    <li class="nav-item hidden" id="tabAuditoriaNavItem" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabAuditoria" type="button" role="tab" onclick="cargarLogsAuditoria().then(renderAuditoriaPanel)"><i class="bi bi-shield-lock"></i> <span data-i18n="nav.audit">Auditoría</span></button></li>
                 </ul>
                 <div class="tab-content admin-tab-content" id="adminTabsContent">
                     <div class="tab-pane fade show active" id="tabInicio" role="tabpanel">
@@ -231,50 +231,50 @@
                 </div>
                     </div>
                     <div class="tab-pane fade" id="tabAlertas" role="tabpanel">
-                        <h4><i class="bi bi-bell"></i> Buzon de Alertas</h4>
+                        <h4><i class="bi bi-bell"></i> <span data-i18n="alerts.inboxTitle">Buzon de Alertas</span></h4>
                         <div class="alerts-list-scroll">
                             <div class="accordion-body" id="alertsList">
-                                <p class="text-muted">No hay alertas pendientes</p>
+                                <p class="text-muted" data-i18n="alerts.none">No hay alertas pendientes</p>
                             </div>
                         </div>
                     </div>
                     <div class="tab-pane fade" id="tabDocentes" role="tabpanel">
                         <!-- ===== REGISTRO DE DOCENTES ===== -->
                 <div class="form-section mt-3">
-                    <h4 id="regFormTitle"><i class="bi bi-person-plus"></i> Registrar Nuevo Docente</h4>
-                    <p class="text-muted">El administrador ingresa todos los datos del docente.</p>
+                    <h4 id="regFormTitle"><i class="bi bi-person-plus"></i> <span data-i18n="teachers.registerNew">Registrar Nuevo Docente</span></h4>
+                    <p class="text-muted" data-i18n="teachers.registerHint">El administrador ingresa todos los datos del docente.</p>
 
                     <div id="regModelsBanner" class="models-banner">
-                        <span class="spinner-border spinner-border-sm"></span> Cargando módulo de reconocimiento facial...
+                        <span class="spinner-border spinner-border-sm"></span> <span data-i18n="fichaje.loadingModels">Cargando módulo de reconocimiento facial...</span>
                     </div>
 
                         <div class="accordion docente-form-accordion" id="docenteFormAccordion">
                             <div class="accordion-item">
                                 <h2 class="accordion-header">
                                     <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#dfDatos" aria-expanded="true" aria-controls="dfDatos">
-                                        <i class="bi bi-person me-2"></i> Datos Personales
+                                        <i class="bi bi-person me-2"></i> <span data-i18n="teachers.personalData">Datos Personales</span>
                                     </button>
                                 </h2>
                                 <div id="dfDatos" class="accordion-collapse collapse show">
                                     <div class="accordion-body">
                     <div class="row">
                         <div class="col-md-4">
-                            <div class="form-group"><label class="required-field">Apellido</label><input type="text" class="form-control" id="regApellido" placeholder="Apellido"></div>
+                            <div class="form-group"><label class="required-field" data-i18n="teachers.lastName">Apellido</label><input type="text" class="form-control" id="regApellido" placeholder="Apellido" data-i18n-placeholder="teachers.lastName"></div>
                         </div>
                         <div class="col-md-4">
-                            <div class="form-group"><label class="required-field">Nombre</label><input type="text" class="form-control" id="regNombre" placeholder="Nombre"></div>
+                            <div class="form-group"><label class="required-field" data-i18n="teachers.firstName">Nombre</label><input type="text" class="form-control" id="regNombre" placeholder="Nombre" data-i18n-placeholder="teachers.firstName"></div>
                         </div>
                         <div class="col-md-4">
                             <div class="form-group">
-                                <label class="required-field">DNI (Usuario)</label>
+                                <label class="required-field" data-i18n="teachers.dniUser">DNI (Usuario)</label>
                                 <input type="text" class="form-control" id="regDni" placeholder="DNI">
-                                <small class="text-muted">Será su usuario para iniciar sesión</small>
+                                <small class="text-muted" data-i18n="teachers.dniUserHint">Será su usuario para iniciar sesión</small>
                             </div>
                         </div>
                     </div>
                     <div class="row mt-2">
                         <div class="col-md-4">
-                            <div class="form-group"><label>Materia</label><input type="text" class="form-control" id="regMateria" placeholder="Materia que dicta"></div>
+                            <div class="form-group"><label data-i18n="teachers.subject">Materia</label><input type="text" class="form-control" id="regMateria" placeholder="Materia que dicta" data-i18n-placeholder="teachers.subjectPlaceholder"></div>
                         </div>
                     </div>
                                     </div>
@@ -283,42 +283,42 @@
                             <div class="accordion-item">
                                 <h2 class="accordion-header">
                                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#dfContacto" aria-expanded="false" aria-controls="dfContacto">
-                                        <i class="bi bi-telephone me-2"></i> Contacto
+                                        <i class="bi bi-telephone me-2"></i> <span data-i18n="teachers.contact">Contacto</span>
                                     </button>
                                 </h2>
                                 <div id="dfContacto" class="accordion-collapse collapse">
                                     <div class="accordion-body">
                     <div class="row">
                         <div class="col-md-3">
-                            <div class="form-group"><label class="required-field">Teléfono Personal</label><input type="text" class="form-control" id="regTelefono" placeholder="Teléfono"></div>
+                            <div class="form-group"><label class="required-field" data-i18n="teachers.personalPhone">Teléfono Personal</label><input type="text" class="form-control" id="regTelefono" placeholder="Teléfono"></div>
                         </div>
                         <div class="col-md-3">
-                            <div class="form-group"><label class="required-field">Teléfono contacto familiar</label><input type="text" class="form-control" id="regTelefonoFamiliar" placeholder="Teléfono familiar"></div>
+                            <div class="form-group"><label class="required-field" data-i18n="teachers.familyPhone">Teléfono contacto familiar</label><input type="text" class="form-control" id="regTelefonoFamiliar" placeholder="Teléfono familiar"></div>
                         </div>
                         <div class="col-md-3">
-                            <div class="form-group"><label class="required-field">E-mail</label><input type="email" class="form-control" id="regEmail" placeholder="correo@ejemplo.com"></div>
+                            <div class="form-group"><label class="required-field" data-i18n="teachers.email">E-mail</label><input type="email" class="form-control" id="regEmail" placeholder="correo@ejemplo.com"></div>
                         </div>
                     </div>
                     <div class="row mt-2">
                         <div class="col-md-6">
-                            <div class="form-group"><label>Calle</label><input type="text" class="form-control" id="regCalle" placeholder="Calle"></div>
+                            <div class="form-group"><label data-i18n="teachers.street">Calle</label><input type="text" class="form-control" id="regCalle" placeholder="Calle" data-i18n-placeholder="teachers.street"></div>
                         </div>
                         <div class="col-md-2">
-                            <div class="form-group"><label>Número</label><input type="text" class="form-control" id="regNumero" placeholder="Número"></div>
+                            <div class="form-group"><label data-i18n="teachers.number">Número</label><input type="text" class="form-control" id="regNumero" placeholder="Número" data-i18n-placeholder="teachers.number"></div>
                         </div>
                         <div class="col-md-4">
-                            <div class="form-group"><label>Barrio</label><input type="text" class="form-control" id="regBarrio" placeholder="Barrio"></div>
+                            <div class="form-group"><label data-i18n="teachers.neighborhood">Barrio</label><input type="text" class="form-control" id="regBarrio" placeholder="Barrio" data-i18n-placeholder="teachers.neighborhood"></div>
                         </div>
                     </div>
                     <div class="row mt-2">
                         <div class="col-md-4">
-                            <div class="form-group"><label>Localidad</label><input type="text" class="form-control" id="regLocalidad" placeholder="Localidad" value="Resistencia"></div>
+                            <div class="form-group"><label data-i18n="teachers.city">Localidad</label><input type="text" class="form-control" id="regLocalidad" placeholder="Localidad" value="Resistencia"></div>
                         </div>
                         <div class="col-md-4">
-                            <div class="form-group"><label>Provincia</label><input type="text" class="form-control" id="regProvincia" placeholder="Provincia" value="Chaco"></div>
+                            <div class="form-group"><label data-i18n="teachers.province">Provincia</label><input type="text" class="form-control" id="regProvincia" placeholder="Provincia" value="Chaco"></div>
                         </div>
                         <div class="col-md-4">
-                            <div class="form-group"><label>País</label><input type="text" class="form-control" id="regPais" placeholder="País" value="Argentina"></div>
+                            <div class="form-group"><label data-i18n="teachers.country">País</label><input type="text" class="form-control" id="regPais" placeholder="País" value="Argentina"></div>
                         </div>
                     </div>
                                     </div>
@@ -327,7 +327,7 @@
                             <div class="accordion-item">
                                 <h2 class="accordion-header">
                                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#dfLaboral" aria-expanded="false" aria-controls="dfLaboral">
-                                        <i class="bi bi-briefcase me-2"></i> Laboral
+                                        <i class="bi bi-briefcase me-2"></i> <span data-i18n="teachers.labor">Laboral</span>
                                     </button>
                                 </h2>
                                 <div id="dfLaboral" class="accordion-collapse collapse">
@@ -335,17 +335,17 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label>Contraseña</label>
+                                <label data-i18n="teachers.password">Contraseña</label>
                                 <input type="text" class="form-control" id="regPassword" value="123456">
-                                <small class="text-muted">Por defecto: 123456</small>
+                                <small class="text-muted" data-i18n="teachers.passwordDefault">Por defecto: 123456</small>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label class="required-field">Registro facial (3 fotos)</label>
+                                <label class="required-field" data-i18n="teachers.facialRegistration">Registro facial (3 fotos)</label>
                                 <div id="regExistingPhotoWrap" class="text-center mb-2 hidden">
                                     <img id="regExistingPhoto" src="" alt="Foto actual" style="width:70px;height:70px;border-radius:50%;object-fit:cover;border:2px solid var(--olive-600);">
-                                    <small class="text-muted d-block">Foto y biometría actuales. Se mantienen si no capturás fotos nuevas.</small>
+                                    <small class="text-muted d-block" data-i18n="teachers.currentPhotoHint">Foto y biometría actuales. Se mantienen si no capturás fotos nuevas.</small>
                                 </div>
                                 <div class="camera-container" style="max-width: 320px;">
                                     <video id="regVideo" autoplay playsinline muted></video>
@@ -353,15 +353,15 @@
                                 </div>
                                 <div class="d-flex gap-2 justify-content-center mt-2">
                                     <button class="btn btn-secondary btn-sm" onclick="startCamera()">
-                                        <i class="bi bi-camera-video"></i> Iniciar Cámara
+                                        <i class="bi bi-camera-video"></i> <span data-i18n="teachers.startCamera">Iniciar Cámara</span>
                                     </button>
                                     <button class="btn btn-primary btn-sm" onclick="capturePhoto()">
-                                        <i class="bi bi-camera"></i> Capturar
+                                        <i class="bi bi-camera"></i> <span data-i18n="teachers.capture">Capturar</span>
                                     </button>
                                 </div>
                                 <div id="captureThumbs" class="d-flex gap-2 justify-content-center mt-2"></div>
                                 <div id="captureStatus" class="capture-status">Fotos válidas: 0/3</div>
-                                <small class="text-muted d-block text-center mt-2">Capturá 3 fotos con el rostro bien iluminado y de frente, mirando a la cámara. Ubicá el rostro dentro del recuadro verde antes de capturar. Cada una se valida automáticamente.</small>
+                                <small class="text-muted d-block text-center mt-2" data-i18n="teachers.captureHint">Capturá 3 fotos con el rostro bien iluminado y de frente, mirando a la cámara. Ubicá el rostro dentro del recuadro verde antes de capturar. Cada una se valida automáticamente.</small>
                                 <canvas id="regCanvas" style="display:none;"></canvas>
                             </div>
                         </div>
@@ -374,27 +374,27 @@
                          asignada, sigue sin horario hasta que se le cargue una. -->
                     <div class="row mt-3">
                         <div class="col-12">
-                            <label class="required-field">Materias asignadas</label>
-                            <p class="text-muted small mb-1">El horario de tardanzas/faltas sale de acá, no se carga a mano en la ficha del docente. Para editar horarios, andá a la pestaña "Materias".</p>
+                            <label class="required-field" data-i18n="teachers.assignedSubjects">Materias asignadas</label>
+                            <p class="text-muted small mb-1" data-i18n="teachers.assignedSubjectsHint">El horario de tardanzas/faltas sale de acá, no se carga a mano en la ficha del docente. Para editar horarios, andá a la pestaña "Materias".</p>
                             <div id="materiasDocenteChips" class="mb-2">
-                                <span class="text-muted small">Todavía no tiene ninguna materia asignada.</span>
+                                <span class="text-muted small" data-i18n="teachers.noSubjectsYet">Todavía no tiene ninguna materia asignada.</span>
                             </div>
                             <div class="row g-2 mb-2">
                                 <div class="col-md-6">
-                                    <label class="form-label small mb-1 text-muted">Carrera</label>
+                                    <label class="form-label small mb-1 text-muted" data-i18n="teachers.career">Carrera</label>
                                     <select class="form-control form-control-sm" id="materiaAsignarCarrera" onchange="onCambioCarreraAsignar(this.value)">
-                                        <option value="">Seleccioná...</option>
+                                        <option value="" data-i18n="teachers.selectEllipsis">Seleccioná...</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label small mb-1 text-muted">Año</label>
+                                    <label class="form-label small mb-1 text-muted" data-i18n="teachers.year">Año</label>
                                     <select class="form-control form-control-sm" id="materiaAsignarAnio" onchange="onCambioAnioAsignar(this.value)" disabled>
-                                        <option value="">Elegí una carrera primero</option>
+                                        <option value="" data-i18n="teachers.selectCareerFirst">Elegí una carrera primero</option>
                                     </select>
                                 </div>
                             </div>
                             <div id="materiasDocenteChecklist" class="p-2 border rounded" style="max-height:180px;overflow-y:auto;">
-                                <span class="text-muted small">Elegí carrera y año para ver sus materias.</span>
+                                <span class="text-muted small" data-i18n="teachers.selectCareerYearHint">Elegí carrera y año para ver sus materias.</span>
                             </div>
                         </div>
                     </div>
@@ -404,14 +404,14 @@
                         </div>
 
                     <div class="text-center mt-3">
-                        <button class="btn btn-success" id="saveTeacherBtn" onclick="saveTeacher()"><i class="bi bi-save"></i> Guardar Docente</button>
-                        <button class="btn btn-secondary" onclick="clearRegistrationForm()"><i class="bi bi-eraser"></i> Limpiar</button>
-                        <button class="btn btn-outline-secondary hidden" id="cancelEditTeacherBtn" onclick="cancelEditTeacher()"><i class="bi bi-x-circle"></i> Cancelar edición</button>
+                        <button class="btn btn-success" id="saveTeacherBtn" onclick="saveTeacher()"><i class="bi bi-save"></i> <span data-i18n="teachers.save">Guardar Docente</span></button>
+                        <button class="btn btn-secondary" onclick="clearRegistrationForm()"><i class="bi bi-eraser"></i> <span data-i18n="teachers.clear">Limpiar</span></button>
+                        <button class="btn btn-outline-secondary hidden" id="cancelEditTeacherBtn" onclick="cancelEditTeacher()"><i class="bi bi-x-circle"></i> <span data-i18n="teachers.cancelEdit">Cancelar edición</span></button>
                     </div>
 
                     <div class="password-info">
                         <i class="bi bi-info-circle"></i>
-                        <strong>Acceso:</strong> Usuario = DNI, Contraseña = asignada (por defecto: 123456)
+                        <strong data-i18n="teachers.accessInfo">Acceso:</strong> <span data-i18n="teachers.accessInfoDetail">Usuario = DNI, Contraseña = asignada (por defecto: 123456)</span>
                     </div>
                 </div>
 
@@ -421,7 +421,7 @@
                     <div class="accordion-item">
                         <h2 class="accordion-header">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#teachersCollapse" aria-expanded="false" aria-controls="teachersCollapse">
-                                <i class="bi bi-people me-2"></i> Listado de Docentes
+                                <i class="bi bi-people me-2"></i> <span data-i18n="teachers.listTitle">Listado de Docentes</span>
                                 <span class="badge bg-secondary ms-2" id="teacherCountBadge">0</span>
                             </button>
                         </h2>
@@ -429,13 +429,13 @@
                             <div class="accordion-body" id="teachersAccordionBody">
                                 <div class="search-box mb-3">
                                     <i class="bi bi-search"></i>
-                                    <input type="text" class="form-control" id="teacherSearchInput" placeholder="Buscar docente por nombre, DNI o materia..." oninput="filterTeachersTable()">
+                                    <input type="text" class="form-control" id="teacherSearchInput" placeholder="Buscar docente por nombre, DNI o materia..." oninput="filterTeachersTable()" data-i18n-placeholder="teachers.searchPlaceholder">
                                 </div>
                                 <div class="admin-table">
                                     <div class="table-responsive">
                                         <table class="table table-striped ios-table teachers-compact">
                                             <thead>
-                                                <tr><th>Foto</th><th>DNI</th><th>Nombre</th><th>Teléfono</th><th>Domicilio</th><th>Localidad</th><th>Materia</th><th>Horario</th><th>Contraseña</th><th>Biometría</th><th>Estado</th><th>Acciones</th></tr>
+                                                <tr><th data-i18n="teachers.colPhoto">Foto</th><th data-i18n="teachers.colDni">DNI</th><th data-i18n="teachers.colName">Nombre</th><th data-i18n="teachers.colPhone">Teléfono</th><th data-i18n="teachers.colAddress">Domicilio</th><th data-i18n="teachers.colCity">Localidad</th><th data-i18n="teachers.colSubject">Materia</th><th data-i18n="teachers.colSchedule">Horario</th><th data-i18n="teachers.colPassword">Contraseña</th><th data-i18n="teachers.colBiometry">Biometría</th><th data-i18n="teachers.colStatus">Estado</th><th data-i18n="teachers.colActions">Acciones</th></tr>
                                             </thead>
                                             <tbody id="teachersTableBody"></tbody>
                                         </table>
@@ -448,199 +448,199 @@
                     </div>
                     <div class="tab-pane fade" id="tabLicencias" role="tabpanel">
                 <div class="form-section mt-4">
-                    <h4><i class="bi bi-file-medical"></i> Licencias / Permisos</h4>
-                    <p class="text-muted">Mientras un docente tiene una licencia activa, el sistema no genera alertas de Falta ni Tardanza en esas fechas. Si ya existían alertas de Falta generadas para esas fechas, se justifican automáticamente.</p>
+                    <h4><i class="bi bi-file-medical"></i> <span data-i18n="licencias.title">Licencias / Permisos</span></h4>
+                    <p class="text-muted" data-i18n="licencias.hint">Mientras un docente tiene una licencia activa, el sistema no genera alertas de Falta ni Tardanza en esas fechas. Si ya existían alertas de Falta generadas para esas fechas, se justifican automáticamente.</p>
                     <div class="row">
-                        <div class="col-md-3"><div class="form-group"><label>Docente</label><select class="form-control" id="licenciaTeacher"><option value="">Seleccionar...</option></select></div></div>
-                        <div class="col-md-3"><div class="form-group"><label>Desde</label><input type="date" class="form-control" id="licenciaFrom"></div></div>
-                        <div class="col-md-3"><div class="form-group"><label>Hasta</label><input type="date" class="form-control" id="licenciaTo"></div></div>
-                        <div class="col-md-3"><div class="form-group"><label>Motivo</label><input type="text" class="form-control" id="licenciaMotivo" placeholder="Ej: Licencia médica"></div></div>
+                        <div class="col-md-3"><div class="form-group"><label data-i18n="licencias.teacher">Docente</label><select class="form-control" id="licenciaTeacher"><option value="" data-i18n="licencias.select">Seleccionar...</option></select></div></div>
+                        <div class="col-md-3"><div class="form-group"><label data-i18n="licencias.from">Desde</label><input type="date" class="form-control" id="licenciaFrom"></div></div>
+                        <div class="col-md-3"><div class="form-group"><label data-i18n="licencias.to">Hasta</label><input type="date" class="form-control" id="licenciaTo"></div></div>
+                        <div class="col-md-3"><div class="form-group"><label data-i18n="licencias.reason">Motivo</label><input type="text" class="form-control" id="licenciaMotivo" placeholder="Ej: Licencia médica" data-i18n-placeholder="licencias.reasonPlaceholder"></div></div>
                     </div>
-                    <button class="btn btn-primary" onclick="addLicencia()"><i class="bi bi-plus-circle"></i> Registrar Licencia</button>
+                    <button class="btn btn-primary" onclick="addLicencia()"><i class="bi bi-plus-circle"></i> <span data-i18n="licencias.register">Registrar Licencia</span></button>
                     <div class="table-responsive mt-3">
                         <table class="table ios-table">
-                            <thead><tr><th>Docente</th><th>Desde</th><th>Hasta</th><th>Motivo</th><th>Acciones</th></tr></thead>
-                            <tbody id="licenciasTableBody"><tr><td colspan="5" class="text-center text-muted">Sin licencias registradas</td></tr></tbody>
+                            <thead><tr><th data-i18n="licencias.colTeacher">Docente</th><th data-i18n="licencias.colFrom">Desde</th><th data-i18n="licencias.colTo">Hasta</th><th data-i18n="licencias.colReason">Motivo</th><th data-i18n="licencias.colActions">Acciones</th></tr></thead>
+                            <tbody id="licenciasTableBody"><tr><td colspan="5" class="text-center text-muted" data-i18n="licencias.none">Sin licencias registradas</td></tr></tbody>
                         </table>
                     </div>
                 </div>
                     </div>
                     <div class="tab-pane fade" id="tabEventos" role="tabpanel">
                 <div class="form-section mt-4">
-                    <h4><i class="bi bi-calendar-event"></i> Eventos Especiales</h4>
-                    <p class="text-muted">Los docentes convocados a un Evento Especial no generan alerta de Falta por su horario habitual en esa fecha.</p>
-                    <button class="btn btn-primary mb-3" onclick="openEventoModal()"><i class="bi bi-plus-circle"></i> Nuevo Evento</button>
+                    <h4><i class="bi bi-calendar-event"></i> <span data-i18n="eventos.title">Eventos Especiales</span></h4>
+                    <p class="text-muted" data-i18n="eventos.hint">Los docentes convocados a un Evento Especial no generan alerta de Falta por su horario habitual en esa fecha.</p>
+                    <button class="btn btn-primary mb-3" onclick="openEventoModal()"><i class="bi bi-plus-circle"></i> <span data-i18n="eventos.newEvent">Nuevo Evento</span></button>
                     <div class="table-responsive">
                         <table class="table ios-table">
-                            <thead><tr><th>Título</th><th>Descripción</th><th>Fecha inicio &rarr; Fin</th><th>Escuela</th><th>Docentes</th><th>Acciones</th></tr></thead>
-                            <tbody id="eventosTableBody"><tr><td colspan="6" class="text-center text-muted">Sin eventos registrados</td></tr></tbody>
+                            <thead><tr><th data-i18n="eventos.colTitle">Título</th><th data-i18n="eventos.colDescription">Descripción</th><th data-i18n="eventos.colDateRange">Fecha inicio &rarr; Fin</th><th data-i18n="eventos.colSchool">Escuela</th><th data-i18n="eventos.colTeachers">Docentes</th><th data-i18n="eventos.colActions">Acciones</th></tr></thead>
+                            <tbody id="eventosTableBody"><tr><td colspan="6" class="text-center text-muted" data-i18n="eventos.none">Sin eventos registrados</td></tr></tbody>
                         </table>
                     </div>
                 </div>
                     </div>
                     <div class="tab-pane fade" id="tabMaterias" role="tabpanel">
                         <div class="form-section mt-3">
-                            <h4><i class="bi bi-journal-bookmark"></i> Materias</h4>
-                            <p class="text-muted">Grilla de cátedra por carrera/año/cuatrimestre. Es independiente del horario laboral de cada docente (el que se usa para tardanzas y faltas no cambia).</p>
+                            <h4><i class="bi bi-journal-bookmark"></i> <span data-i18n="materias.title">Materias</span></h4>
+                            <p class="text-muted" data-i18n="materias.hint">Grilla de cátedra por carrera/año/cuatrimestre. Es independiente del horario laboral de cada docente (el que se usa para tardanzas y faltas no cambia).</p>
                             <div class="d-flex flex-wrap gap-2 mb-3">
-                                <button class="btn btn-primary" onclick="openMateriaModal()"><i class="bi bi-plus-circle"></i> Agregar Materia</button>
-                                <button class="btn btn-outline-secondary" onclick="promptNuevaCarrera()"><i class="bi bi-mortarboard"></i> Nueva Carrera</button>
+                                <button class="btn btn-primary" onclick="openMateriaModal()"><i class="bi bi-plus-circle"></i> <span data-i18n="materias.add">Agregar Materia</span></button>
+                                <button class="btn btn-outline-secondary" onclick="promptNuevaCarrera()"><i class="bi bi-mortarboard"></i> <span data-i18n="materias.newCareer">Nueva Carrera</span></button>
                             </div>
 
-                            <h5 class="mt-4">Grilla</h5>
+                            <h5 class="mt-4" data-i18n="materias.grid">Grilla</h5>
                             <div class="row g-2 mb-2">
                                 <div class="col-md-4">
                                     <select class="form-control" id="grillaMateriasCarrera" onchange="renderGrillaMaterias()">
-                                        <option value="">Seleccioná una carrera...</option>
+                                        <option value="" data-i18n="materias.selectCareer">Seleccioná una carrera...</option>
                                     </select>
                                 </div>
                             </div>
                             <ul class="nav nav-pills flex-wrap gap-1 mb-3" id="grillaMateriasTabs">
-                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn active" data-anio="1" data-cuat="1" onclick="seleccionarAnioCuatGrilla(1,1,this)">1° Año - 1er Cuat</button></li>
-                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn" data-anio="1" data-cuat="2" onclick="seleccionarAnioCuatGrilla(1,2,this)">1° Año - 2do Cuat</button></li>
-                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn" data-anio="2" data-cuat="1" onclick="seleccionarAnioCuatGrilla(2,1,this)">2° Año - 1er Cuat</button></li>
-                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn" data-anio="2" data-cuat="2" onclick="seleccionarAnioCuatGrilla(2,2,this)">2° Año - 2do Cuat</button></li>
-                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn" data-anio="3" data-cuat="1" onclick="seleccionarAnioCuatGrilla(3,1,this)">3° Año - 1er Cuat</button></li>
-                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn" data-anio="3" data-cuat="2" onclick="seleccionarAnioCuatGrilla(3,2,this)">3° Año - 2do Cuat</button></li>
+                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn active" data-anio="1" data-cuat="1" onclick="seleccionarAnioCuatGrilla(1,1,this)" data-i18n="materias.y1q1">1° Año - 1er Cuat</button></li>
+                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn" data-anio="1" data-cuat="2" onclick="seleccionarAnioCuatGrilla(1,2,this)" data-i18n="materias.y1q2">1° Año - 2do Cuat</button></li>
+                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn" data-anio="2" data-cuat="1" onclick="seleccionarAnioCuatGrilla(2,1,this)" data-i18n="materias.y2q1">2° Año - 1er Cuat</button></li>
+                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn" data-anio="2" data-cuat="2" onclick="seleccionarAnioCuatGrilla(2,2,this)" data-i18n="materias.y2q2">2° Año - 2do Cuat</button></li>
+                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn" data-anio="3" data-cuat="1" onclick="seleccionarAnioCuatGrilla(3,1,this)" data-i18n="materias.y3q1">3° Año - 1er Cuat</button></li>
+                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn" data-anio="3" data-cuat="2" onclick="seleccionarAnioCuatGrilla(3,2,this)" data-i18n="materias.y3q2">3° Año - 2do Cuat</button></li>
                             </ul>
                             <div class="table-responsive" id="grillaMateriasPrintArea">
                                 <table class="table ios-table">
-                                    <thead><tr><th>Materia</th><th>Tipo</th><th>Días y Horario</th><th>Profesor Asignado</th><th>Acciones</th></tr></thead>
-                                    <tbody id="grillaMateriasTableBody"><tr><td colspan="5" class="text-center text-muted">Elegí una carrera</td></tr></tbody>
+                                    <thead><tr><th data-i18n="materias.colSubject">Materia</th><th data-i18n="materias.colType">Tipo</th><th data-i18n="materias.colScheduleDays">Días y Horario</th><th data-i18n="materias.colAssignedTeacher">Profesor Asignado</th><th data-i18n="materias.colActions">Acciones</th></tr></thead>
+                                    <tbody id="grillaMateriasTableBody"><tr><td colspan="5" class="text-center text-muted" data-i18n="materias.chooseCareer">Elegí una carrera</td></tr></tbody>
                                 </table>
                             </div>
-                            <button class="btn btn-outline-secondary btn-sm" onclick="window.print()"><i class="bi bi-printer"></i> Imprimir esta grilla</button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="window.print()"><i class="bi bi-printer"></i> <span data-i18n="materias.print">Imprimir esta grilla</span></button>
                         </div>
                     </div>
                     <div class="tab-pane fade" id="tabConfiguracion" role="tabpanel">
                 <div class="form-section mt-4">
-                    <h4><i class="bi bi-gear"></i> Criterios de Asistencia</h4>
+                    <h4><i class="bi bi-gear"></i> <span data-i18n="config.attendanceCriteria">Criterios de Asistencia</span></h4>
                     <div class="row">
-                        <div class="col-md-4"><div class="form-group"><label>% mínimo de asistencia</label><input type="number" class="form-control" id="minAttendance" value="80"></div></div>
-                        <div class="col-md-4"><div class="form-group"><label>Horas mínimas diarias</label><input type="number" class="form-control" id="minHours" value="4"></div></div>
+                        <div class="col-md-4"><div class="form-group"><label data-i18n="config.minAttendancePct">% mínimo de asistencia</label><input type="number" class="form-control" id="minAttendance" value="80"></div></div>
+                        <div class="col-md-4"><div class="form-group"><label data-i18n="config.minDailyHours">Horas mínimas diarias</label><input type="number" class="form-control" id="minHours" value="4"></div></div>
                     </div>
-                    <button class="btn btn-primary" onclick="saveCriteria()"><i class="bi bi-save"></i> Guardar</button>
+                    <button class="btn btn-primary" onclick="saveCriteria()"><i class="bi bi-save"></i> <span data-i18n="config.save">Guardar</span></button>
                 </div>
                 <div class="form-section mt-4">
-                    <h4><i class="bi bi-stoplights"></i> Criterios de Puntualidad</h4>
-                    <p class="text-muted">Umbrales del semáforo de "Docentes que deberían presentarse hoy" (pestaña Inicio). Solo Rectoría puede editarlos.</p>
+                    <h4><i class="bi bi-stoplights"></i> <span data-i18n="config.punctualityCriteria">Criterios de Puntualidad</span></h4>
+                    <p class="text-muted" data-i18n="config.punctualityHint">Umbrales del semáforo de "Docentes que deberían presentarse hoy" (pestaña Inicio). Solo Rectoría puede editarlos.</p>
                     <div class="row">
-                        <div class="col-md-4"><div class="form-group"><label>Límite Presente (min)</label><input type="number" class="form-control" id="limitePresenteMin" value="15" min="0" oninput="actualizarLeyendaCriteriosPuntualidad()"></div></div>
-                        <div class="col-md-4"><div class="form-group"><label>Límite Tardanza (min)</label><input type="number" class="form-control" id="limiteTardanzaMin" value="30" min="0" oninput="actualizarLeyendaCriteriosPuntualidad()"></div></div>
-                        <div class="col-md-4"><div class="form-group"><label>Límite Media Falta (min)</label><input type="number" class="form-control" id="limiteMediaFaltaMin" value="60" min="0" oninput="actualizarLeyendaCriteriosPuntualidad()"></div></div>
+                        <div class="col-md-4"><div class="form-group"><label data-i18n="config.presentLimit">Límite Presente (min)</label><input type="number" class="form-control" id="limitePresenteMin" value="15" min="0" oninput="actualizarLeyendaCriteriosPuntualidad()"></div></div>
+                        <div class="col-md-4"><div class="form-group"><label data-i18n="config.lateLimit">Límite Tardanza (min)</label><input type="number" class="form-control" id="limiteTardanzaMin" value="30" min="0" oninput="actualizarLeyendaCriteriosPuntualidad()"></div></div>
+                        <div class="col-md-4"><div class="form-group"><label data-i18n="config.halfAbsentLimit">Límite Media Falta (min)</label><input type="number" class="form-control" id="limiteMediaFaltaMin" value="60" min="0" oninput="actualizarLeyendaCriteriosPuntualidad()"></div></div>
                     </div>
                     <ul class="small text-muted mb-3">
-                        <li>Presente: desde la hora asignada hasta <strong id="leyendaPresenteMax">10</strong> min</li>
-                        <li>Tardanza: de <strong id="leyendaTardanzaMin">11</strong> a <strong id="leyendaTardanzaMax">15</strong> min</li>
-                        <li>Media Falta: de <strong id="leyendaMediaFaltaMin">16</strong> a <strong id="leyendaMediaFaltaMax">20</strong> min</li>
-                        <li>Ausente: más de <strong id="leyendaAusenteMin">20</strong> min (o no ficha)</li>
+                        <li><span data-i18n="config.legendPresentPrefix">Presente: desde la hora asignada hasta</span> <strong id="leyendaPresenteMax">10</strong> <span data-i18n="config.min">min</span></li>
+                        <li><span data-i18n="config.legendTardanzaPrefix">Tardanza: de</span> <strong id="leyendaTardanzaMin">11</strong> <span data-i18n="config.legendTo">a</span> <strong id="leyendaTardanzaMax">15</strong> <span data-i18n="config.min">min</span></li>
+                        <li><span data-i18n="config.legendMediaFaltaPrefix">Media Falta: de</span> <strong id="leyendaMediaFaltaMin">16</strong> <span data-i18n="config.legendTo">a</span> <strong id="leyendaMediaFaltaMax">20</strong> <span data-i18n="config.min">min</span></li>
+                        <li><span data-i18n="config.legendAusentePrefix">Ausente: más de</span> <strong id="leyendaAusenteMin">20</strong> <span data-i18n="config.legendAusenteSuffix">min (o no ficha)</span></li>
                     </ul>
-                    <button class="btn btn-primary" id="guardarCriteriosPuntualidadBtn" onclick="guardarCriteriosPuntualidad()"><i class="bi bi-save"></i> Guardar</button>
+                    <button class="btn btn-primary" id="guardarCriteriosPuntualidadBtn" onclick="guardarCriteriosPuntualidad()"><i class="bi bi-save"></i> <span data-i18n="config.save">Guardar</span></button>
                 </div>
                 <div class="form-section mt-4">
-                    <h4><i class="bi bi-geo-alt"></i> Configuración: Geocerca de Fichaje</h4>
-                    <p class="text-muted">El docente solo puede fichar (reconocimiento facial) estando a menos del radio indicado de este punto. Quedan exentos: el fichaje manual del administrador, la PC autorizada como kiosco, tu propio usuario admin, y el Modo Prueba.</p>
+                    <h4><i class="bi bi-geo-alt"></i> <span data-i18n="config.geofenceTitle">Configuración: Geocerca de Fichaje</span></h4>
+                    <p class="text-muted" data-i18n="config.geofenceHint">El docente solo puede fichar (reconocimiento facial) estando a menos del radio indicado de este punto. Quedan exentos: el fichaje manual del administrador, la PC autorizada como kiosco, tu propio usuario admin, y el Modo Prueba.</p>
                     <div class="row">
-                        <div class="col-md-12"><div class="form-group"><label>Nombre del lugar</label><input type="text" class="form-control" id="geofenceName"></div></div>
+                        <div class="col-md-12"><div class="form-group"><label data-i18n="config.placeName">Nombre del lugar</label><input type="text" class="form-control" id="geofenceName"></div></div>
                         <input type="hidden" id="geofenceLat">
                         <input type="hidden" id="geofenceLng">
                     </div>
                     <div class="form-group">
-                        <label>Radio: <strong id="geofenceRadiusLabel">150</strong> metros</label>
+                        <label><span data-i18n="config.radius">Radio:</span> <strong id="geofenceRadiusLabel">150</strong> <span data-i18n="config.meters">metros</span></label>
                         <input type="range" class="form-range" id="geofenceRadius" min="150" max="500" step="10" oninput="document.getElementById('geofenceRadiusLabel').textContent = this.value; updateGeocercaCircleRadius('config');">
                     </div>
                     <div class="d-flex flex-wrap gap-2 mb-3">
-                        <button class="btn btn-primary" id="geofenceSaveBtn" onclick="saveGeofenceAdminForm()"><i class="bi bi-save"></i> Guardar</button>
-                        <button class="btn btn-outline-secondary" onclick="useCurrentLocationForGeofence()"><i class="bi bi-crosshair"></i> Usar mi ubicación actual</button>
-                        <button class="btn btn-outline-danger" id="geofenceResetBtn" onclick="resetGeofenceAdminForm()"><i class="bi bi-arrow-counterclockwise"></i> Restablecer a Colegio Secundario De San Carlos</button>
+                        <button class="btn btn-primary" id="geofenceSaveBtn" onclick="saveGeofenceAdminForm()"><i class="bi bi-save"></i> <span data-i18n="config.save">Guardar</span></button>
+                        <button class="btn btn-outline-secondary" onclick="useCurrentLocationForGeofence()"><i class="bi bi-crosshair"></i> <span data-i18n="config.useCurrentLocation">Usar mi ubicación actual</span></button>
+                        <button class="btn btn-outline-danger" id="geofenceResetBtn" onclick="resetGeofenceAdminForm()"><i class="bi bi-arrow-counterclockwise"></i> <span data-i18n="config.resetToDefault">Restablecer a Colegio Secundario De San Carlos</span></button>
                     </div>
                     <div class="form-group">
-                        <input type="text" class="form-control" id="buscador-geocerca" placeholder="🔍 Buscar: Provincia, Localidad, Calle" autocomplete="off">
+                        <input type="text" class="form-control" id="buscador-geocerca" placeholder="🔍 Buscar: Provincia, Localidad, Calle" autocomplete="off" data-i18n-placeholder="config.searchPlaceholder">
                     </div>
                     <div class="row">
                         <div class="col-md-6">
                             <div id="geofenceMapContainer" class="geocerca-map-container"></div>
                         </div>
                         <div class="col-md-6">
-                            <p class="mb-1"><strong>Dirección seleccionada:</strong></p>
-                            <div id="direccion-seleccionada" class="text-muted small mb-2">Hacé clic en el mapa, buscá una dirección o usá tu ubicación actual.</div>
-                            <p class="mb-1"><a id="geofenceMapLink" href="#" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i> Abrir en OpenStreetMap</a></p>
+                            <p class="mb-1"><strong data-i18n="config.selectedAddress">Dirección seleccionada:</strong></p>
+                            <div id="direccion-seleccionada" class="text-muted small mb-2" data-i18n="config.selectedAddressHint">Hacé clic en el mapa, buscá una dirección o usá tu ubicación actual.</div>
+                            <p class="mb-1"><a id="geofenceMapLink" href="#" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i> <span data-i18n="config.openInOsm">Abrir en OpenStreetMap</span></a></p>
                             <p class="text-muted small" id="geofenceUpdatedInfo"></p>
                         </div>
                     </div>
                     <hr>
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" id="modoPruebaToggle" onchange="toggleModoPrueba(this.checked)">
-                        <label class="form-check-label" for="modoPruebaToggle"><strong>Modo Prueba:</strong> Desactivar geocerca para todos (temporal)</label>
+                        <label class="form-check-label" for="modoPruebaToggle"><strong data-i18n="config.testModeLabel">Modo Prueba:</strong> <span data-i18n="config.testModeHint">Desactivar geocerca para todos (temporal)</span></label>
                     </div>
                 </div>
                 <div class="form-section mt-4">
-                    <h4><i class="bi bi-pc-display"></i> Dispositivos</h4>
-                    <p class="text-muted">La PC de preceptoría puede fichar sin GPS si está autorizada como "kiosco". Si esa PC se rompe, desautorizala y generá un código para autorizar la nueva.</p>
+                    <h4><i class="bi bi-pc-display"></i> <span data-i18n="config.devicesTitle">Dispositivos</span></h4>
+                    <p class="text-muted" data-i18n="config.devicesHint">La PC de preceptoría puede fichar sin GPS si está autorizada como "kiosco". Si esa PC se rompe, desautorizala y generá un código para autorizar la nueva.</p>
                     <div id="kioskAdminInfo" class="mb-3"></div>
                     <div class="d-flex flex-wrap gap-2">
-                        <button class="btn btn-primary" onclick="generateKioskCode()"><i class="bi bi-key"></i> Generar código para autorizar nueva PC</button>
-                        <button class="btn btn-outline-danger" onclick="deauthorizeKiosk()"><i class="bi bi-x-circle"></i> Desautorizar kiosco actual</button>
+                        <button class="btn btn-primary" onclick="generateKioskCode()"><i class="bi bi-key"></i> <span data-i18n="config.generateKioskCode">Generar código para autorizar nueva PC</span></button>
+                        <button class="btn btn-outline-danger" onclick="deauthorizeKiosk()"><i class="bi bi-x-circle"></i> <span data-i18n="config.deauthorizeKiosk">Desautorizar kiosco actual</span></button>
                     </div>
                     <div id="kioskCodeDisplay" class="mt-3"></div>
                 </div>
                     </div>
                     <div class="tab-pane fade" id="tabReportes" role="tabpanel">
                 <div class="form-section mt-4">
-                    <h4><i class="bi bi-file-earmark-text"></i> Generar Reporte</h4>
+                    <h4><i class="bi bi-file-earmark-text"></i> <span data-i18n="reportes.title">Generar Reporte</span></h4>
                     <div class="row">
-                        <div class="col-md-4"><div class="form-group"><label>Desde</label><input type="date" class="form-control" id="reportFrom"></div></div>
-                        <div class="col-md-4"><div class="form-group"><label>Hasta</label><input type="date" class="form-control" id="reportTo"></div></div>
-                        <div class="col-md-4"><div class="form-group"><label>Docente</label><select class="form-control" id="reportTeacher"><option value="all">Todos</option></select></div></div>
+                        <div class="col-md-4"><div class="form-group"><label data-i18n="reportes.from">Desde</label><input type="date" class="form-control" id="reportFrom"></div></div>
+                        <div class="col-md-4"><div class="form-group"><label data-i18n="reportes.to">Hasta</label><input type="date" class="form-control" id="reportTo"></div></div>
+                        <div class="col-md-4"><div class="form-group"><label data-i18n="reportes.teacher">Docente</label><select class="form-control" id="reportTeacher"><option value="all" data-i18n="reportes.all">Todos</option></select></div></div>
                     </div>
-                    <button class="btn btn-success" onclick="generateReport()"><i class="bi bi-file-earmark-pdf"></i> Generar PDF</button>
-                    <button class="btn btn-outline-success" onclick="generateReportExcel()"><i class="bi bi-file-earmark-excel"></i> Generar Excel</button>
+                    <button class="btn btn-success" onclick="generateReport()"><i class="bi bi-file-earmark-pdf"></i> <span data-i18n="reportes.generatePdf">Generar PDF</span></button>
+                    <button class="btn btn-outline-success" onclick="generateReportExcel()"><i class="bi bi-file-earmark-excel"></i> <span data-i18n="reportes.generateExcel">Generar Excel</span></button>
                 </div>
                     </div>
                     <div class="tab-pane fade" id="tabAuditoria" role="tabpanel">
                         <div class="form-section mt-3">
-                            <h4><i class="bi bi-shield-lock"></i> Panel de Auditoría</h4>
-                            <p class="text-muted">Log de todas las acciones importantes realizadas en el sistema. Rector: solo lectura. Programador: acceso técnico completo.</p>
+                            <h4><i class="bi bi-shield-lock"></i> <span data-i18n="auditoria.title">Panel de Auditoría</span></h4>
+                            <p class="text-muted" data-i18n="auditoria.hint">Log de todas las acciones importantes realizadas en el sistema. Rector: solo lectura. Programador: acceso técnico completo.</p>
                             <div class="row mb-3">
-                                <div class="col-md-3"><div class="stat-card"><div class="number" id="auditoriaCountTotal">0</div><div class="label">Total</div></div></div>
-                                <div class="col-md-3"><div class="stat-card"><div class="number" id="auditoriaCountHoy">0</div><div class="label">Hoy</div></div></div>
-                                <div class="col-md-3"><div class="stat-card"><div class="number" id="auditoriaCountSemana">0</div><div class="label">Esta semana</div></div></div>
+                                <div class="col-md-3"><div class="stat-card"><div class="number" id="auditoriaCountTotal">0</div><div class="label" data-i18n="auditoria.total">Total</div></div></div>
+                                <div class="col-md-3"><div class="stat-card"><div class="number" id="auditoriaCountHoy">0</div><div class="label" data-i18n="auditoria.today">Hoy</div></div></div>
+                                <div class="col-md-3"><div class="stat-card"><div class="number" id="auditoriaCountSemana">0</div><div class="label" data-i18n="auditoria.thisWeek">Esta semana</div></div></div>
                             </div>
                             <div class="row g-2 mb-3">
-                                <div class="col-md-3"><input type="text" class="form-control form-control-sm" id="auditoriaFiltroUsuario" placeholder="Filtrar por usuario" oninput="filtrarAuditoria()"></div>
-                                <div class="col-md-3"><input type="text" class="form-control form-control-sm" id="auditoriaFiltroAccion" placeholder="Filtrar por acción" oninput="filtrarAuditoria()"></div>
+                                <div class="col-md-3"><input type="text" class="form-control form-control-sm" id="auditoriaFiltroUsuario" placeholder="Filtrar por usuario" oninput="filtrarAuditoria()" data-i18n-placeholder="auditoria.filterUser"></div>
+                                <div class="col-md-3"><input type="text" class="form-control form-control-sm" id="auditoriaFiltroAccion" placeholder="Filtrar por acción" oninput="filtrarAuditoria()" data-i18n-placeholder="auditoria.filterAction"></div>
                                 <div class="col-md-2"><input type="date" class="form-control form-control-sm" id="auditoriaFiltroDesde" onchange="filtrarAuditoria()"></div>
                                 <div class="col-md-2"><input type="date" class="form-control form-control-sm" id="auditoriaFiltroHasta" onchange="filtrarAuditoria()"></div>
-                                <div class="col-md-2"><button class="btn btn-outline-secondary btn-sm w-100" onclick="limpiarFiltrosAuditoria()">Limpiar filtros</button></div>
+                                <div class="col-md-2"><button class="btn btn-outline-secondary btn-sm w-100" onclick="limpiarFiltrosAuditoria()" data-i18n="auditoria.clearFilters">Limpiar filtros</button></div>
                             </div>
                             <div class="d-flex flex-wrap gap-3 mb-2">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" id="auditoriaFiltroFueraItuzaingo" onchange="filtrarAuditoria()">
-                                    <label class="form-check-label small" for="auditoriaFiltroFueraItuzaingo">Solo fuera de Ituzaingó</label>
+                                    <label class="form-check-label small" for="auditoriaFiltroFueraItuzaingo" data-i18n="auditoria.onlyOutsideItuzaingo">Solo fuera de Ituzaingó</label>
                                 </div>
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" id="auditoriaFiltroFakeGps" onchange="filtrarAuditoria()">
-                                    <label class="form-check-label small" for="auditoriaFiltroFakeGps">Solo Fake GPS sospechoso</label>
+                                    <label class="form-check-label small" for="auditoriaFiltroFakeGps" data-i18n="auditoria.onlySuspiciousFakeGps">Solo Fake GPS sospechoso</label>
                                 </div>
                             </div>
                             <div id="auditoriaFiltroInfo" class="small text-warning fw-semibold mb-2"></div>
                             <div class="d-flex flex-wrap gap-2 mb-3">
-                                <button class="btn btn-outline-success btn-sm" onclick="exportarLogExcel()"><i class="bi bi-file-earmark-excel"></i> Exportar Excel</button>
-                                <button class="btn btn-outline-success btn-sm" onclick="exportarLogPDF()"><i class="bi bi-file-earmark-pdf"></i> Exportar PDF</button>
-                                <button class="btn btn-outline-danger btn-sm" id="auditoriaBorrarLogBtn" onclick="borrarLogsConfirm()"><i class="bi bi-trash"></i> Borrar LOG</button>
-                                <button class="btn btn-outline-primary btn-sm" id="auditoriaBackupBtn" onclick="backupLocalStorage()"><i class="bi bi-download"></i> Backup (localStorage)</button>
-                                <button class="btn btn-outline-primary btn-sm" id="auditoriaRestoreBtn" onclick="document.getElementById('restoreLocalStorageInput').click()"><i class="bi bi-upload"></i> Restaurar Backup</button>
+                                <button class="btn btn-outline-success btn-sm" onclick="exportarLogExcel()"><i class="bi bi-file-earmark-excel"></i> <span data-i18n="auditoria.exportExcel">Exportar Excel</span></button>
+                                <button class="btn btn-outline-success btn-sm" onclick="exportarLogPDF()"><i class="bi bi-file-earmark-pdf"></i> <span data-i18n="auditoria.exportPdf">Exportar PDF</span></button>
+                                <button class="btn btn-outline-danger btn-sm" id="auditoriaBorrarLogBtn" onclick="borrarLogsConfirm()"><i class="bi bi-trash"></i> <span data-i18n="auditoria.deleteLog">Borrar LOG</span></button>
+                                <button class="btn btn-outline-primary btn-sm" id="auditoriaBackupBtn" onclick="backupLocalStorage()"><i class="bi bi-download"></i> <span data-i18n="auditoria.backup">Backup (localStorage)</span></button>
+                                <button class="btn btn-outline-primary btn-sm" id="auditoriaRestoreBtn" onclick="document.getElementById('restoreLocalStorageInput').click()"><i class="bi bi-upload"></i> <span data-i18n="auditoria.restoreBackup">Restaurar Backup</span></button>
                                 <input type="file" id="restoreLocalStorageInput" accept="application/json" class="hidden" onchange="restoreLocalStorageFile(this)">
-                                <button class="btn btn-outline-warning btn-sm" id="auditoriaRepararFechasBtn" onclick="repararFechasFichajes()" title="Corrige fichajes viejos con fecha mal calculada por el bug de huso horario (ya arreglado en el código para los fichajes nuevos)"><i class="bi bi-wrench-adjustable"></i> Reparar fechas de fichajes viejos</button>
+                                <button class="btn btn-outline-warning btn-sm" id="auditoriaRepararFechasBtn" onclick="repararFechasFichajes()" title="Corrige fichajes viejos con fecha mal calculada por el bug de huso horario (ya arreglado en el código para los fichajes nuevos)"><i class="bi bi-wrench-adjustable"></i> <span data-i18n="auditoria.repairDates">Reparar fechas de fichajes viejos</span></button>
                             </div>
                             <div class="table-responsive">
                                 <table class="table table-sm table-striped">
-                                    <thead><tr><th>Fecha/Hora</th><th>Usuario</th><th>Acción</th><th>Detalle</th><th>Dispositivo</th><th>Ubicación</th></tr></thead>
+                                    <thead><tr><th data-i18n="auditoria.colDateTime">Fecha/Hora</th><th data-i18n="auditoria.colUser">Usuario</th><th data-i18n="auditoria.colAction">Acción</th><th data-i18n="auditoria.colDetail">Detalle</th><th data-i18n="auditoria.colDevice">Dispositivo</th><th data-i18n="auditoria.colLocation">Ubicación</th></tr></thead>
                                     <tbody id="auditoriaTableBody"></tbody>
                                 </table>
                             </div>
                             <div id="auditoriaCredencialesSection">
-                                <h5 class="mt-4"><i class="bi bi-key"></i> Credenciales de acceso</h5>
+                                <h5 class="mt-4"><i class="bi bi-key"></i> <span data-i18n="auditoria.credentials">Credenciales de acceso</span></h5>
                                 <div id="auditoriaCredenciales"></div>
                             </div>
                         </div>
@@ -965,86 +965,86 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="eventoModalTitle"><i class="bi bi-calendar-event"></i> Nuevo Evento Especial</h5>
+                    <h5 class="modal-title" id="eventoModalTitle"><i class="bi bi-calendar-event"></i> <span data-i18n="eventos.modalNewTitle">Nuevo Evento Especial</span></h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-8">
-                            <div class="form-group"><label class="required-field">Título</label><input type="text" class="form-control" id="eventoTitulo" placeholder="Ej: Acto de Fin de Año"></div>
+                            <div class="form-group"><label class="required-field" data-i18n="eventos.formTitleLabel">Título</label><input type="text" class="form-control" id="eventoTitulo" placeholder="Ej: Acto de Fin de Año" data-i18n-placeholder="eventos.titlePlaceholder"></div>
                         </div>
                         <div class="col-md-4">
-                            <div class="form-group"><label class="required-field">Fecha</label><input type="date" class="form-control" id="eventoFecha"></div>
+                            <div class="form-group"><label class="required-field" data-i18n="eventos.formDate">Fecha</label><input type="date" class="form-control" id="eventoFecha"></div>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-4">
-                            <div class="form-group"><label class="required-field">Hora entrada</label><input type="time" class="form-control" id="eventoHoraEntrada"></div>
+                            <div class="form-group"><label class="required-field" data-i18n="eventos.entryTime">Hora entrada</label><input type="time" class="form-control" id="eventoHoraEntrada"></div>
                         </div>
                         <div class="col-md-4">
-                            <div class="form-group"><label class="required-field">Hora salida</label><input type="time" class="form-control" id="eventoHoraSalida"></div>
+                            <div class="form-group"><label class="required-field" data-i18n="eventos.exitTime">Hora salida</label><input type="time" class="form-control" id="eventoHoraSalida"></div>
                         </div>
                         <div class="col-md-4">
-                            <div class="form-group"><label>Lugar / Dirección</label><input type="text" class="form-control" id="eventoLugar" placeholder="Ej: Plaza 25 de Mayo, Resistencia"></div>
+                            <div class="form-group"><label data-i18n="eventos.place">Lugar / Dirección</label><input type="text" class="form-control" id="eventoLugar" placeholder="Ej: Plaza 25 de Mayo, Resistencia" data-i18n-placeholder="eventos.placePlaceholder"></div>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Descripción</label>
-                        <textarea class="form-control" id="eventoDescripcion" rows="2" placeholder="Detalles del evento"></textarea>
+                        <label data-i18n="eventos.description">Descripción</label>
+                        <textarea class="form-control" id="eventoDescripcion" rows="2" placeholder="Detalles del evento" data-i18n-placeholder="eventos.descriptionPlaceholder"></textarea>
                     </div>
                     <div class="form-group mb-3">
-                        <label class="required-field">¿Con o sin perjuicio de sus funciones?</label>
+                        <label class="required-field" data-i18n="eventos.complianceQuestion">¿Con o sin perjuicio de sus funciones?</label>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="eventoTipoCumplimiento" id="eventoTipoCumplimientoCon" value="CON_PERJUICIO" checked>
-                            <label class="form-check-label" for="eventoTipoCumplimientoCon">CON perjuicio (solo va al evento, no da clases ese día)</label>
+                            <label class="form-check-label" for="eventoTipoCumplimientoCon" data-i18n="eventos.conPerjuicioFull">CON perjuicio (solo va al evento, no da clases ese día)</label>
                         </div>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="eventoTipoCumplimiento" id="eventoTipoCumplimientoSin" value="SIN_PERJUICIO">
-                            <label class="form-check-label" for="eventoTipoCumplimientoSin">SIN perjuicio (va al evento Y debe dar clases igual)</label>
+                            <label class="form-check-label" for="eventoTipoCumplimientoSin" data-i18n="eventos.sinPerjuicioFull">SIN perjuicio (va al evento Y debe dar clases igual)</label>
                         </div>
                     </div>
                     <div class="form-check form-switch mb-2">
                         <input class="form-check-input" type="checkbox" id="eventoTieneGeocerca" onchange="toggleEventoGeocerca(this.checked)">
-                        <label class="form-check-label" for="eventoTieneGeocerca"><strong>¿Este evento requiere geocerca?</strong> Para eventos fuera del colegio: el docente solo va a poder fichar parado en el punto marcado.</label>
+                        <label class="form-check-label" for="eventoTieneGeocerca"><strong data-i18n="eventos.geofenceRequired">¿Este evento requiere geocerca?</strong> <span data-i18n="eventos.geofenceRequiredHint">Para eventos fuera del colegio: el docente solo va a poder fichar parado en el punto marcado.</span></label>
                     </div>
                     <div id="eventoGeocercaFields" class="hidden mb-3">
                         <input type="hidden" id="eventoGeocercaLat">
                         <input type="hidden" id="eventoGeocercaLng">
                         <div class="form-group">
-                            <label>Radio: <strong id="eventoGeocercaRadioLabel">150</strong> metros</label>
+                            <label><span data-i18n="config.radius">Radio:</span> <strong id="eventoGeocercaRadioLabel">150</strong> <span data-i18n="config.meters">metros</span></label>
                             <input type="range" class="form-range" id="eventoGeocercaRadio" min="150" max="500" step="10" value="150" oninput="document.getElementById('eventoGeocercaRadioLabel').textContent = this.value; updateGeocercaCircleRadius('evento');">
                         </div>
                         <div class="d-flex flex-wrap gap-2 mb-3">
-                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="useCurrentLocationForEventoGeocerca()"><i class="bi bi-crosshair"></i> Usar mi ubicación actual</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="useCurrentLocationForEventoGeocerca()"><i class="bi bi-crosshair"></i> <span data-i18n="config.useCurrentLocation">Usar mi ubicación actual</span></button>
                         </div>
                         <div class="form-group">
-                            <input type="text" class="form-control" id="buscador-geocerca-evento" placeholder="🔍 Buscar: Provincia, Localidad, Calle" autocomplete="off">
+                            <input type="text" class="form-control" id="buscador-geocerca-evento" placeholder="🔍 Buscar: Provincia, Localidad, Calle" autocomplete="off" data-i18n-placeholder="config.searchPlaceholder">
                         </div>
                         <div class="row">
                             <div class="col-md-6">
                                 <div id="eventoGeocercaMapContainer" class="geocerca-map-container"></div>
                             </div>
                             <div class="col-md-6">
-                                <p class="mb-1"><strong>Dirección seleccionada:</strong></p>
-                                <div id="direccion-seleccionada-evento" class="text-muted small mb-2">Hacé clic en el mapa, buscá una dirección o usá tu ubicación actual.</div>
-                                <p class="mb-1"><a id="eventoGeocercaMapLink" href="#" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i> Abrir en OpenStreetMap</a></p>
-                                <p class="text-muted small mb-0">El docente va a necesitar GPS y estar dentro de este radio para poder fichar el evento con reconocimiento facial.</p>
+                                <p class="mb-1"><strong data-i18n="config.selectedAddress">Dirección seleccionada:</strong></p>
+                                <div id="direccion-seleccionada-evento" class="text-muted small mb-2" data-i18n="config.selectedAddressHint">Hacé clic en el mapa, buscá una dirección o usá tu ubicación actual.</div>
+                                <p class="mb-1"><a id="eventoGeocercaMapLink" href="#" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i> <span data-i18n="config.openInOsm">Abrir en OpenStreetMap</span></a></p>
+                                <p class="text-muted small mb-0" data-i18n="eventos.geofenceGpsHint">El docente va a necesitar GPS y estar dentro de este radio para poder fichar el evento con reconocimiento facial.</p>
                             </div>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Docentes convocados</label>
-                        <input type="text" class="form-control mb-2" id="eventoDocenteSearch" placeholder="Buscar docente por nombre..." oninput="renderEventoDocenteChecklist()" autocomplete="off">
+                        <label data-i18n="eventos.calledTeachers">Docentes convocados</label>
+                        <input type="text" class="form-control mb-2" id="eventoDocenteSearch" placeholder="Buscar docente por nombre..." oninput="renderEventoDocenteChecklist()" autocomplete="off" data-i18n-placeholder="eventos.searchTeacherPlaceholder">
                         <div class="form-check mb-2">
                             <input class="form-check-input" type="checkbox" id="eventoSelectAllDocentes" onchange="toggleAllEventoDocentes(this.checked)">
-                            <label class="form-check-label" for="eventoSelectAllDocentes">Seleccionar todos los docentes</label>
+                            <label class="form-check-label" for="eventoSelectAllDocentes" data-i18n="eventos.selectAllTeachers">Seleccionar todos los docentes</label>
                         </div>
                         <div id="eventoDocenteChecklist" class="evento-docente-checklist"></div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" onclick="saveEvento()"><i class="bi bi-save"></i> Guardar</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="common.cancel">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="saveEvento()"><i class="bi bi-save"></i> <span data-i18n="common.save">Guardar</span></button>
                 </div>
             </div>
         </div>
@@ -1055,51 +1055,57 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="materiaModalTitle"><i class="bi bi-journal-bookmark"></i> Nueva Materia</h5>
+                    <h5 class="modal-title" id="materiaModalTitle"><i class="bi bi-journal-bookmark"></i> <span data-i18n="materias.modalNewTitle">Nueva Materia</span></h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
-                        <label class="required-field">Carrera</label>
+                        <label class="required-field" data-i18n="teachers.career">Carrera</label>
                         <div class="d-flex gap-2">
-                            <select class="form-control" id="materiaCarrera"><option value="">Seleccioná...</option></select>
+                            <select class="form-control" id="materiaCarrera"><option value="" data-i18n="teachers.selectEllipsis">Seleccioná...</option></select>
                             <button type="button" class="btn btn-outline-secondary" title="Nueva carrera" onclick="promptNuevaCarrera()"><i class="bi bi-plus-lg"></i></button>
                         </div>
                     </div>
                     <div class="row mt-2">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label class="required-field">Año</label>
+                                <label class="required-field" data-i18n="teachers.year">Año</label>
                                 <select class="form-control" id="materiaAnio">
-                                    <option value="1">1er Año</option>
-                                    <option value="2">2do Año</option>
-                                    <option value="3">3er Año</option>
+                                    <option value="1" data-i18n="materias.year1">1er Año</option>
+                                    <option value="2" data-i18n="materias.year2">2do Año</option>
+                                    <option value="3" data-i18n="materias.year3">3er Año</option>
                                 </select>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label class="required-field">Cuatrimestre</label>
+                                <label class="required-field" data-i18n="materias.term">Cuatrimestre</label>
                                 <select class="form-control" id="materiaCuatrimestre">
-                                    <option value="1">1er Cuatrimestre</option>
-                                    <option value="2">2do Cuatrimestre</option>
+                                    <option value="1" data-i18n="materias.term1">1er Cuatrimestre</option>
+                                    <option value="2" data-i18n="materias.term2">2do Cuatrimestre</option>
                                 </select>
                             </div>
                         </div>
                     </div>
                     <div class="form-group mt-2">
-                        <label class="required-field">Nombre de la materia</label>
-                        <input type="text" class="form-control" id="materiaNombre" placeholder="Ej: Matemática I">
+                        <label class="required-field" data-i18n="materias.subjectName">Nombre de la materia</label>
+                        <input type="text" class="form-control" id="materiaNombre" placeholder="Ej: Matemática I" data-i18n-placeholder="materias.subjectNamePlaceholder">
                     </div>
                     <div class="form-group mt-2">
-                        <label class="required-field">Tipo</label>
+                        <label class="required-field" data-i18n="materias.type">Tipo</label>
                         <select class="form-control" id="materiaTipo">
-                            <option value="ANUAL">Anual</option>
-                            <option value="CUATRIMESTRAL">Cuatrimestral</option>
+                            <option value="ANUAL" data-i18n="materias.annual">Anual</option>
+                            <option value="CUATRIMESTRAL" data-i18n="materias.termly">Cuatrimestral</option>
                         </select>
                     </div>
+                    <!-- Los nombres de día (value="Lunes"/"Martes"/...) son datos
+                         reales que se guardan tal cual (FULL_DAYS/DAYS en script.js,
+                         usados en toda la app para horarios/calendario/semáforo) -
+                         no se traducen acá para no desalinearlos del resto de la
+                         app, que sigue mostrando los días en español (queda para
+                         una traducción más profunda, aparte). -->
                     <div class="form-group mt-2">
-                        <label class="required-field">Días (tildá un día para cargarle su horario)</label>
+                        <label class="required-field" data-i18n="materias.daysHint">Días (tildá un día para cargarle su horario)</label>
                         <div class="d-flex flex-wrap gap-3">
                             <div class="form-check"><input class="form-check-input" type="checkbox" id="materiaDiaLunes" value="Lunes" onchange="toggleMateriaHorarioDia('Lunes', this.checked)"><label class="form-check-label" for="materiaDiaLunes">Lunes</label></div>
                             <div class="form-check"><input class="form-check-input" type="checkbox" id="materiaDiaMartes" value="Martes" onchange="toggleMateriaHorarioDia('Martes', this.checked)"><label class="form-check-label" for="materiaDiaMartes">Martes</label></div>
@@ -1111,19 +1117,19 @@
                         </div>
                     </div>
                     <div class="form-group mt-2">
-                        <label class="required-field">Horario por día</label>
+                        <label class="required-field" data-i18n="materias.scheduleByDay">Horario por día</label>
                         <div id="materiaHorariosPorDia">
-                            <span class="text-muted small">Tildá un día arriba para cargarle su horario.</span>
+                            <span class="text-muted small" data-i18n="materias.checkDayHint">Tildá un día arriba para cargarle su horario.</span>
                         </div>
                     </div>
                     <div class="form-group mt-2">
-                        <label>Profesor asignado <small class="text-muted">(opcional - también se puede asignar desde la ficha del docente)</small></label>
-                        <select class="form-control" id="materiaProfesor"><option value="">Sin asignar</option></select>
+                        <label><span data-i18n="materias.assignedTeacher">Profesor asignado</span> <small class="text-muted" data-i18n="materias.assignedTeacherHint">(opcional - también se puede asignar desde la ficha del docente)</small></label>
+                        <select class="form-control" id="materiaProfesor"><option value="" data-i18n="materias.unassigned">Sin asignar</option></select>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" onclick="saveMateria()"><i class="bi bi-save"></i> Guardar</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="common.cancel">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="saveMateria()"><i class="bi bi-save"></i> <span data-i18n="common.save">Guardar</span></button>
                 </div>
             </div>
         </div>
@@ -1134,12 +1140,12 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="eventoViewModalTitle"><i class="bi bi-calendar-event"></i> Evento</h5>
+                    <h5 class="modal-title" id="eventoViewModalTitle"><i class="bi bi-calendar-event"></i> <span data-i18n="eventos.colTitle">Evento</span></h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body" id="eventoViewBody"></div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="fichaje.close">Cerrar</button>
                 </div>
             </div>
         </div>
@@ -1155,7 +1161,7 @@
                 </div>
                 <div class="modal-body" id="manualAttendanceBody"></div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="fichaje.close">Cerrar</button>
                 </div>
             </div>
         </div>
