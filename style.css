@@ -1056,21 +1056,34 @@ body {
     color: var(--ink) !important;
 }
 
-/* Variantes "outline" de Bootstrap: mismo tratamiento blanco+borde. */
+/* Variantes "outline" de Bootstrap: mismo tratamiento blanco+borde.
+   Incluye btn-outline-dark (botones de rol del login, index.html): su
+   color/borde vienen baked-in fijos en #212529 dentro del CSS
+   compilado de Bootstrap (no leen --bs-*), por eso necesita el mismo
+   forzado que el resto - si no, en modo oscuro queda texto oscuro
+   sobre fondo oscuro. */
 #app .btn-outline-primary, #app .btn-outline-secondary, #app .btn-outline-success,
-#app .btn-outline-danger, #app .btn-outline-warning, #app .btn-outline-info {
+#app .btn-outline-danger, #app .btn-outline-warning, #app .btn-outline-info, #app .btn-outline-dark {
     background-color: var(--white) !important;
     border-color: var(--gray-border) !important;
     color: var(--ink) !important;
 }
 #app .btn-outline-primary:hover, #app .btn-outline-secondary:hover, #app .btn-outline-success:hover,
-#app .btn-outline-danger:hover, #app .btn-outline-warning:hover, #app .btn-outline-info:hover,
+#app .btn-outline-danger:hover, #app .btn-outline-warning:hover, #app .btn-outline-info:hover, #app .btn-outline-dark:hover,
 #app .btn-outline-primary:focus, #app .btn-outline-secondary:focus, #app .btn-outline-success:focus,
-#app .btn-outline-danger:focus, #app .btn-outline-warning:focus, #app .btn-outline-info:focus {
+#app .btn-outline-danger:focus, #app .btn-outline-warning:focus, #app .btn-outline-info:focus, #app .btn-outline-dark:focus {
     background-color: var(--gray-hairline) !important;
     border-color: var(--gray-border) !important;
     color: var(--ink) !important;
 }
+
+/* .text-muted de Bootstrap: lee --bs-secondary-color, una rgba() fija
+   (no ligada a nuestro tema) - se fuerza acá a --gray-600, que ya es
+   el gris "muted" del resto de la app y se invierte solo en modo
+   oscuro (gris claro sobre fondo oscuro). Cubre tanto el texto
+   estático (ej. "¿Cómo querés ingresar?", el hint de Licencias) como
+   el generado por script.js con la misma clase. */
+#app .text-muted { color: var(--gray-600) !important; }
 
 /* Botones "grandes" de una sola accion principal por pantalla:
    altos y con esquinas bien redondeadas, como pide el estilo Uber.
