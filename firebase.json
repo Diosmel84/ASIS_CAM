@@ -10,7 +10,6 @@
       "package-lock.json",
       "supabase_schema.sql",
       "*.md",
-      "config.secrets.js",
       "**/*CREDENCIALES*.txt",
       "**/*password*.txt",
       "**/*.txt",

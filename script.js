@@ -5566,6 +5566,25 @@ function renderMateriasDocenteChecklist(teacherId) {
         materiaAsignarAnioFiltro = '';
     }
     if (currentMaterias.length === 0) {
+        // Puede ser que todavía no haya ninguna materia cargada en el
+        // sistema, o que la carga inicial (loadCarreras/loadMaterias en
+        // DOMContentLoaded) haya fallado o no haya terminado todavía -
+        // se reintenta una vez en segundo plano y se re-pinta solo si
+        // trae algo, para no dejar el combo "Carrera" vacío para
+        // siempre por una falla de carga transitoria.
+        if (!renderMateriasDocenteChecklist._reintentando) {
+            renderMateriasDocenteChecklist._reintentando = true;
+            Promise.all([loadCarreras(), loadMaterias()]).then(() => {
+                renderMateriasDocenteChecklist._reintentando = false;
+                // Re-pinta con el docente que esté abierto EN ESE MOMENTO
+                // (materiasSeleccionDocenteIdActual), no con el `teacherId`
+                // de cuando arrancó el reintento: si el admin cambió de
+                // docente mientras esto cargaba, usar el `teacherId`
+                // cerrado acá pisaría la selección del docente que está
+                // viendo ahora con la del que tenía abierto antes.
+                if (currentMaterias.length > 0) renderMateriasDocenteChecklist(materiasSeleccionDocenteIdActual);
+            });
+        }
         const chips = document.getElementById('materiasDocenteChips');
         if (chips) chips.innerHTML = '<span class="text-muted small">No hay materias cargadas todavía (pestaña "Materias").</span>';
         const cont = document.getElementById('materiasDocenteChecklist');
@@ -6923,15 +6942,35 @@ document.addEventListener('DOMContentLoaded', async function() {
     await loadAllData();
     await loadAdminUsuario();
     await loadCredencialesFijas();
-    await checkResetTokenFromUrl();
-    const criteria = getCriteria();
-    saveCriteriaToStorage(criteria);
-    ensureGeofenceConfig();
-    await loadEventoConvocatoriasPorDocente();
-    checkFaltas();
-    checkFaltasEvento();
+    // carreras/materias se cargan temprano, antes de checkFaltas() (que
+    // ya las necesita para calcular el horario efectivo vía
+    // getHorarioEfectivo/getMateriasDeDocente) y antes de cualquier paso
+    // de acá abajo que pueda tirar una excepción sin capturar - así una
+    // falla en checkResetTokenFromUrl/checkFaltas/checkFaltasEvento no
+    // deja a currentCarreras/currentMaterias vacíos para el resto de la
+    // sesión (eso es lo que dejaba el combo "Carrera" de Docentes sin
+    // opciones al asignar materias).
     await loadCarreras();
     await loadMaterias();
+    try {
+        await checkResetTokenFromUrl();
+    } catch (error) {
+        console.error('Error en checkResetTokenFromUrl:', error);
+    }
+    const criteria = getCriteria();
+    saveCriteriaToStorage(criteria);
+    try {
+        ensureGeofenceConfig();
+    } catch (error) {
+        console.error('Error en ensureGeofenceConfig:', error);
+    }
+    await loadEventoConvocatoriasPorDocente();
+    try {
+        checkFaltas();
+        checkFaltasEvento();
+    } catch (error) {
+        console.error('Error calculando faltas al iniciar:', error);
+    }
     // El semáforo de "Docentes que deberían presentarse hoy" también se
     // recalcula acá: sus franjas dependen de minutos transcurridos, así
     // que tiene que avanzar solo aunque nadie toque nada en la pantalla.
