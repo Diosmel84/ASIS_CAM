@@ -14,6 +14,8 @@ const path = require("path");
 
 const SW_PATH = path.join(__dirname, "..", "sw.js");
 const src = fs.readFileSync(SW_PATH, "utf8");
+// Se lee de sw.js para no romper el test cada vez que se sube CACHE_VERSION.
+const CACHE_ACTUAL = "asiscam-cache-" + src.match(/const CACHE_VERSION = "([^"]+)"/)[1];
 
 // El navegador real siempre normaliza las claves del Cache Storage a URL
 // absoluta (cache.add('./models/x') termina guardado bajo la URL absoluta
@@ -132,8 +134,8 @@ async function main() {
   console.log("== Paso 1: instalación (install) con red disponible ==");
   let env = makeSandbox({ networkOnline: true });
   await env.dispatch("install");
-  const cache = env.caches.get("asiscam-cache-v4");
-  check("se creó la cache asiscam-cache-v4", !!cache);
+  const cache = env.caches.get(CACHE_ACTUAL);
+  check("se creó la cache " + CACHE_ACTUAL, !!cache);
   check("precacheó el app shell (index.html, style.css, script.js, liveness.js)", !!(await cache.match("./index.html")) && !!(await cache.match("./style.css")) && !!(await cache.match("./script.js")) && !!(await cache.match("./liveness.js")));
   check("precacheó los 7 archivos de /models", [
     "./models/tiny_face_detector_model-weights_manifest.json",
@@ -155,14 +157,15 @@ async function main() {
     "./libs/jspdf.umd.min.js",
     "./libs/supabase.min.js",
   ].every((u) => cache.store.has(toAbsolute(u))));
-  check("total precacheado = 21 recursos (5 app shell + 7 modelos + 9 libs)", cache.store.size === 21);
+  const totalEsperado = vm.runInContext("PRECACHE_URLS.length", env.sandbox);
+  check("total precacheado = " + totalEsperado + " recursos (app shell + modelos + libs de sw.js)", cache.store.size === totalEsperado);
   check("llamó a self.skipWaiting()", env.self._skippedWaiting === true);
 
   console.log("\n== Paso 2: activación (activate) limpia caches viejas ==");
   env.caches.set("asiscam-cache-v3", new FakeCache(async () => ({ ok: true })));
   await env.dispatch("activate");
   check("borró la cache vieja asiscam-cache-v3", !env.caches.has("asiscam-cache-v3"));
-  check("conservó la cache actual asiscam-cache-v4", env.caches.has("asiscam-cache-v4"));
+  check("conservó la cache actual " + CACHE_ACTUAL, env.caches.has(CACHE_ACTUAL));
   check("llamó a self.clients.claim()", env.self._claimed === true);
 
   console.log("\n== Paso 3: fetch de un modelo -> cache-first (ya cacheado, no debe volver a pedirlo a la red) ==");

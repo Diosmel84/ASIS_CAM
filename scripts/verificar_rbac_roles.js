@@ -22,6 +22,7 @@ const path = require("path");
 
 const rolesSrc = fs.readFileSync(path.join(__dirname, "..", "roles.js"), "utf8");
 const auditoriaSrc = fs.readFileSync(path.join(__dirname, "..", "auditoria.js"), "utf8");
+const presenciaSrc = fs.readFileSync(path.join(__dirname, "..", "presencia-logic.js"), "utf8");
 const scriptSrc = fs.readFileSync(path.join(__dirname, "..", "script.js"), "utf8");
 
 const results = [];
@@ -83,6 +84,8 @@ function makeSandbox() {
   const confirmAnswers = []; // .pop() cada vez que corre confirm()
 
   const sandbox = {
+    // i18n.js no se carga acá: t() devuelve la clave tal cual.
+    t: (key) => key,
     window: { addEventListener() {}, removeEventListener() {}, ASISCAM_CRED_HASHES: {} },
     document: {
       addEventListener() {},
@@ -141,6 +144,7 @@ function makeSandbox() {
   vm.createContext(sandbox);
   vm.runInContext(rolesSrc, sandbox, { filename: "roles.js" });
   vm.runInContext(auditoriaSrc, sandbox, { filename: "auditoria.js" });
+  vm.runInContext(presenciaSrc, sandbox, { filename: "presencia-logic.js" });
   vm.runInContext(scriptSrc, sandbox, { filename: "script.js" });
   // showToast (script.js) y logAccion (auditoria.js) son `function`
   // declarations reales, así que pisan cualquier stub puesto ANTES de
