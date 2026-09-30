@@ -22,8 +22,6 @@ const I18N_DEFAULT_LOCALE = 'es';
 const I18N_STORAGE_KEY = 'app_lang';
 let currentLocale = I18N_DEFAULT_LOCALE;
 
-function getLocale() { return currentLocale; }
-
 // key admite notación con punto ("login.title") para bajar por el
 // diccionario anidado. Si la clave no existe en el idioma activo, cae
 // al diccionario base (es) - más útil que mostrar la clave cruda o

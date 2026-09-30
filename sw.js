@@ -22,7 +22,7 @@
  * sincroniza sola al reconectar.
  */
 
-const CACHE_VERSION = "v12";
+const CACHE_VERSION = "v47";
 const CACHE_NAME = "asiscam-cache-" + CACHE_VERSION;
 
 // App shell: mismo origen que este service worker.
@@ -65,6 +65,8 @@ const LIB_URLS = [
   "./libs/chart.umd.min.js",
   "./libs/jspdf.umd.min.js",
   "./libs/supabase.min.js",
+  "./libs/fullcalendar.global.min.js",
+  "./libs/fullcalendar-es.global.min.js",
 ];
 
 const PRECACHE_URLS = [...APP_SHELL_URLS, ...MODEL_URLS, ...LIB_URLS];

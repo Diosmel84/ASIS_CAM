@@ -37,47 +37,139 @@
         </div>
         <!-- ===== LOGIN ===== -->
         <div id="loginScreen">
-            <div class="login-header">
-                <img src="/logo.png" alt="ASISCAM PRO" class="institution-logo">
-                <div class="d-flex justify-content-center align-items-center gap-2 mt-2 mb-1">
-                    <div class="lang-switcher lang-switcher-login" role="group" aria-label="Idioma / Language / Idioma"></div>
-                    <div class="theme-switcher"></div>
-                </div>
-                <h1 data-i18n="login.title">ASIS-CAM</h1>
-                <p data-i18n="login.subtitle">Control de Asistencia Docente</p>
-            </div>
-            <!-- Paso 1: elegir rol -->
-            <div class="login-form" id="roleSelectStep">
-                <p class="text-center text-muted mb-3" data-i18n="login.chooseRole">¿Cómo querés ingresar?</p>
-                <button type="button" class="btn btn-outline-dark d-block w-100 mb-2" onclick="selectRole('DOCENTE')"><i class="bi bi-person-badge"></i> <span data-i18n="roles.DOCENTE">Docente</span></button>
-                <button type="button" class="btn btn-outline-dark d-block w-100 mb-2" onclick="selectRole('SECRETARIA')"><i class="bi bi-person-workspace"></i> <span data-i18n="roles.SECRETARIA">Secretaría</span></button>
-                <button type="button" class="btn btn-outline-dark d-block w-100 mb-2" onclick="selectRole('RECTOR')"><i class="bi bi-mortarboard"></i> <span data-i18n="roles.RECTOR">Rector</span></button>
-                <button type="button" class="btn btn-outline-dark d-block w-100" onclick="selectRole('PROGRAMADOR')"><i class="bi bi-code-slash"></i> <span data-i18n="roles.PROGRAMADOR">Programador</span></button>
-            </div>
+            <div class="login-shell">
+                <!-- Panel de marca (solo desktop/tablet ancha, ver style.css):
+                     decorativo, no tiene nada interactivo. -->
+                <aside class="login-brand-panel" aria-hidden="true">
+                    <div class="login-brand-content">
+                        <span class="login-brand-kicker">ASISCAM PRO</span>
+                        <h2 data-i18n="login.heroTitle">Asistencia docente, sin planillas</h2>
+                        <p data-i18n="login.heroSubtitle">Cada fichaje queda validado por rostro y ubicación, en segundos.</p>
+                        <ul class="login-brand-features">
+                            <li><i class="bi bi-person-bounding-box"></i> <span data-i18n="login.featureFace">Reconocimiento facial con prueba de vida</span></li>
+                            <li><i class="bi bi-geo-alt"></i> <span data-i18n="login.featureGeo">Geocerca por institución</span></li>
+                            <li><i class="bi bi-wifi-off"></i> <span data-i18n="login.featureOffline">Funciona aun sin conexión</span></li>
+                        </ul>
+                    </div>
+                </aside>
 
-            <!-- Paso 2: usuario + contraseña del rol elegido -->
-            <div class="login-form hidden" id="credentialsStep">
-                <button type="button" class="btn btn-link btn-sm p-0 mb-2" onclick="backToRoleSelect()"><i class="bi bi-arrow-left"></i> <span data-i18n="login.changeRole">Cambiar rol</span></button>
-                <p class="text-muted small mb-2"><span data-i18n="login.enteringAs">Ingresando como</span> <strong id="selectedRoleLabel"></strong></p>
-                <div id="loginModelsBanner" class="models-banner">
-                    <span class="spinner-border spinner-border-sm"></span> <span data-i18n="fichaje.loadingModels">Cargando módulo de reconocimiento facial...</span>
+                <div class="login-card">
+                    <div class="login-toolbar">
+                        <div class="lang-switcher lang-switcher-login" role="group" aria-label="Idioma / Language / Idioma"></div>
+                        <div class="theme-switcher"></div>
+                    </div>
+                    <div class="login-header">
+                        <div class="login-logo-tile"><img src="/logo.png" alt="ASISCAM PRO" class="institution-logo"></div>
+                        <h1 data-i18n="login.title">ASIS-CAM</h1>
+                        <p data-i18n="login.subtitle">Control de Asistencia Docente</p>
+                    </div>
+                    <!-- Login único: usuario + contraseña. El perfil (Docente,
+                         Secretaría, Rector o Programador) lo detecta login() a
+                         partir del usuario ingresado, sin elegir rol antes. -->
+                    <div class="login-form" id="credentialsStep">
+                        <div class="form-group">
+                            <label for="loginUser" id="loginUserLabel" data-i18n="login.userLabelAny">Usuario o DNI</label>
+                            <div class="login-input">
+                                <i class="bi bi-person login-input-icon"></i>
+                                <input type="text" class="form-control" id="loginUser" placeholder="Ingresa tu usuario o DNI" data-i18n-placeholder="login.userPlaceholderAny" autocomplete="username" autocapitalize="none" spellcheck="false">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="loginPass" data-i18n="login.passwordLabel">Contraseña</label>
+                            <div class="login-input">
+                                <i class="bi bi-lock login-input-icon"></i>
+                                <input type="password" class="form-control" id="loginPass" placeholder="Ingresa tu contraseña" data-i18n-placeholder="login.passwordPlaceholder" autocomplete="current-password" onkeydown="if (event.key === 'Enter') login()">
+                                <button type="button" class="login-input-toggle" id="loginPassToggle" onclick="toggleLoginPasswordVisibility()" aria-label="Mostrar contraseña"><i class="bi bi-eye"></i></button>
+                            </div>
+                        </div>
+                        <div id="loginError" class="login-error">
+                            <i class="bi bi-exclamation-triangle"></i> <span data-i18n="login.errorCredentials">Usuario o contraseña incorrectos</span>
+                        </div>
+                        <button class="btn btn-primary login-submit" onclick="login()">
+                            <span data-i18n="login.submit">Ingresar</span> <i class="bi bi-arrow-right"></i>
+                        </button>
+                        <div class="text-center mt-2" id="forgotPasswordBtnWrap">
+                            <button type="button" class="btn btn-link btn-sm p-0" data-bs-toggle="modal" data-bs-target="#forgotPasswordModal" onclick="resetForgotPasswordForm()" data-i18n="login.forgotPassword">¿Olvidaste tu contraseña?</button>
+                        </div>
+                        <!-- Fichaje rápido: el docente ficha solo mirando la cámara,
+                             sin usuario/contraseña (ver enterQuickFichaje() en script.js). -->
+                        <div class="login-divider"><span data-i18n="login.or">o</span></div>
+                        <button type="button" class="btn login-quick-btn" onclick="enterQuickFichaje()">
+                            <i class="bi bi-camera-video"></i> <span data-i18n="login.quickFichaje">Fichar con cámara</span>
+                        </button>
+                        <div id="loginModelsBanner" class="models-banner">
+                            <span class="spinner-border spinner-border-sm"></span> <span data-i18n="fichaje.loadingModels">Cargando módulo de reconocimiento facial...</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="loginUser" id="loginUserLabel" data-i18n="login.userLabelDocente">Usuario (DNI)</label>
-                    <input type="text" class="form-control" id="loginUser" placeholder="Ingresa tu DNI" data-i18n-placeholder="login.userPlaceholderDocente">
+            </div>
+        </div>
+
+        <!-- ===== BUZÓN DE ALERTAS (panel lateral, abierto desde la campanita) ===== -->
+        <div class="offcanvas offcanvas-end alerts-offcanvas" tabindex="-1" id="alertsOffcanvas" aria-labelledby="alertsOffcanvasTitle">
+            <div class="offcanvas-header">
+                <h5 class="offcanvas-title" id="alertsOffcanvasTitle"><i class="bi bi-bell"></i> <span data-i18n="alerts.inboxTitle">Buzon de Alertas</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Cerrar"></button>
+            </div>
+            <div class="offcanvas-body">
+                <!-- Selección múltiple (ver renderBarraAlertasMasivo() en script.js) -->
+                <div id="alertsBulkBar" class="alerts-bulk-bar hidden"></div>
+                <div class="alerts-offcanvas-list" id="alertsList">
+                    <p class="text-muted" data-i18n="alerts.none">No hay alertas pendientes</p>
                 </div>
-                <div class="form-group">
-                    <label for="loginPass" data-i18n="login.passwordLabel">Contraseña</label>
-                    <input type="password" class="form-control" id="loginPass" placeholder="Ingresa tu contraseña" data-i18n-placeholder="login.passwordPlaceholder">
+            </div>
+        </div>
+
+        <!-- ===== PLANILLA: AGREGAR CLASE EN UN HUECO (ver onSeleccionPlanilla()) ===== -->
+        <div class="modal fade" id="planillaAgregarModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-plus-circle"></i> <span data-i18n="materias.plannerAddTitle">Agregar clase</span> · <span id="planillaAgregarTitulo"></span></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <label class="form-label small text-muted mb-1" for="planillaAgregarMateria" data-i18n="materias.plannerExisting">Materia de este curso (que todavía no tiene clase ese día)</label>
+                        <select class="form-control mb-2" id="planillaAgregarMateria"></select>
+                        <button type="button" class="btn btn-primary w-100 mb-3" id="planillaAgregarExistenteBtn" onclick="planillaAgregarAExistente()" data-i18n="materias.plannerAddToExisting">Agregar a esta materia</button>
+                        <div class="login-divider"><span data-i18n="login.or">o</span></div>
+                        <button type="button" class="btn btn-outline-secondary w-100" onclick="planillaCrearMateriaNueva()"><i class="bi bi-journal-plus"></i> <span data-i18n="materias.plannerNewSubject">Crear una materia nueva en este horario</span></button>
+                    </div>
                 </div>
-                <div id="loginError" class="login-error">
-                    <i class="bi bi-exclamation-triangle"></i> <span data-i18n="login.errorCredentials">Usuario o contraseña incorrectos</span>
+            </div>
+        </div>
+
+        <!-- ===== ALTA DE DOCENTE EXITOSA (ver saveTeacher() en script.js) ===== -->
+        <div class="modal fade" id="altaExitosaModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-body text-center p-4" id="altaExitosaBody"></div>
                 </div>
-                <button class="btn btn-primary" onclick="login()">
-                    <i class="bi bi-box-arrow-in-right"></i> <span data-i18n="login.submit">Ingresar</span>
-                </button>
-                <div class="text-center mt-2" id="forgotPasswordBtnWrap">
-                    <button type="button" class="btn btn-link btn-sm p-0" data-bs-toggle="modal" data-bs-target="#forgotPasswordModal" onclick="resetForgotPasswordForm()" data-i18n="login.forgotPassword">¿Olvidaste tu contraseña?</button>
+            </div>
+        </div>
+
+        <!-- ===== DAR DE ALTA DESDE FICHAJE RÁPIDO (solo administración) ===== -->
+        <div class="modal fade" id="quickAltaModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-person-plus"></i> <span data-i18n="fichaje.quickAltaTitle">Dar de alta docente</span></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="small text-muted" data-i18n="fichaje.quickAltaInfo">Ingresá con un usuario de administración (Secretaría, Rector o Programador).</p>
+                        <div class="form-group mb-2">
+                            <input type="text" class="form-control" id="quickAltaUser" placeholder="Usuario" data-i18n-placeholder="login.userPlaceholderDefault" autocomplete="off" autocapitalize="none" spellcheck="false">
+                        </div>
+                        <div class="form-group mb-2">
+                            <input type="password" class="form-control" id="quickAltaPass" placeholder="Contraseña" data-i18n-placeholder="login.passwordPlaceholder" autocomplete="off" onkeydown="if (event.key === 'Enter') submitQuickAlta()">
+                        </div>
+                        <div id="quickAltaError" class="text-danger small fw-semibold hidden"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="fichaje.close">Cerrar</button>
+                        <button type="button" class="btn btn-primary" id="quickAltaSubmitBtn" onclick="submitQuickAlta()"><span data-i18n="fichaje.quickAltaSubmit">Continuar</span></button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -163,28 +255,56 @@
                 <div class="dashboard-header-actions">
                     <div class="lang-switcher" role="group" aria-label="Idioma / Language / Idioma"></div>
                     <div class="theme-switcher"></div>
-                    <span class="badge bg-primary me-2" id="userRoleBadge">Admin</span>
-                    <button class="btn-logout" id="dashboardLogoutBtn" onclick="logout()">
-                        <i class="bi bi-box-arrow-right"></i> <span data-i18n="header.logout">Salir</span>
+                    <!-- Alertas: campanita (solo panel admin, ver showDashboard()) que abre
+                         el buzón en un panel lateral, en vez de una pestaña del menú. -->
+                    <button type="button" class="alerts-bell hidden" id="alertsBellBtn" data-bs-toggle="offcanvas" data-bs-target="#alertsOffcanvas" aria-controls="alertsOffcanvas" aria-label="Alertas" title="Alertas">
+                        <i class="bi bi-bell"></i>
+                        <span class="alerts-bell-count hidden" id="alertCount">0</span>
                     </button>
+                    <!-- Configuración: engranaje (solo panel admin) en vez de una pestaña del
+                         menú de trabajo diario - ver abrirConfiguracion(). -->
+                    <button type="button" class="header-icon-btn hidden" id="settingsHeaderBtn" onclick="abrirConfiguracion()" aria-label="Configuración" title="Configuración">
+                        <i class="bi bi-gear"></i>
+                    </button>
+                    <!-- Menú del usuario: quién ingresó + sus opciones personales (ver renderUserMenu()). -->
+                    <div class="dropdown user-menu">
+                        <button type="button" class="user-menu-btn" id="userMenuBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="user-avatar" id="userAvatar"><i class="bi bi-person"></i></span>
+                            <span class="user-menu-text">
+                                <span class="user-menu-name" id="userMenuName"></span>
+                                <span class="user-menu-role" id="userMenuRole"></span>
+                            </span>
+                            <i class="bi bi-chevron-down user-menu-caret"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end user-menu-dropdown">
+                            <li class="user-menu-head">
+                                <span class="user-menu-name" id="userMenuHeadName"></span>
+                                <span class="user-menu-role" id="userMenuHeadRole"></span>
+                            </li>
+                            <li id="userMenuChangePasswordItem"><button type="button" class="dropdown-item" onclick="abrirCambioContrasenaUsuario()"><i class="bi bi-key"></i> <span data-i18n="nav.changePassword">Cambiar Contraseña</span></button></li>
+                            <li id="userMenuSettingsItem"><button type="button" class="dropdown-item" onclick="abrirConfiguracion()"><i class="bi bi-gear"></i> <span data-i18n="nav.settings">Configuración</span></button></li>
+                            <li id="userMenuDivider"><hr class="dropdown-divider"></li>
+                            <li><button type="button" class="dropdown-item user-menu-logout" id="dashboardLogoutBtn" onclick="logout()"><i class="bi bi-box-arrow-right"></i> <span data-i18n="header.logout">Salir</span></button></li>
+                        </ul>
+                    </div>
                 </div>
             </div>
+
+            <!-- Cartel fijo mientras el Modo Prueba está activo (ver renderAvisoModoPrueba()). -->
+            <div id="modoPruebaBanner" class="modo-prueba-banner hidden"></div>
 
             <!-- ===== ADMIN DASHBOARD ===== -->
             <div id="adminDashboard" class="admin-panel hidden">
                 <!-- Barra de acciones: fila de botones en PC, menú hamburguesa en celular -->
-                <div class="d-none d-md-flex justify-content-end mb-3 gap-2 flex-wrap">
-                    <button class="btn btn-info btn-sm" onclick="showAnnualCalendar()">
+                <div class="d-none d-md-flex justify-content-end mb-3 gap-2 flex-wrap quick-actions">
+                    <button class="btn btn-sm quick-action" onclick="showAnnualCalendar()">
                         <i class="bi bi-calendar3"></i> <span data-i18n="nav.annualCalendar">Calendario Anual del Establecimiento</span>
                     </button>
-                    <button class="btn btn-outline-primary btn-sm" onclick="showFullScheduleGrid()">
+                    <button class="btn btn-sm quick-action" onclick="showFullScheduleGrid()">
                         <i class="bi bi-grid-3x3"></i> <span data-i18n="nav.fullGrid">Ver Grilla Completa de Horarios</span>
                     </button>
-                    <button class="btn btn-primary btn-sm" onclick="showStatsScreen()">
+                    <button class="btn btn-sm quick-action" onclick="showStatsScreen()">
                         <i class="bi bi-graph-up-arrow"></i> <span data-i18n="nav.viewStats">Ver Estadísticas</span>
-                    </button>
-                    <button class="btn btn-secondary btn-sm" id="adminChangePasswordBtnDesktop" onclick="resetAdminChangePasswordForm()" data-bs-toggle="modal" data-bs-target="#adminChangePasswordModal">
-                        <i class="bi bi-key"></i> <span data-i18n="nav.changePassword">Cambiar Contraseña</span>
                     </button>
                 </div>
                 <div class="d-flex d-md-none justify-content-end mb-3">
@@ -195,21 +315,22 @@
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><button class="dropdown-item" onclick="showAnnualCalendar()"><i class="bi bi-calendar3"></i> <span data-i18n="nav.annualCalendar">Calendario Anual del Establecimiento</span></button></li>
                             <li><button class="dropdown-item" onclick="showFullScheduleGrid()"><i class="bi bi-grid-3x3"></i> <span data-i18n="nav.fullGrid">Ver Grilla Completa de Horarios</span></button></li>
-                            <li><button class="dropdown-item" onclick="showStatsScreen()"><i class="bi bi-graph-up-arrow"></i> <span data-i18n="nav.viewStats">Ver Estadísticas</span></button></li>
-                            <li id="adminChangePasswordBtnMobile"><button class="dropdown-item" onclick="resetAdminChangePasswordForm()" data-bs-toggle="modal" data-bs-target="#adminChangePasswordModal"><i class="bi bi-key"></i> <span data-i18n="nav.changePassword">Cambiar Contraseña</span></button></li>
-                        </ul>
+                            <li><button class="dropdown-item" onclick="showStatsScreen()"><i class="bi bi-graph-up-arrow"></i> <span data-i18n="nav.viewStats">Ver Estadísticas</span></button></li>                        </ul>
                     </div>
                 </div>
                 <!-- Pestanas del panel de admin: agrupa todo en pestanas en vez de
                      una sola pantalla larga, para reducir el scroll vertical. -->
                 <ul class="nav nav-tabs admin-tabs" id="adminTabs" role="tablist">
                     <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabInicio" type="button" role="tab"><i class="bi bi-house"></i> <span data-i18n="nav.home">Inicio</span></button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabAlertas" type="button" role="tab"><i class="bi bi-bell"></i> <span data-i18n="nav.alerts">Alertas</span> <span class="badge bg-danger ms-1" id="alertCount">0</span></button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabAsistencias" type="button" role="tab" onclick="loadAsistenciasTab()"><i class="bi bi-clipboard-check"></i> <span data-i18n="nav.attendance">Asistencias</span></button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabDocentes" type="button" role="tab"><i class="bi bi-people"></i> <span data-i18n="nav.teachers">Docentes</span></button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabLicencias" type="button" role="tab"><i class="bi bi-file-medical"></i> <span data-i18n="nav.leaves">Licencias</span></button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabEventos" type="button" role="tab"><i class="bi bi-calendar-event"></i> <span data-i18n="nav.events">Eventos</span></button></li>
                     <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabMaterias" type="button" role="tab" onclick="loadMateriasTab()"><i class="bi bi-journal-bookmark"></i> <span data-i18n="nav.subjects">Materias</span></button></li>
-                    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabConfiguracion" type="button" role="tab"><i class="bi bi-gear"></i> <span data-i18n="nav.settings">Configuracion</span></button></li>
+                    <!-- Configuración no se muestra como pestaña: se abre desde el engranaje
+                         del header o el menú del usuario (abrirConfiguracion()). El botón queda
+                         oculto acá para que Bootstrap maneje el panel como las demás pestañas. -->
+                    <li class="nav-item d-none" id="tabConfiguracionNavItem" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabConfiguracion" type="button" role="tab"><i class="bi bi-gear"></i> <span data-i18n="nav.settings">Configuración</span></button></li>
                     <li class="nav-item" id="tabReportesNavItem" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabReportes" type="button" role="tab"><i class="bi bi-file-earmark-text"></i> <span data-i18n="nav.reports">Reportes</span></button></li>
                     <li class="nav-item hidden" id="tabAuditoriaNavItem" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabAuditoria" type="button" role="tab" onclick="cargarLogsAuditoria().then(renderAuditoriaPanel)"><i class="bi bi-shield-lock"></i> <span data-i18n="nav.audit">Auditoría</span></button></li>
                 </ul>
@@ -217,22 +338,22 @@
                     <div class="tab-pane fade show active" id="tabInicio" role="tabpanel">
                 <div class="row mb-3 g-2 inicio-resumen-compacto">
                     <div class="col-6 col-md-2">
-                        <div class="stat-card compact"><div class="number" id="totalTeachers">0</div><div class="label" data-i18n="stats.totalTeachers">Total Docentes</div></div>
+                        <div class="stat-card compact stat-v2 stat-total"><div class="stat-icon"><i class="bi bi-people"></i></div><div class="stat-body"><div class="number" id="totalTeachers">0</div><div class="label" data-i18n="stats.totalTeachers">Total Docentes</div></div></div>
                     </div>
                     <div class="col-6 col-md-2">
-                        <div class="stat-card compact"><div class="number" id="expectedToday">0</div><div class="label" data-i18n="stats.expectedToday">Esperados Hoy</div></div>
+                        <div class="stat-card compact stat-v2 stat-esperados"><div class="stat-icon"><i class="bi bi-calendar-check"></i></div><div class="stat-body"><div class="number" id="expectedToday">0</div><div class="label" data-i18n="stats.expectedToday">Esperados Hoy</div></div></div>
                     </div>
                     <div class="col-6 col-md-2">
-                        <div class="stat-card compact"><div class="number" id="presentToday">0</div><div class="label" data-i18n="stats.presentToday">Presentes Hoy</div></div>
+                        <div class="stat-card compact stat-v2 stat-presentes"><div class="stat-icon"><i class="bi bi-check-circle"></i></div><div class="stat-body"><div class="number" id="presentToday">0</div><div class="label" data-i18n="stats.presentToday">Presentes Hoy</div></div></div>
                     </div>
                     <div class="col-6 col-md-2">
-                        <div class="stat-card compact"><div class="number" id="absentToday">0</div><div class="label" data-i18n="stats.absentToday">Ausentes Hoy</div></div>
+                        <div class="stat-card compact stat-v2 stat-ausentes"><div class="stat-icon"><i class="bi bi-x-circle"></i></div><div class="stat-body"><div class="number" id="absentToday">0</div><div class="label" data-i18n="stats.absentToday">Ausentes Hoy</div></div></div>
                     </div>
                     <div class="col-6 col-md-2">
-                        <div class="stat-card compact"><div class="number" id="lateToday">0</div><div class="label" data-i18n="stats.lateToday">Tardanzas Hoy</div></div>
+                        <div class="stat-card compact stat-v2 stat-tardanzas"><div class="stat-icon"><i class="bi bi-clock-history"></i></div><div class="stat-body"><div class="number" id="lateToday">0</div><div class="label" data-i18n="stats.lateToday">Tardanzas Hoy</div></div></div>
                     </div>
                     <div class="col-6 col-md-2">
-                        <div class="stat-card compact"><div class="number" id="halfAbsentToday">0</div><div class="label" data-i18n="stats.halfAbsentToday">Media Falta Hoy</div></div>
+                        <div class="stat-card compact stat-v2 stat-media"><div class="stat-icon"><i class="bi bi-circle-half"></i></div><div class="stat-body"><div class="number" id="halfAbsentToday">0</div><div class="label" data-i18n="stats.halfAbsentToday">Media Falta Hoy</div></div></div>
                     </div>
                 </div>
                 <div class="form-section">
@@ -248,15 +369,107 @@
                     <div id="docentesEsperadosHoyList"></div>
                 </div>
                     </div>
-                    <div class="tab-pane fade" id="tabAlertas" role="tabpanel">
-                        <h4><i class="bi bi-bell"></i> <span data-i18n="alerts.inboxTitle">Buzon de Alertas</span></h4>
-                        <div class="alerts-list-scroll">
-                            <div class="accordion-body" id="alertsList">
-                                <p class="text-muted" data-i18n="alerts.none">No hay alertas pendientes</p>
+                    <!-- ===== ASISTENCIAS: una fila por clase programada (horario de la
+                         materia) con su fichaje real de entrada/salida y estado.
+                         Ver loadAsistenciasTab()/renderAsistencias() en script.js. -->
+                    <div class="tab-pane fade" id="tabAsistencias" role="tabpanel">
+                        <div class="form-section mt-3">
+                            <h4><i class="bi bi-clipboard-check"></i> <span data-i18n="asistencias.title">Asistencias</span></h4>
+                            <p class="text-muted small" data-i18n="asistencias.hint">Cada clase programada según el horario de las materias, con la hora real de entrada y salida del docente y su estado.</p>
+                            <div class="asis-filtros">
+                                <div>
+                                    <label class="form-label small mb-1 text-muted" for="asisDesde" data-i18n="asistencias.from">Desde</label>
+                                    <input type="date" class="form-control form-control-sm" id="asisDesde" onchange="renderAsistencias()">
+                                </div>
+                                <div>
+                                    <label class="form-label small mb-1 text-muted" for="asisHasta" data-i18n="asistencias.to">Hasta</label>
+                                    <input type="date" class="form-control form-control-sm" id="asisHasta" onchange="renderAsistencias()">
+                                </div>
+                                <div>
+                                    <label class="form-label small mb-1 text-muted" for="asisCarrera" data-i18n="calendar.career">Carrera</label>
+                                    <select class="form-control form-control-sm" id="asisCarrera" onchange="onCambioFiltroAsistencias()"></select>
+                                </div>
+                                <div>
+                                    <label class="form-label small mb-1 text-muted" for="asisAnio" data-i18n="calendar.year">Año</label>
+                                    <select class="form-control form-control-sm" id="asisAnio" onchange="onCambioFiltroAsistencias()"></select>
+                                </div>
+                                <div>
+                                    <label class="form-label small mb-1 text-muted" for="asisMateria" data-i18n="calendar.subject">Materia</label>
+                                    <select class="form-control form-control-sm" id="asisMateria" onchange="onCambioFiltroAsistencias()"></select>
+                                </div>
+                                <div>
+                                    <label class="form-label small mb-1 text-muted" for="asisDocente" data-i18n="calendar.teacher">Docente</label>
+                                    <select class="form-control form-control-sm" id="asisDocente" onchange="onCambioFiltroAsistencias()"></select>
+                                </div>
+                                <div>
+                                    <label class="form-label small mb-1 text-muted" for="asisEstado" data-i18n="asistencias.status">Estado</label>
+                                    <select class="form-control form-control-sm" id="asisEstado" onchange="renderAsistencias()"></select>
+                                </div>
+                            </div>
+                            <div class="asis-acciones">
+                                <div class="asis-rapidos">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setRangoAsistencias(0)" data-i18n="asistencias.today">Hoy</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setRangoAsistencias(6)" data-i18n="asistencias.last7">Últimos 7 días</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setRangoAsistencias(29)" data-i18n="asistencias.last30">Últimos 30 días</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="limpiarFiltrosAsistencias()"><i class="bi bi-x-circle"></i> <span data-i18n="calendar.clearFilters">Limpiar filtros</span></button>
+                                </div>
+                                <button type="button" class="btn btn-outline-success btn-sm" onclick="exportarAsistenciasExcel()"><i class="bi bi-file-earmark-excel"></i> <span data-i18n="asistencias.export">Exportar Excel</span></button>
+                            </div>
+                            <div id="asisResumen" class="asis-resumen"></div>
+                            <div class="table-responsive asis-tabla-wrap">
+                                <table class="table asis-tabla">
+                                    <thead><tr>
+                                        <th data-i18n="asistencias.colDate">Fecha</th>
+                                        <th data-i18n="asistencias.colSchedule">Horario</th>
+                                        <th data-i18n="asistencias.colSubject">Materia</th>
+                                        <th data-i18n="asistencias.colTeacher">Docente</th>
+                                        <th data-i18n="asistencias.colIn">Entrada</th>
+                                        <th data-i18n="asistencias.colOut">Salida</th>
+                                        <th data-i18n="asistencias.colStatus">Estado</th>
+                                        <th data-i18n="asistencias.colAbsences">Faltas del año</th>
+                                        <th data-i18n="asistencias.colNotify">Aviso</th>
+                                    </tr></thead>
+                                    <tbody id="asisTablaBody"></tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
                     <div class="tab-pane fade" id="tabDocentes" role="tabpanel">
+                <!-- ===== TABLA DE DOCENTES =====
+                     Arriba de todo y abierta por defecto: lo primero que se
+                     busca en esta pestaña es quiénes están registrados (antes
+                     quedaba plegada al final, debajo del formulario de alta). -->
+                <div class="accordion mt-3" id="teachersAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#teachersCollapse" aria-expanded="true" aria-controls="teachersCollapse">
+                                <i class="bi bi-people me-2"></i> <span data-i18n="teachers.listTitle">Listado de Docentes</span>
+                                <span class="badge bg-secondary ms-2" id="teacherCountBadge">0</span>
+                            </button>
+                        </h2>
+                        <div id="teachersCollapse" class="accordion-collapse collapse show" data-bs-parent="#teachersAccordion">
+                            <div class="accordion-body" id="teachersAccordionBody">
+                                <div class="search-box mb-3">
+                                    <i class="bi bi-search"></i>
+                                    <input type="text" class="form-control" id="teacherSearchInput" placeholder="Buscar docente por nombre, DNI o materia..." oninput="filterTeachersTable()" data-i18n-placeholder="teachers.searchPlaceholder">
+                                </div>
+                                <!-- Sin búsqueda no se lista a nadie (ver filterTeachersTable()):
+                                     solo el aviso con el total y "Ver todos". -->
+                                <div id="teacherSearchHint" class="teacher-search-hint"></div>
+                                <div class="admin-table">
+                                    <div class="table-responsive">
+                                        <table class="table ios-table teachers-compact">
+                                            <thead>
+                                                <tr><th data-i18n="teachers.colPhoto">Foto</th><th data-i18n="teachers.colDni">DNI</th><th data-i18n="teachers.colName">Nombre</th><th data-i18n="teachers.colPhone">Teléfono</th><th data-i18n="teachers.colAddress">Domicilio</th><th data-i18n="teachers.colCity">Localidad</th><th data-i18n="teachers.colSubject">Materia</th><th data-i18n="teachers.colSchedule">Horario</th><th data-i18n="teachers.colPassword">Contraseña</th><th data-i18n="teachers.colBiometry">Biometría</th><th data-i18n="teachers.colStatus">Estado</th><th data-i18n="teachers.colActions">Acciones</th></tr>
+                                            </thead>
+                                            <tbody id="teachersTableBody"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                         <!-- ===== REGISTRO DE DOCENTES ===== -->
                 <div class="form-section mt-3">
                     <h4 id="regFormTitle"><i class="bi bi-person-plus"></i> <span data-i18n="teachers.registerNew">Registrar Nuevo Docente</span></h4>
@@ -308,7 +521,7 @@
                                     <div class="accordion-body">
                     <div class="row">
                         <div class="col-md-3">
-                            <div class="form-group"><label class="required-field" data-i18n="teachers.personalPhone">Teléfono Personal</label><input type="text" class="form-control" id="regTelefono" placeholder="Teléfono"></div>
+                            <div class="form-group"><label class="required-field" data-i18n="teachers.personalPhone">Teléfono Personal</label><input type="tel" class="form-control" id="regTelefono" placeholder="Ej: 3624 123456"><small class="text-muted" data-i18n="teachers.phoneHint">Con característica, sin 0 ni 15. Se usa para avisarle por WhatsApp.</small></div>
                         </div>
                         <div class="col-md-3">
                             <div class="form-group"><label class="required-field" data-i18n="teachers.familyPhone">Teléfono contacto familiar</label><input type="text" class="form-control" id="regTelefonoFamiliar" placeholder="Teléfono familiar"></div>
@@ -394,26 +607,31 @@
                         <div class="col-12">
                             <label class="required-field" data-i18n="teachers.assignedSubjects">Materias asignadas</label>
                             <p class="text-muted small mb-1" data-i18n="teachers.assignedSubjectsHint">El horario de tardanzas/faltas sale de acá, no se carga a mano en la ficha del docente. Para editar horarios, andá a la pestaña "Materias".</p>
-                            <div id="materiasDocenteChips" class="mb-2">
-                                <span class="text-muted small" data-i18n="teachers.noSubjectsYet">Todavía no tiene ninguna materia asignada.</span>
-                            </div>
                             <div class="row g-2 mb-2">
                                 <div class="col-md-6">
-                                    <label class="form-label small mb-1 text-muted" data-i18n="teachers.career">Carrera</label>
+                                    <label class="form-label small mb-1 text-muted" data-i18n="teachers.careerStep">1. Carrera</label>
                                     <select class="form-control form-control-sm" id="materiaAsignarCarrera" onchange="onCambioCarreraAsignar(this.value)">
                                         <option value="" data-i18n="teachers.selectEllipsis">Seleccioná...</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label small mb-1 text-muted" data-i18n="teachers.year">Año</label>
+                                    <label class="form-label small mb-1 text-muted" data-i18n="teachers.yearOptional">Año (opcional)</label>
                                     <select class="form-control form-control-sm" id="materiaAsignarAnio" onchange="onCambioAnioAsignar(this.value)" disabled>
                                         <option value="" data-i18n="teachers.selectCareerFirst">Elegí una carrera primero</option>
                                     </select>
                                 </div>
                             </div>
-                            <div id="materiasDocenteChecklist" class="p-2 border rounded" style="max-height:180px;overflow-y:auto;">
-                                <span class="text-muted small" data-i18n="teachers.selectCareerYearHint">Elegí carrera y año para ver sus materias.</span>
+                            <label class="form-label small mb-1 text-muted" data-i18n="teachers.subjectStep">2. Tildá la(s) materia(s) que dicta</label>
+                            <div id="materiasDocenteChecklist" class="materias-asignar-lista">
+                                <span class="text-muted small" data-i18n="teachers.selectCareerHint">Elegí una carrera para ver sus materias con su horario.</span>
                             </div>
+                            <!-- Resultado: materias elegidas (chips con X) + su horario
+                                 semanal, que es contra lo que se controla la asistencia. -->
+                            <label class="form-label small mb-1 mt-3 text-muted" data-i18n="teachers.scheduleStep">3. Horario del docente</label>
+                            <div id="materiasDocenteChips" class="mb-2">
+                                <span class="text-muted small" data-i18n="teachers.noSubjectsYet">Todavía no tiene ninguna materia asignada.</span>
+                            </div>
+                            <div id="materiasDocenteCalendario"></div>
                         </div>
                     </div>
                                     </div>
@@ -433,36 +651,6 @@
                     </div>
                 </div>
 
-                        <!-- ===== TABLA DE DOCENTES ===== -->
-                <!-- ===== TABLA DE DOCENTES ===== -->
-                <div class="accordion mt-3" id="teachersAccordion">
-                    <div class="accordion-item">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#teachersCollapse" aria-expanded="false" aria-controls="teachersCollapse">
-                                <i class="bi bi-people me-2"></i> <span data-i18n="teachers.listTitle">Listado de Docentes</span>
-                                <span class="badge bg-secondary ms-2" id="teacherCountBadge">0</span>
-                            </button>
-                        </h2>
-                        <div id="teachersCollapse" class="accordion-collapse collapse" data-bs-parent="#teachersAccordion">
-                            <div class="accordion-body" id="teachersAccordionBody">
-                                <div class="search-box mb-3">
-                                    <i class="bi bi-search"></i>
-                                    <input type="text" class="form-control" id="teacherSearchInput" placeholder="Buscar docente por nombre, DNI o materia..." oninput="filterTeachersTable()" data-i18n-placeholder="teachers.searchPlaceholder">
-                                </div>
-                                <div class="admin-table">
-                                    <div class="table-responsive">
-                                        <table class="table table-striped ios-table teachers-compact">
-                                            <thead>
-                                                <tr><th data-i18n="teachers.colPhoto">Foto</th><th data-i18n="teachers.colDni">DNI</th><th data-i18n="teachers.colName">Nombre</th><th data-i18n="teachers.colPhone">Teléfono</th><th data-i18n="teachers.colAddress">Domicilio</th><th data-i18n="teachers.colCity">Localidad</th><th data-i18n="teachers.colSubject">Materia</th><th data-i18n="teachers.colSchedule">Horario</th><th data-i18n="teachers.colPassword">Contraseña</th><th data-i18n="teachers.colBiometry">Biometría</th><th data-i18n="teachers.colStatus">Estado</th><th data-i18n="teachers.colActions">Acciones</th></tr>
-                                            </thead>
-                                            <tbody id="teachersTableBody"></tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
                     </div>
                     <div class="tab-pane fade" id="tabLicencias" role="tabpanel">
                 <div class="form-section mt-4">
@@ -484,58 +672,109 @@
                 </div>
                     </div>
                     <div class="tab-pane fade" id="tabEventos" role="tabpanel">
-                <div class="form-section mt-4">
-                    <h4><i class="bi bi-calendar-event"></i> <span data-i18n="eventos.title">Eventos Especiales</span></h4>
-                    <p class="text-muted" data-i18n="eventos.hint">Los docentes convocados a un Evento Especial no generan alerta de Falta por su horario habitual en esa fecha.</p>
-                    <button class="btn btn-primary mb-3" onclick="openEventoModal()"><i class="bi bi-plus-circle"></i> <span data-i18n="eventos.newEvent">Nuevo Evento</span></button>
-                    <div class="table-responsive">
-                        <table class="table ios-table">
-                            <thead><tr><th data-i18n="eventos.colTitle">Título</th><th data-i18n="eventos.colDescription">Descripción</th><th data-i18n="eventos.colDateRange">Fecha inicio &rarr; Fin</th><th data-i18n="eventos.colSchool">Escuela</th><th data-i18n="eventos.colTeachers">Docentes</th><th data-i18n="eventos.colActions">Acciones</th></tr></thead>
-                            <tbody id="eventosTableBody"><tr><td colspan="6" class="text-center text-muted" data-i18n="eventos.none">Sin eventos registrados</td></tr></tbody>
-                        </table>
+                <div class="form-section mt-3">
+                    <div class="materias-head">
+                        <div>
+                            <h4 class="mb-1"><i class="bi bi-calendar-event"></i> <span data-i18n="eventos.title">Eventos Especiales</span></h4>
+                            <p class="text-muted small mb-0" data-i18n="eventos.hint">Si el evento es obligatorio y reemplaza las clases, ese día no se le cuenta falta en sus materias. Si es obligatorio y no va, es falta. Si no es obligatorio, no ir no es falta.</p>
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="openEventoModal()"><i class="bi bi-plus-circle"></i> <span data-i18n="eventos.newEvent">Nuevo Evento</span></button>
+                    </div>
+                    <!-- Lista en filas (ver loadEventosEspeciales() en script.js): próximos
+                         primero (el más cercano arriba) y después los pasados, atenuados. -->
+                    <div id="eventosLista" class="eventos-lista">
+                        <p class="text-muted" data-i18n="eventos.none">Sin eventos registrados</p>
                     </div>
                 </div>
                     </div>
                     <div class="tab-pane fade" id="tabMaterias" role="tabpanel">
-                        <div class="form-section mt-3">
-                            <h4><i class="bi bi-journal-bookmark"></i> <span data-i18n="materias.title">Materias</span></h4>
-                            <p class="text-muted" data-i18n="materias.hint">Grilla de cátedra por carrera/año/cuatrimestre. Es independiente del horario laboral de cada docente (el que se usa para tardanzas y faltas no cambia).</p>
-                            <div class="d-flex flex-wrap gap-2 mb-3">
-                                <button class="btn btn-primary" onclick="openMateriaModal()"><i class="bi bi-plus-circle"></i> <span data-i18n="materias.add">Agregar Materia</span></button>
-                                <button class="btn btn-outline-secondary" onclick="promptNuevaCarrera()"><i class="bi bi-mortarboard"></i> <span data-i18n="materias.newCareer">Nueva Carrera</span></button>
+                        <div class="form-section mt-3 materias-panel">
+                            <!-- Encabezado + acciones -->
+                            <div class="materias-head">
+                                <div>
+                                    <h4 class="mb-1"><i class="bi bi-journal-bookmark"></i> <span data-i18n="materias.title2">Materias y horarios</span></h4>
+                                    <p class="text-muted small mb-0" data-i18n="materias.hint2">Horario semanal de cada curso. De acá sale el horario de cada docente para controlar entradas, tardanzas y faltas.</p>
+                                </div>
+                                <div class="materias-acciones">
+                                    <button class="btn btn-primary btn-sm" onclick="openMateriaModal()"><i class="bi bi-plus-circle"></i> <span data-i18n="materias.add">Agregar Materia</span></button>
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="promptNuevaCarrera()"><i class="bi bi-mortarboard"></i> <span data-i18n="materias.newCareer">Nueva Carrera</span></button>
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="window.print()" title="Imprimir"><i class="bi bi-printer"></i> <span data-i18n="materias.printShort">Imprimir</span></button>
+                                </div>
                             </div>
 
-                            <h5 class="mt-4" data-i18n="materias.grid">Grilla</h5>
-                            <div class="row g-2 mb-2">
-                                <div class="col-md-4">
-                                    <select class="form-control" id="grillaMateriasCarrera" onchange="renderGrillaMaterias()">
+                            <!-- Barra: carrera + período (año / cuatrimestre) -->
+                            <div class="materias-toolbar">
+                                <div class="materias-toolbar-carrera">
+                                    <label class="form-label small text-muted mb-1" for="grillaMateriasCarrera" data-i18n="calendar.career">Carrera</label>
+                                    <select class="form-control form-control-sm" id="grillaMateriasCarrera" onchange="renderGrillaMaterias()">
                                         <option value="" data-i18n="materias.selectCareer">Seleccioná una carrera...</option>
                                     </select>
                                 </div>
+                                <div class="materias-toolbar-periodo">
+                                    <span class="form-label small text-muted mb-1 d-block" data-i18n="materias.period">Año y cuatrimestre</span>
+                                    <div class="periodo-selector" id="grillaMateriasTabs">
+                                        <div class="periodo-grupo">
+                                            <span class="periodo-anio">1° <span data-i18n="teachers.yearWord">Año</span></span>
+                                            <button type="button" class="grilla-anio-cuat-btn" data-anio="1" data-cuat="1" onclick="seleccionarAnioCuatGrilla(1,1,this)" data-i18n="materias.q1">1er cuat.</button>
+                                            <button type="button" class="grilla-anio-cuat-btn" data-anio="1" data-cuat="2" onclick="seleccionarAnioCuatGrilla(1,2,this)" data-i18n="materias.q2">2do cuat.</button>
+                                        </div>
+                                        <div class="periodo-grupo">
+                                            <span class="periodo-anio">2° <span data-i18n="teachers.yearWord">Año</span></span>
+                                            <button type="button" class="grilla-anio-cuat-btn" data-anio="2" data-cuat="1" onclick="seleccionarAnioCuatGrilla(2,1,this)" data-i18n="materias.q1">1er cuat.</button>
+                                            <button type="button" class="grilla-anio-cuat-btn" data-anio="2" data-cuat="2" onclick="seleccionarAnioCuatGrilla(2,2,this)" data-i18n="materias.q2">2do cuat.</button>
+                                        </div>
+                                        <div class="periodo-grupo">
+                                            <span class="periodo-anio">3° <span data-i18n="teachers.yearWord">Año</span></span>
+                                            <button type="button" class="grilla-anio-cuat-btn" data-anio="3" data-cuat="1" onclick="seleccionarAnioCuatGrilla(3,1,this)" data-i18n="materias.q1">1er cuat.</button>
+                                            <button type="button" class="grilla-anio-cuat-btn" data-anio="3" data-cuat="2" onclick="seleccionarAnioCuatGrilla(3,2,this)" data-i18n="materias.q2">2do cuat.</button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <ul class="nav nav-pills flex-wrap gap-1 mb-3" id="grillaMateriasTabs">
-                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn active" data-anio="1" data-cuat="1" onclick="seleccionarAnioCuatGrilla(1,1,this)" data-i18n="materias.y1q1">1° Año - 1er Cuat</button></li>
-                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn" data-anio="1" data-cuat="2" onclick="seleccionarAnioCuatGrilla(1,2,this)" data-i18n="materias.y1q2">1° Año - 2do Cuat</button></li>
-                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn" data-anio="2" data-cuat="1" onclick="seleccionarAnioCuatGrilla(2,1,this)" data-i18n="materias.y2q1">2° Año - 1er Cuat</button></li>
-                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn" data-anio="2" data-cuat="2" onclick="seleccionarAnioCuatGrilla(2,2,this)" data-i18n="materias.y2q2">2° Año - 2do Cuat</button></li>
-                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn" data-anio="3" data-cuat="1" onclick="seleccionarAnioCuatGrilla(3,1,this)" data-i18n="materias.y3q1">3° Año - 1er Cuat</button></li>
-                                <li class="nav-item"><button type="button" class="btn btn-sm btn-outline-primary grilla-anio-cuat-btn" data-anio="3" data-cuat="2" onclick="seleccionarAnioCuatGrilla(3,2,this)" data-i18n="materias.y3q2">3° Año - 2do Cuat</button></li>
-                            </ul>
+
+                            <div id="grillaMateriasConflictos"></div>
+
+                            <!-- Planilla semanal editable (ver renderPlanillaEditor() en script.js) -->
+                            <div class="materias-seccion-titulo">
+                                <h5 id="grillaTituloPeriodo" class="mb-0"></h5>
+                                <span class="small text-muted" data-i18n="materias.plannerHintShort">Arrastrá para mover · estirá para cambiar la duración · seleccioná un hueco para agregar</span>
+                            </div>
+                            <div id="grillaMateriasCalendar" class="establecimiento-calendar planilla-editor mb-3"></div>
+
+                            <!-- Lista de materias del período -->
+                            <div class="materias-seccion-titulo">
+                                <h6 class="mb-0" data-i18n="materias.listTitle">Materias de este período</h6>
+                            </div>
                             <div class="table-responsive" id="grillaMateriasPrintArea">
                                 <table class="table ios-table">
                                     <thead><tr><th data-i18n="materias.colSubject">Materia</th><th data-i18n="materias.colType">Tipo</th><th data-i18n="materias.colScheduleDays">Días y Horario</th><th data-i18n="materias.colAssignedTeacher">Profesor Asignado</th><th data-i18n="materias.colActions">Acciones</th></tr></thead>
                                     <tbody id="grillaMateriasTableBody"><tr><td colspan="5" class="text-center text-muted" data-i18n="materias.chooseCareer">Elegí una carrera</td></tr></tbody>
                                 </table>
                             </div>
-                            <button class="btn btn-outline-secondary btn-sm" onclick="window.print()"><i class="bi bi-printer"></i> <span data-i18n="materias.print">Imprimir esta grilla</span></button>
                         </div>
                     </div>
                     <div class="tab-pane fade" id="tabConfiguracion" role="tabpanel">
+                <!-- Modo Prueba: sección propia arriba de todo (antes era un switch
+                     escondido al final de la geocerca). Ver toggleModoPrueba(). -->
+                <div class="form-section mt-4 modo-prueba-section" id="modoPruebaSection">
+                    <h4><i class="bi bi-geo-alt"></i> <span data-i18n="config.testModeTitle">Modo Prueba (geolocalización)</span></h4>
+                    <p class="text-muted small" data-i18n="config.testModeDesc">Mientras esté activo, nadie necesita estar dentro de la geocerca para fichar: sirve para hacer pruebas desde cualquier lugar. El reconocimiento facial y la prueba de vida siguen funcionando igual. Acordate de desactivarlo al terminar.</p>
+                    <div class="modo-prueba-switch">
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input" type="checkbox" role="switch" id="modoPruebaToggle" onchange="toggleModoPrueba(this.checked)">
+                            <label class="form-check-label" for="modoPruebaToggle"><strong data-i18n="config.testModeLabel">Modo Prueba:</strong> <span data-i18n="config.testModeHint">Desactivar geocerca para todos (temporal)</span></label>
+                        </div>
+                        <span id="modoPruebaEstado" class="modo-prueba-estado"></span>
+                    </div>
+                </div>
                 <div class="form-section mt-4">
                     <h4><i class="bi bi-gear"></i> <span data-i18n="config.attendanceCriteria">Criterios de Asistencia</span></h4>
                     <div class="row">
                         <div class="col-md-4"><div class="form-group"><label data-i18n="config.minAttendancePct">% mínimo de asistencia</label><input type="number" class="form-control" id="minAttendance" value="80"></div></div>
                         <div class="col-md-4"><div class="form-group"><label data-i18n="config.minDailyHours">Horas mínimas diarias</label><input type="number" class="form-control" id="minHours" value="4"></div></div>
+                        <div class="col-md-4"><div class="form-group"><label for="lateLimitInput" data-i18n="config.checkinTolerance">Tolerancia de fichaje (min)</label><input type="number" class="form-control" id="lateLimitInput" value="15" min="0" max="120"><small class="text-muted" data-i18n="config.checkinToleranceHint">Minutos después del inicio de la clase en que la entrada todavía cuenta como a horario. Pasado ese margen, es tardanza.</small></div></div>
+                        <div class="col-md-4"><div class="form-group"><label for="faltasPermitidasInput" data-i18n="config.absencesPerYear">Faltas permitidas por año</label><input type="number" class="form-control" id="faltasPermitidasInput" value="6" min="0" max="60"><small class="text-muted" data-i18n="config.absencesPerYearHint">Sin contar licencias. Desde la falta siguiente, los días faltados se descuentan del sueldo.</small></div></div>
+                        <div class="col-md-4"><div class="form-group"><label for="avisoFaltasInput" data-i18n="config.warnFrom">Avisar al docente desde la falta N°</label><input type="number" class="form-control" id="avisoFaltasInput" value="4" min="1" max="60"><small class="text-muted" data-i18n="config.warnFromHint">Desde esa falta, en Asistencias aparecen los botones para avisarle por WhatsApp o mail.</small></div></div>
                     </div>
                     <button class="btn btn-primary" onclick="saveCriteria()"><i class="bi bi-save"></i> <span data-i18n="config.save">Guardar</span></button>
                 </div>
@@ -585,11 +824,6 @@
                             <p class="mb-1"><a id="geofenceMapLink" href="#" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i> <span data-i18n="config.openInOsm">Abrir en OpenStreetMap</span></a></p>
                             <p class="text-muted small" id="geofenceUpdatedInfo"></p>
                         </div>
-                    </div>
-                    <hr>
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="modoPruebaToggle" onchange="toggleModoPrueba(this.checked)">
-                        <label class="form-check-label" for="modoPruebaToggle"><strong data-i18n="config.testModeLabel">Modo Prueba:</strong> <span data-i18n="config.testModeHint">Desactivar geocerca para todos (temporal)</span></label>
                     </div>
                 </div>
                 <div class="form-section mt-4">
@@ -746,11 +980,14 @@
                                 <div class="progress" id="recognitionProgress" style="display:none;">
                                     <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
                                 </div>
-                                <button class="btn btn-capture" onclick="detectFace()"><i class="bi bi-person-check"></i> <span data-i18n="fichaje.identify">Identificarme</span></button>
-                                <button class="btn btn-entry" id="btnEntrada" onclick="registerAttendance('entry')" disabled><i class="bi bi-box-arrow-in-right"></i> <span data-i18n="fichaje.entry">Entrada</span></button>
-                                <button class="btn btn-exit" id="btnSalida" onclick="registerAttendance('exit')" disabled><i class="bi bi-box-arrow-left"></i> <span data-i18n="fichaje.exit">Salida</span></button>
-                                <button class="btn btn-early-exit" id="btnRetirada" onclick="registerAttendance('early_exit')" disabled><i class="bi bi-clock-history"></i> <span data-i18n="fichaje.earlyExit">Salir antes de tiempo</span></button>
-                                <small class="text-muted d-block mt-1" id="attendanceButtonsHint" data-i18n="fichaje.hint">Tocá "Identificarme" antes de cada registro (entrada, salida o retirada).</small>
+                                <button class="btn btn-capture" onclick="quickFichajeActivo ? detectFaceQuick() : detectFace()"><i class="bi bi-person-check"></i> <span data-i18n="fichaje.identify">Identificarme</span></button>
+                                <!-- Fichaje rápido: si la cámara no reconoce a nadie, se ofrece
+                                     dar de alta al docente (requiere usuario de administración,
+                                     ver openQuickAltaModal() en script.js). -->
+                                <div id="quickAltaWrap" class="quick-alta-wrap hidden">
+                                    <p class="small text-muted mb-2" data-i18n="fichaje.quickAltaHint">¿Sos docente nuevo? Un administrador puede darte de alta ahora.</p>
+                                    <button type="button" class="btn btn-outline-dark w-100" onclick="openQuickAltaModal()"><i class="bi bi-person-plus"></i> <span data-i18n="fichaje.quickAltaBtn">Dar de alta</span></button>
+                                </div>
                                 <div id="geofenceDebugPanel" class="geofence-debug-panel hidden"></div>
                                 <!-- Vista docente limpia: lo de acá abajo no es para el uso
                                      diario (autorizar esta PC como kiosco, anular un fichaje
@@ -908,21 +1145,47 @@
 
     <!-- ===== CALENDARIO ANUAL DEL ESTABLECIMIENTO ===== -->
     <div class="modal fade" id="annualCalendarModal" tabindex="-1">
-        <div class="modal-dialog modal-xl">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-calendar3"></i> Calendario Anual del Establecimiento (hoy — Diciembre 2026)</h5>
+                    <h5 class="modal-title"><i class="bi bi-calendar3"></i> <span data-i18n="calendar.title">Calendario del Establecimiento</span></h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="schedule-legend mb-3">
-                        <div class="schedule-legend-item"><div class="schedule-legend-color status-present"></div><span>Presente</span></div>
-                        <div class="schedule-legend-item"><div class="schedule-legend-color status-late"></div><span>Tardanza</span></div>
-                        <div class="schedule-legend-item"><div class="schedule-legend-color status-falta"></div><span>Falta</span></div>
-                        <div class="schedule-legend-item"><div class="schedule-legend-color status-licencia"></div><span>Licencia</span></div>
-                        <div class="schedule-legend-item"><div class="schedule-legend-color status-scheduled"></div><span>Pendiente (futuro)</span></div>
+                    <!-- Solo horarios (semana tipo), con FullCalendar (libs/, MIT).
+                         Las asistencias se ven en Grilla Completa, Alertas,
+                         Reportes y Estadísticas - ver showAnnualCalendar(). -->
+                    <div class="cal-filtros cal-filtros-compactos">
+                        <div>
+                            <label class="form-label small mb-1 text-muted" for="calFiltroCarrera" data-i18n="calendar.career">Carrera</label>
+                            <select class="form-control form-control-sm" id="calFiltroCarrera" onchange="onCambioFiltroCalendario()"></select>
+                        </div>
+                        <div>
+                            <label class="form-label small mb-1 text-muted" for="calFiltroAnio" data-i18n="calendar.year">Año</label>
+                            <select class="form-control form-control-sm" id="calFiltroAnio" onchange="onCambioFiltroCalendario()"></select>
+                        </div>
+                        <div>
+                            <label class="form-label small mb-1 text-muted" for="calFiltroCuatri" data-i18n="calendar.term">Cuatrimestre</label>
+                            <select class="form-control form-control-sm" id="calFiltroCuatri" onchange="onCambioFiltroCalendario()"></select>
+                        </div>
+                        <div>
+                            <label class="form-label small mb-1 text-muted" for="calFiltroMateria" data-i18n="calendar.subject">Materia</label>
+                            <select class="form-control form-control-sm" id="calFiltroMateria" onchange="onCambioFiltroCalendario()"></select>
+                        </div>
+                        <div>
+                            <label class="form-label small mb-1 text-muted" for="calFiltroDocente" data-i18n="calendar.teacher">Docente</label>
+                            <select class="form-control form-control-sm" id="calFiltroDocente" onchange="onCambioFiltroCalendario()"></select>
+                        </div>
                     </div>
-                    <div class="annual-calendar-container" id="annualCalendarBody"></div>
+                    <div class="cal-toolbar mb-3">
+                        <div class="schedule-legend mb-0">
+                        <span id="calLeyendaAnios" class="d-contents"><div class="schedule-legend-item"><div class="schedule-legend-color cal-dot-scheduled"></div><span data-i18n="calendar.withTeacher">Con docente asignado</span></div></span>
+                        <div class="schedule-legend-item"><div class="schedule-legend-color cal-dot-sin-docente"></div><span data-i18n="calendar.noTeacher">Sin docente</span></div>
+                    </div>
+                        <div class="cal-toolbar-btns"><button type="button" class="btn btn-outline-secondary btn-sm" id="calLimpiarFiltrosBtn" onclick="limpiarFiltrosCalendario()"><i class="bi bi-x-circle"></i> <span data-i18n="calendar.clearFilters">Limpiar filtros</span></button><button type="button" class="btn btn-outline-secondary btn-sm" id="calAmpliarBtn" onclick="toggleAmpliarCalendario()"><i class="bi bi-arrows-fullscreen"></i> <span data-i18n="calendar.expand">Ampliar</span></button></div>
+                    </div>
+                    <div id="calSinResultados" class="cal-sin-resultados hidden"></div>
+                    <div id="establecimientoCalendar" class="establecimiento-calendar planilla-editor cal-compacto"></div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
@@ -963,22 +1226,6 @@
         </div>
     </div>
 
-    <!-- ===== DETALLE DE UN DÍA DEL CALENDARIO ANUAL (nombres en grande) ===== -->
-    <div class="modal fade" id="dayDetailModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="dayDetailModalTitle"><i class="bi bi-calendar-day"></i> Día</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body" id="dayDetailBody"></div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- ===== EVENTO ESPECIAL: CREAR / EDITAR ===== -->
     <div class="modal fade" id="eventoModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
@@ -1011,15 +1258,27 @@
                         <label data-i18n="eventos.description">Descripción</label>
                         <textarea class="form-control" id="eventoDescripcion" rows="2" placeholder="Detalles del evento" data-i18n-placeholder="eventos.descriptionPlaceholder"></textarea>
                     </div>
+                    <!-- Estado del evento (se guarda en evento_especial.tipo_cumplimiento):
+                         OBLIGATORIO que reemplaza clases (CON_PERJUICIO), OBLIGATORIO y además
+                         da clases (SIN_PERJUICIO) o NO_OBLIGATORIO (no genera falta). -->
                     <div class="form-group mb-3">
-                        <label class="required-field" data-i18n="eventos.complianceQuestion">¿Con o sin perjuicio de sus funciones?</label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="eventoTipoCumplimiento" id="eventoTipoCumplimientoCon" value="CON_PERJUICIO" checked>
-                            <label class="form-check-label" for="eventoTipoCumplimientoCon" data-i18n="eventos.conPerjuicioFull">CON perjuicio (solo va al evento, no da clases ese día)</label>
+                        <label class="required-field" data-i18n="eventos.stateQuestion">Estado del evento</label>
+                        <div class="evento-estado-opciones">
+                            <input type="radio" class="btn-check" name="eventoObligatorio" id="eventoObligatorioSi" value="si" checked onchange="toggleEventoObligatorio()">
+                            <label class="evento-estado-opcion" for="eventoObligatorioSi"><i class="bi bi-exclamation-octagon"></i> <strong data-i18n="eventos.stateMandatory">Obligatorio</strong><small data-i18n="eventos.stateMandatoryHint">Si no va, se le cuenta falta.</small></label>
+                            <input type="radio" class="btn-check" name="eventoObligatorio" id="eventoObligatorioNo" value="no" onchange="toggleEventoObligatorio()">
+                            <label class="evento-estado-opcion" for="eventoObligatorioNo"><i class="bi bi-hand-thumbs-up"></i> <strong data-i18n="eventos.stateOptional">No obligatorio</strong><small data-i18n="eventos.stateOptionalHint">Si va queda registrado; si no va, no es falta.</small></label>
                         </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="eventoTipoCumplimiento" id="eventoTipoCumplimientoSin" value="SIN_PERJUICIO">
-                            <label class="form-check-label" for="eventoTipoCumplimientoSin" data-i18n="eventos.sinPerjuicioFull">SIN perjuicio (va al evento Y debe dar clases igual)</label>
+                        <div id="eventoReemplazaWrap" class="mt-2">
+                            <label class="form-label small text-muted mb-1" data-i18n="eventos.replacesQuestion">¿Reemplaza sus clases de ese día?</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="eventoTipoCumplimiento" id="eventoTipoCumplimientoCon" value="CON_PERJUICIO" checked>
+                                <label class="form-check-label" for="eventoTipoCumplimientoCon" data-i18n="eventos.replacesYes">Sí: va al evento en lugar de dar sus clases</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="eventoTipoCumplimiento" id="eventoTipoCumplimientoSin" value="SIN_PERJUICIO">
+                                <label class="form-check-label" for="eventoTipoCumplimientoSin" data-i18n="eventos.replacesNo">No: va al evento y además da sus clases</label>
+                            </div>
                         </div>
                     </div>
                     <div class="form-check form-switch mb-2">
@@ -1227,6 +1486,8 @@
     <script src="libs/jspdf.umd.min.js"></script>
     <script src="libs/xlsx.full.min.js"></script>
     <script src="libs/supabase.min.js"></script>
+    <script src="libs/fullcalendar.global.min.js"></script>
+    <script src="libs/fullcalendar-es.global.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <!-- MediaPipe Face Mesh (prueba de vida / anti-spoofing del fichaje,
