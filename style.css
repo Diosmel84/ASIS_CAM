@@ -293,9 +293,9 @@ body {
    grande y visible tal cual el archivo original.
 ============================================================ */
 .login-header .institution-logo {
-    height: 120px;
+    height: 84px;
     width: auto;
-    margin-bottom: 14px;
+    display: block;
 }
 .dashboard-brand .dashboard-logo { height: 44px; width: auto; }
 @media (max-width: 576px) { .dashboard-brand .dashboard-logo { height: 34px; } }
@@ -303,29 +303,140 @@ body {
 /* ============================================================
    LOGIN: pantalla unica, centrada, sin nada mas alrededor
 ============================================================ */
+/* Marca: verde petróleo del logo (/logo.png). Igual en claro y en
+   oscuro - es un color de identidad, no de superficie. */
+:root {
+    --brand: #204E4A;
+    --brand-deep: #133330;
+    --brand-bright: #2F7A72;
+    --brand-glow: rgba(47, 122, 114, 0.18);
+}
+
 #loginScreen {
     min-height: 100vh;
     width: 100%;
     display: flex;
-    flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding: 32px 24px 40px;
+    padding: 32px 16px 40px;
+    background:
+        radial-gradient(900px 500px at 12% -10%, var(--brand-glow), transparent 60%),
+        radial-gradient(700px 500px at 110% 110%, var(--brand-glow), transparent 60%),
+        var(--gray-50);
+}
+
+.login-shell {
+    width: 100%;
+    max-width: 440px;
+    display: grid;
+    grid-template-columns: 1fr;
     background: var(--white);
+    border: 1px solid var(--gray-border);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 24px 60px rgba(19, 51, 48, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    animation: loginRise 0.5s ease both;
+}
+@keyframes loginRise {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .login-shell { animation: none; } }
+
+/* Panel de marca: solo con ancho de sobra; en celular se oculta y
+   queda solo la tarjeta. */
+.login-brand-panel { display: none; }
+@media (min-width: 900px) {
+    .login-shell { max-width: 960px; grid-template-columns: 1.05fr 1fr; }
+    .login-brand-panel {
+        display: flex;
+        align-items: flex-end;
+        position: relative;
+        padding: 48px 44px;
+        color: #FFFFFF;
+        background:
+            radial-gradient(520px 360px at 85% 10%, rgba(255, 255, 255, 0.10), transparent 60%),
+            linear-gradient(155deg, var(--brand-bright) 0%, var(--brand) 45%, var(--brand-deep) 100%);
+        overflow: hidden;
+    }
+    /* Anillos decorativos que evocan el diafragma del logo */
+    .login-brand-panel::before,
+    .login-brand-panel::after {
+        content: "";
+        position: absolute;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        pointer-events: none;
+    }
+    .login-brand-panel::before { width: 420px; height: 420px; top: -140px; right: -160px; }
+    .login-brand-panel::after { width: 260px; height: 260px; top: -60px; right: -80px; border-color: rgba(255, 255, 255, 0.18); }
+}
+.login-brand-content { position: relative; max-width: 360px; }
+.login-brand-kicker {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    padding: 5px 12px;
+    border-radius: var(--radius-pill);
+    background: rgba(255, 255, 255, 0.14);
+    margin-bottom: 18px;
+}
+.login-brand-panel h2 {
+    font-size: 2.1rem;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+    color: #FFFFFF;
+}
+.login-brand-panel p { color: rgba(255, 255, 255, 0.82); font-size: 1rem; margin-bottom: 26px; }
+.login-brand-features { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.login-brand-features li { display: flex; align-items: center; gap: 12px; font-size: 0.92rem; font-weight: 500; }
+.login-brand-features i {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; flex-shrink: 0;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.14);
+    font-size: 1rem;
+}
+
+.login-card {
+    padding: 20px 24px 26px;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+@media (min-width: 900px) { .login-card { padding: 28px 44px 36px; justify-content: center; } }
+.login-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
 }
 
 .login-header {
     text-align: center;
-    margin-bottom: 28px;
+    margin-bottom: 24px;
     padding: 0;
     border-bottom: none;
     width: 100%;
-    max-width: 380px;
+}
+/* El PNG del logo trae fondo blanco: se lo apoya en una "baldosa"
+   blanca para que en modo oscuro se vea como un ícono de app y no
+   como un recorte. */
+.login-logo-tile {
+    display: inline-flex;
+    padding: 6px 10px;
+    border-radius: var(--radius-lg);
+    background: #FFFFFF;
+    margin-bottom: 14px;
 }
 .login-header h1 {
     color: var(--ink);
     font-weight: 800;
-    font-size: 1.9rem;
+    font-size: 1.7rem;
     letter-spacing: -0.02em;
     margin-bottom: 4px;
 }
@@ -344,7 +455,7 @@ body {
    pedido: "fondo azul/primary" - no se inventa un color nuevo, se
    reusa el que ya existe para geocerca. */
 .lang-switcher { display: flex; align-items: center; }
-.lang-switcher-login { justify-content: center; margin: 10px 0 4px; }
+.lang-switcher-login { justify-content: flex-end; margin: 0; }
 .lang-switcher-pills { display: flex; flex-wrap: wrap; gap: 6px; }
 .lang-pill {
     display: inline-flex; align-items: center; gap: 5px;
@@ -390,7 +501,6 @@ body {
 
 .login-form {
     width: 100%;
-    max-width: 380px;
     margin: 0 auto;
     padding: 0;
     background: transparent;
@@ -400,31 +510,73 @@ body {
 }
 .login-form .form-group { margin-bottom: 14px; }
 .login-form label { display: none !important; } /* placeholders ya explican el campo, look mas limpio */
-.login-form .form-control {
+.login-input { position: relative; }
+.login-input-icon {
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gray-500);
+    font-size: 1.05rem;
+    pointer-events: none;
+    transition: color var(--transition-base);
+}
+.login-input:focus-within .login-input-icon { color: var(--brand-bright); }
+#loginScreen .login-form .form-control {
     background: var(--gray-hairline);
-    border: 1px solid var(--gray-hairline);
-    border-radius: var(--radius-lg);
-    height: 56px;
-    padding: 0 18px;
+    border: 1.5px solid transparent;
+    border-radius: var(--radius-md);
+    height: 54px;
+    padding: 0 18px 0 48px;
     font-size: 1rem;
     color: var(--ink);
+    transition: border-color var(--transition-base), background var(--transition-base), box-shadow var(--transition-base);
 }
-.login-form .form-control::placeholder { color: var(--gray-600); }
-.login-form .form-control:focus {
+#loginScreen .login-form #loginPass { padding-right: 52px; }
+#loginScreen .login-form .form-control::placeholder { color: var(--gray-600); }
+#loginScreen .login-form .form-control:focus {
     background: var(--white);
-    border-color: var(--ink);
-    box-shadow: none;
+    border-color: var(--brand-bright);
+    box-shadow: 0 0 0 4px var(--brand-glow);
 }
-.login-form .btn-primary {
+.login-input-toggle {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
     border: none;
-    height: 56px;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--gray-500);
+    font-size: 1.05rem;
+    cursor: pointer;
+}
+.login-input-toggle:hover { color: var(--ink); background: var(--gray-100); }
+#loginScreen .login-form .btn-primary.login-submit {
+    border: none;
+    height: 54px;
     padding: 0;
     font-weight: 700;
-    font-size: 1.05rem;
+    font-size: 1.02rem;
     width: 100%;
-    border-radius: var(--radius-lg);
-    margin-top: 6px;
+    border-radius: var(--radius-md);
+    margin-top: 8px;
+    color: #FFFFFF !important;
+    background: linear-gradient(135deg, var(--brand-bright), var(--brand)) !important;
+    border-color: transparent !important;
+    box-shadow: 0 10px 24px rgba(32, 78, 74, 0.28);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: transform var(--transition-base), box-shadow var(--transition-base), filter var(--transition-base);
 }
+#loginScreen .login-form .btn-primary.login-submit:hover { opacity: 1; transform: translateY(-1px); filter: brightness(1.06); box-shadow: 0 14px 28px rgba(32, 78, 74, 0.34); }
+#loginScreen .login-form .btn-primary.login-submit:active { transform: translateY(0); }
+#loginScreen .login-form .btn-primary.login-submit i { transition: transform var(--transition-base); }
+#loginScreen .login-form .btn-primary.login-submit:hover i { transform: translateX(3px); }
 .login-error { color: var(--ink); text-align: center; margin-top: 10px; display: none; font-weight: 600; font-size: 0.9rem; }
 #forgotPasswordBtnWrap { margin-top: 6px !important; }
 #forgotPasswordBtnWrap .btn-link {
@@ -443,11 +595,66 @@ body {
     color: var(--gray-600);
     font-size: 0.78rem;
     justify-content: center;
-    padding: 0 0 14px;
-    margin-bottom: 4px;
+    padding: 0;
+    margin: 18px 0 0;
 }
 #loginScreen .models-banner.ok,
 #loginScreen .models-banner.error { background: transparent; }
+
+/* ===== FICHAJE RÁPIDO CON CÁMARA =====
+   Botón secundario del login ("Fichar con cámara") y el modo
+   .quick-mode de #teacherDashboard (ver enterQuickFichaje() en
+   script.js): misma pantalla de cámara del docente, pero sin sesión,
+   así que se ocultan los datos personales ("Mis Datos"), los botones
+   manuales de Entrada/Salida (el registro sale del modal tras
+   identificarse) y las opciones avanzadas. */
+.login-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 18px 0 14px;
+    color: var(--gray-500);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+.login-divider::before,
+.login-divider::after { content: ""; flex: 1; height: 1px; background: var(--gray-border); }
+#loginScreen .login-form .btn.login-quick-btn {
+    width: 100%;
+    height: 54px;
+    border-radius: var(--radius-md);
+    border: 1.5px solid var(--brand-bright) !important;
+    background: transparent !important;
+    color: var(--brand-bright) !important;
+    font-weight: 700;
+    font-size: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background var(--transition-base), color var(--transition-base);
+}
+#loginScreen .login-form .btn.login-quick-btn:hover {
+    background: var(--brand-glow) !important;
+}
+html[data-theme="dark"] #loginScreen .login-form .btn.login-quick-btn { color: #7FC4BB !important; border-color: #7FC4BB !important; }
+@media (prefers-color-scheme: dark) {
+    html:not([data-theme]) #loginScreen .login-form .btn.login-quick-btn { color: #7FC4BB !important; border-color: #7FC4BB !important; }
+}
+
+#teacherDashboard.quick-mode .col-md-6.order-2,
+#teacherDashboard.quick-mode #materiaFichajeInfo,
+#teacherDashboard.quick-mode #btnEntrada,
+#teacherDashboard.quick-mode #btnSalida,
+#teacherDashboard.quick-mode #btnRetirada,
+#teacherDashboard.quick-mode #attendanceButtonsHint,
+#teacherDashboard.quick-mode #opcionesAvanzadasDocente,
+#teacherDashboard.quick-mode .btn-link[onclick="toggleOpcionesAvanzadasDocente()"] { display: none !important; }
+#teacherDashboard.quick-mode .col-md-6.order-1 { flex: 0 0 100%; max-width: 760px; margin: 0 auto; }
+.quick-alta-wrap { margin-top: 10px; padding: 12px; border: 1px dashed var(--gray-border); border-radius: var(--radius-md); text-align: center; }
+#teacherDashboard:not(.quick-mode) #quickAltaWrap { display: none !important; }
 
 /* ============================================================
    DASHBOARD: header + contenido
@@ -468,18 +675,6 @@ body {
 .dashboard-header h2 { color: var(--ink); font-weight: 800; font-size: 1.3rem; margin: 0; letter-spacing: -0.01em; }
 .dashboard-brand { display: flex; align-items: center; gap: 10px; }
 .dashboard-header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-
-.btn-logout {
-    background: var(--ink);
-    color: var(--white);
-    border: none;
-    padding: 10px 18px;
-    border-radius: var(--radius-pill);
-    font-weight: 700;
-    font-size: 0.85rem;
-    transition: opacity var(--transition-base);
-}
-.btn-logout:hover { background: var(--ink); color: var(--white); opacity: 0.75; }
 
 /* ============================================================
    CAMARA
@@ -658,20 +853,6 @@ body {
     box-shadow: var(--shadow-soft);
 }
 
-.camera-preview {
-    width: 150px;
-    height: 150px;
-    border-radius: 50%;
-    overflow: hidden;
-    border: 3px solid var(--gray-hairline);
-    margin: 0 auto 14px;
-    background: var(--gray-50);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.camera-preview img { width: 100%; height: 100%; object-fit: cover; }
-.camera-preview .placeholder { color: var(--gray-500); font-size: 0.9rem; text-align: center; }
 
 .capture-status { text-align: center; font-size: 0.85rem; color: var(--gray-600); margin-top: 6px; font-weight: 600; }
 .capture-status.ready { color: var(--ink); }
@@ -793,6 +974,8 @@ body {
 .search-box { position: relative; max-width: 420px; }
 .search-box i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--gray-500); }
 .search-box .form-control { padding-left: 38px; }
+#app .search-box .form-control { padding-left: 42px; }
+.search-box i { z-index: 2; pointer-events: none; }
 
 /* ===== CALENDARIO =====
    Se mantiene un codigo de color por estado (Presente / Falta /
@@ -800,36 +983,11 @@ body {
    admin necesita distinguir de un vistazo; se usan tonos apagados
    en escala de gris + negro (sin rojo/verde saturado) para que
    siga encajando con la paleta minimalista. */
-.schedule-container { overflow-x: auto; background: var(--gray-50); border-radius: var(--radius-md); padding: 15px; }
-.schedule-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; min-width: 500px; }
-.schedule-header {
-    font-weight: 700; text-align: center; padding: 10px 5px;
-    background: var(--ink); color: var(--white); border-radius: var(--radius-sm);
-    font-size: 0.8rem; display: flex; align-items: center; justify-content: center;
-}
-.schedule-slot {
-    background: var(--white); border: 1px solid var(--gray-hairline); border-radius: 4px;
-    padding: 6px 4px; text-align: center; cursor: pointer; transition: all 0.15s ease;
-    min-height: 48px; display: flex; flex-direction: column; align-items: center;
-    justify-content: center; font-size: 0.65rem; position: relative;
-}
-.schedule-slot:hover { background: var(--gray-50); z-index: 1; }
-.schedule-slot.selected { background: var(--ink); color: var(--white); border-color: var(--ink); }
-.schedule-slot .slot-time {
-    font-weight: 600; font-size: 0.55rem; color: var(--gray-600); cursor: pointer;
-    padding: 2px 6px; border-radius: 3px; background: rgba(0,0,0,0.03);
-    border: 1px dashed transparent; width: 100%; text-align: center;
-}
-.schedule-slot .slot-time:hover { background: var(--gray-hairline); border-color: var(--gray-400); color: var(--ink); }
-.schedule-slot.selected .slot-time { color: rgba(255,255,255,0.9); border-color: rgba(255,255,255,0.3); }
-.schedule-slot .slot-content { font-size: 0.7rem; font-weight: 600; margin-top: 2px; }
-.schedule-slot.selected .slot-content { color: var(--white); }
 
 .schedule-legend { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 10px; padding: 10px; background: var(--gray-50); border-radius: var(--radius-md); }
 .schedule-legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.8rem; color: var(--ink); }
 .schedule-legend-color { width: 20px; height: 20px; border-radius: 4px; border: 1px solid var(--gray-hairline); }
 .schedule-legend-color.selected { background: var(--ink); }
-.schedule-legend-color.unselected { background: var(--white); }
 .schedule-legend-color.status-present { background: var(--status-present); border-color: var(--status-present); }
 .schedule-legend-color.status-late { background: var(--status-late); border-color: var(--status-late); }
 .schedule-legend-color.status-falta { background: var(--status-falta); border-color: var(--status-falta); }
@@ -843,7 +1001,6 @@ body {
 }
 .password-info strong { color: var(--ink); }
 
-.schedule-stats { font-size: 0.85rem; color: var(--gray-600); margin-top: 10px; padding: 8px; background: var(--gray-50); border-radius: var(--radius-sm); }
 
 .horario-chip {
     display: inline-flex; align-items: center; gap: 8px;
@@ -905,47 +1062,242 @@ body {
 .mini-calendar-day.day-licencia { background: var(--gray-300, #d9d9d3); color: var(--ink); border-color: var(--gray-border); }
 .mini-calendar-day.day-scheduled { background: var(--gray-hairline); border-color: var(--gray-border); }
 
-/* ===== CALENDARIO ANUAL DEL ESTABLECIMIENTO (con nombres de docentes) ===== */
-.annual-calendar-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
-.annual-month { background: var(--gray-50); border: 1px solid var(--gray-hairline); border-radius: var(--radius-md); padding: 10px; }
-.annual-month-title { font-weight: 700; color: var(--ink); text-align: center; margin-bottom: 6px; }
-.annual-month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
-.annual-month-dow { font-size: 0.6rem; text-align: center; color: var(--gray-600); font-weight: 600; }
-.annual-day-cell {
-    background: var(--white); border: 1px solid var(--gray-hairline); border-radius: 4px;
-    min-height: 46px; padding: 2px; font-size: 0.6rem; overflow: hidden;
+/* ===== Fichaje automático (ver htmlFichajeAutomatico() en script.js) ===== */
+.fichaje-auto { text-align: center; padding: 6px 4px; }
+.fichaje-auto h5 { font-weight: 800; margin-bottom: 6px; }
+.fichaje-auto-icon { font-size: 2.8rem; line-height: 1; margin-bottom: 8px; }
+.fichaje-auto.is-ok .fichaje-auto-icon { color: #1E9E57; }
+.fichaje-auto.is-tarde .fichaje-auto-icon { color: #C98A0B; }
+.fichaje-auto.is-info .fichaje-auto-icon { color: var(--brand-bright); }
+.fichaje-auto-clases { list-style: none; padding: 0; margin: 4px auto 8px; display: inline-block; text-align: left; font-size: 0.9rem; }
+.fichaje-auto-clases li { padding: 2px 0; }
+
+/* ===== Modo Prueba (geolocalización desactivada) ===== */
+.modo-prueba-section.is-activo { border: 2px solid #E0A100; background: rgba(224, 161, 0, 0.07); }
+.modo-prueba-switch { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.modo-prueba-switch .form-check-input { width: 2.6em; height: 1.35em; cursor: pointer; }
+#app .modo-prueba-switch .form-check-input:checked { background-color: #E0A100; border-color: #E0A100; }
+.modo-prueba-estado { font-size: 0.82rem; color: var(--gray-600); }
+.modo-prueba-estado.is-activo { color: #8A5E00; font-weight: 700; }
+.modo-prueba-banner {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+    margin: 0 0 14px; padding: 10px 14px;
+    border-radius: var(--radius-md);
+    background: #E0A100; color: #1A1A1A;
+    font-weight: 700; font-size: 0.9rem;
 }
-.annual-day-cell.empty { background: transparent; border: none; }
-.annual-day-num { font-weight: 700; font-size: 0.6rem; color: var(--gray-600); }
-.annual-teacher-chip {
-    display: block; font-size: 0.5rem; line-height: 1.3; padding: 0 2px; border-radius: 2px;
-    margin-top: 1px; color: #FFFFFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.modo-prueba-banner.hidden { display: none !important; }
+.modo-prueba-banner .btn { margin-left: auto; font-weight: 700; }
+
+/* ===== Campanita de alertas + buzón lateral (offcanvas) ===== */
+.alerts-bell {
+    position: relative;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; flex-shrink: 0;
+    border-radius: 50%;
+    border: 1px solid var(--gray-border);
+    background: var(--white);
+    color: var(--ink);
+    font-size: 1.05rem;
+    cursor: pointer;
+    transition: background var(--transition-base), transform var(--transition-base);
 }
-.annual-teacher-chip.status-present { background: var(--status-present); }
-.annual-teacher-chip.status-late { background: var(--status-late); }
-.annual-teacher-chip.status-falta { background: var(--status-falta); }
-.annual-teacher-chip.status-licencia { background: var(--status-licencia); }
-.annual-teacher-chip.status-scheduled { background: var(--status-scheduled); color: #1A1A1A; }
-.annual-day-cell.has-entries { cursor: pointer; }
-.annual-day-cell.has-entries:hover { box-shadow: 0 0 0 2px var(--ink) inset; background: var(--gray-50); }
+.alerts-bell:hover { background: var(--gray-100); transform: scale(1.05); }
+.alerts-bell.hidden { display: none !important; }
+.alerts-bell-count {
+    position: absolute; top: -4px; right: -6px;
+    min-width: 19px; height: 19px; padding: 0 5px;
+    border-radius: 999px;
+    background: #DC3545; color: #FFFFFF;
+    font-size: 0.68rem; font-weight: 800; line-height: 19px; text-align: center;
+    box-shadow: 0 0 0 2px var(--white);
+}
+.alerts-offcanvas { width: min(560px, 100vw) !important; background: var(--gray-50); color: var(--ink); }
+.alerts-offcanvas .offcanvas-header { background: var(--white); border-bottom: 1px solid var(--gray-border); }
+.alerts-offcanvas .offcanvas-title { font-weight: 700; }
+.alerts-bulk-bar {
+    position: sticky; top: -16px; z-index: 2;
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+    margin: -16px -16px 12px; padding: 10px 16px;
+    background: var(--white); border-bottom: 1px solid var(--gray-border);
+}
+.alerts-bulk-bar.hidden { display: none !important; }
+#app .alerts-bulk-all, .alerts-bulk-all { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 0.86rem; font-weight: 600; cursor: pointer; }
+.alerts-bulk-all .form-check-input, .alert-card .alert-select { margin: 0; width: 1.15em; height: 1.15em; cursor: pointer; }
+.alert-card .alert-select { margin-right: 8px; vertical-align: -2px; }
+.alert-card.is-selected { outline: 2px solid var(--brand-bright); outline-offset: -2px; }
+
+
+/* ===== Asistencias (ver renderAsistencias() en script.js) ===== */
+.asis-filtros { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
+@media (max-width: 1199px) { .asis-filtros { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 575px) { .asis-filtros { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.asis-acciones { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
+.asis-rapidos { display: flex; flex-wrap: wrap; gap: 6px; }
+.asis-resumen { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+.asis-chip { font-size: 0.8rem; padding: 4px 10px; border-radius: var(--radius-pill); background: var(--gray-100); color: var(--ink); }
+.asis-aviso { font-size: 0.78rem; color: #B26A00; }
+.asis-tabla-wrap { border: 1px solid var(--gray-border); border-radius: var(--radius-md); }
+#app .asis-tabla { margin: 0; font-size: 0.86rem; }
+#app .asis-tabla th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--gray-600); background: var(--gray-50); white-space: nowrap; }
+#app .asis-tabla td { vertical-align: middle; color: var(--ink); background: var(--white); }
+.asis-mono { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.asis-tarde-txt { color: #B26A00; font-weight: 600; }
+.asis-badge { display: inline-block; font-size: 0.74rem; font-weight: 700; padding: 3px 9px; border-radius: var(--radius-pill); white-space: nowrap; }
+.asis-presente { background: rgba(46, 125, 50, 0.14); color: #1E6B23; }
+.asis-tarde { background: rgba(201, 138, 11, 0.16); color: #8A5E00; }
+.asis-falta { background: rgba(198, 40, 40, 0.13); color: #B22222; }
+.asis-media { background: rgba(249, 115, 22, 0.15); color: #B4530B; }
+/* Media falta (retiro anticipado) en Grilla Completa, calendario y detalle del día. */
+.schedule-legend-color.status-media_falta { background: #f97316; border-color: #f97316; }
+.grid-item.status-media_falta { border-left-color: #f97316 !important; }
+.asis-licencia { background: var(--gray-100); color: var(--gray-800); }
+.asis-pendiente { background: var(--brand-glow); color: var(--brand-bright); }
+
+/* ===== Calendario del Establecimiento (FullCalendar) =====
+   Colores de la app vía las variables --fc-* de FullCalendar, así
+   respeta modo claro/oscuro. Ver showAnnualCalendar() en script.js. */
+.cal-filtros { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+@media (max-width: 991px) { .cal-filtros { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 575px) { .cal-filtros { grid-template-columns: 1fr; } }
+.cal-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.cal-toolbar .schedule-legend { flex: 1 1 auto; }
+.cal-sin-resultados { background: var(--gray-50); border: 1px solid var(--gray-border); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 12px; font-size: 0.88rem; color: var(--gray-600); }
+.cal-dot-scheduled { background: #2F7A72 !important; }
+.cal-dot-sin-docente { background: var(--gray-100) !important; border: 1.5px dashed #9A9A94; }
+.establecimiento-calendar {
+    --fc-border-color: var(--gray-border);
+    --fc-page-bg-color: var(--white);
+    --fc-neutral-bg-color: var(--gray-50);
+    --fc-list-event-hover-bg-color: var(--gray-50);
+    --fc-today-bg-color: var(--brand-glow);
+    --fc-now-indicator-color: #C62828;
+    --fc-button-bg-color: var(--gray-100);
+    --fc-button-border-color: var(--gray-border);
+    --fc-button-text-color: var(--ink);
+    --fc-button-hover-bg-color: var(--gray-200);
+    --fc-button-hover-border-color: var(--gray-border);
+    --fc-button-active-bg-color: var(--brand-bright);
+    --fc-button-active-border-color: var(--brand-bright);
+    font-size: 0.85rem;
+    color: var(--ink);
+}
+.establecimiento-calendar .fc-button { font-weight: 600; font-size: 0.82rem; text-transform: none; box-shadow: none !important; }
+.establecimiento-calendar .fc-button-active { color: #FFFFFF !important; }
+.establecimiento-calendar .fc-toolbar-title { font-size: 1.15rem; font-weight: 700; }
+.establecimiento-calendar .fc-toolbar-title::first-letter { text-transform: uppercase; }
+.establecimiento-calendar .fc-col-header-cell-cushion,
+.establecimiento-calendar .fc-daygrid-day-number,
+.establecimiento-calendar .fc-list-day-text,
+.establecimiento-calendar .fc-list-day-side-text { color: var(--ink); text-decoration: none; text-transform: capitalize; }
+.establecimiento-calendar .fc-timegrid-event .fc-event-main { padding: 2px 4px; font-size: 0.76rem; line-height: 1.25; }
+.establecimiento-calendar .fc-event { cursor: pointer; border-radius: 6px; }
+.establecimiento-calendar .fc-daygrid-event { white-space: normal; }
+/* ===== Pestaña Materias: encabezado, barra carrera/período ===== */
+.materias-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+.materias-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+.materias-toolbar {
+    display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px;
+    padding: 12px 14px; margin-bottom: 14px;
+    background: var(--gray-50); border: 1px solid var(--gray-border); border-radius: var(--radius-md);
+}
+.materias-toolbar-carrera { flex: 1 1 260px; max-width: 420px; }
+.materias-toolbar-periodo { flex: 2 1 420px; }
+.periodo-selector { display: flex; flex-wrap: wrap; gap: 8px; }
+.periodo-grupo {
+    display: inline-flex; align-items: center; gap: 2px;
+    padding: 3px; border-radius: var(--radius-pill);
+    background: var(--white); border: 1px solid var(--gray-border);
+}
+.periodo-anio { font-size: 0.74rem; font-weight: 800; color: var(--gray-600); padding: 0 8px 0 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+#app .periodo-grupo .grilla-anio-cuat-btn {
+    border: none; background: transparent; color: var(--ink);
+    font-size: 0.8rem; font-weight: 600; padding: 5px 11px; border-radius: var(--radius-pill);
+    min-height: 0; cursor: pointer; transition: background var(--transition-base), color var(--transition-base);
+}
+#app .periodo-grupo .grilla-anio-cuat-btn:hover { background: var(--gray-100); }
+.materias-seccion-titulo { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 14px; margin: 6px 0 8px; }
+.materias-seccion-titulo h5, .materias-seccion-titulo h6 { font-weight: 800; }
+/* Celular: la planilla mantiene un ancho legible y se desplaza de costado. */
+@media (max-width: 767px) {
+    .materias-panel #grillaMateriasCalendar { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .materias-panel #grillaMateriasCalendar .fc-header-toolbar, .materias-panel #grillaMateriasCalendar .fc-view-harness { min-width: 620px; }
+}
+@media print {
+    .materias-head .materias-acciones, .materias-toolbar, #grillaMateriasConflictos, .materias-seccion-titulo .text-muted { display: none !important; }
+}
+
+/* Período elegido de la grilla de Materias (año + cuatrimestre), bien visible. */
+#app .grilla-anio-cuat-btn.active { background: var(--brand-bright) !important; border-color: var(--brand-bright) !important; color: #FFFFFF !important; }
+/* Planilla editable de Materias: bloques con materia + profesor, como la planilla impresa. */
+.establecimiento-calendar .fc-timegrid-slot { height: 3em; }
+.planilla-editor .fc-timegrid-slot { height: 3.2em; }
+.planilla-editor .fc-event.planilla-con-docente { background: var(--brand-bright); border-color: var(--brand-bright); }
+.planilla-editor .fc-event.planilla-sin-docente { background: var(--gray-100); border: 1.5px dashed #9A9A94; }
+.planilla-editor .fc-event.planilla-sin-docente .planilla-evento { color: var(--ink); }
+.planilla-evento { padding: 3px 5px; color: #FFFFFF; line-height: 1.2; overflow: hidden; }
+.planilla-evento-hora { font-size: 0.7rem; font-weight: 700; opacity: 0.85; font-variant-numeric: tabular-nums; }
+.planilla-evento-nombre { font-size: 0.8rem; font-weight: 700; }
+.planilla-evento-prof { font-size: 0.74rem; opacity: 0.9; }
+.planilla-anual-tag { font-size: 0.6rem; font-weight: 800; padding: 0 4px; border-radius: 4px; background: rgba(255, 255, 255, 0.25); }
+.planilla-sin-docente .planilla-anual-tag { background: var(--gray-200); }
+.planilla-editor .fc-highlight { background: var(--brand-glow); }
+/* Calendario del Establecimiento compacto (por defecto) / ampliado
+   (botón Ampliar, ver toggleAmpliarCalendario()). */
+.cal-toolbar-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+#annualCalendarModal .modal-body { padding: 14px 16px; }
+#annualCalendarModal .modal-header { padding: 10px 16px; }
+#annualCalendarModal .modal-title { font-size: 1.05rem; }
+.cal-filtros-compactos { gap: 8px; margin-bottom: 8px; }
+.cal-filtros-compactos .form-label { font-size: 0.72rem; margin-bottom: 2px !important; }
+#app .cal-filtros-compactos .form-control { min-height: 0; height: 32px; padding: 4px 10px; font-size: 0.82rem; }
+#annualCalendarModal .schedule-legend { padding: 4px 8px; font-size: 0.78rem; }
+#annualCalendarModal .cal-toolbar { margin-bottom: 8px !important; }
+.establecimiento-calendar.cal-compacto .fc-timegrid-slot { height: 2.1em; }
+.establecimiento-calendar.cal-compacto .fc-col-header-cell-cushion { font-size: 0.8rem; padding: 4px 2px; }
+.establecimiento-calendar.cal-compacto .fc-timegrid-slot-label-cushion { font-size: 0.72rem; }
+.establecimiento-calendar.cal-compacto .planilla-evento { padding: 2px 4px; }
+.establecimiento-calendar.cal-compacto .planilla-evento-hora { font-size: 0.64rem; }
+.establecimiento-calendar.cal-compacto .planilla-evento-nombre { font-size: 0.72rem; }
+.establecimiento-calendar.cal-compacto .planilla-evento-prof { font-size: 0.66rem; }
+.establecimiento-calendar.cal-compacto.is-ampliado .fc-timegrid-slot { height: 4.6em; }
+.establecimiento-calendar.cal-compacto.is-ampliado .planilla-evento-hora { font-size: 0.74rem; }
+.establecimiento-calendar.cal-compacto.is-ampliado .planilla-evento-nombre { font-size: 0.9rem; }
+.establecimiento-calendar.cal-compacto.is-ampliado .planilla-evento-prof { font-size: 0.8rem; }
+.establecimiento-calendar .fc-event { border-radius: 8px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
+/* Colores por año (Calendario del Establecimiento con varios años a la vista). */
+.d-contents { display: contents; }
+.cal-anio-dot-1 { background: #2F7A72 !important; }
+.cal-anio-dot-2 { background: #2F5E9E !important; }
+.cal-anio-dot-3 { background: #7A4FA3 !important; }
+.cal-anio-dot-4, .cal-anio-dot-5 { background: #A3542F !important; }
+.establecimiento-calendar .fc-event.planilla-con-docente.cal-anio-2 { background: #2F5E9E; border-color: #2F5E9E; }
+.establecimiento-calendar .fc-event.planilla-con-docente.cal-anio-3 { background: #7A4FA3; border-color: #7A4FA3; }
+.establecimiento-calendar .fc-event.planilla-con-docente.cal-anio-4,
+.establecimiento-calendar .fc-event.planilla-con-docente.cal-anio-5 { background: #A3542F; border-color: #A3542F; }
+.establecimiento-calendar .fc-event.planilla-sin-docente.cal-anio-1 { border-left: 4px solid #2F7A72; }
+.establecimiento-calendar .fc-event.planilla-sin-docente.cal-anio-2 { border-left: 4px solid #2F5E9E; }
+.establecimiento-calendar .fc-event.planilla-sin-docente.cal-anio-3 { border-left: 4px solid #7A4FA3; }
+.cal-anio-tag { display: inline-block; font-size: 0.62rem; font-weight: 800; padding: 0 4px; border-radius: 4px; background: rgba(255, 255, 255, 0.28); margin-right: 2px; }
+.planilla-sin-docente .cal-anio-tag { background: var(--gray-200); }
+/* Varios años: nombres que saltan de renglón (no se cortan) y filas más altas. */
+.establecimiento-calendar .planilla-evento-nombre { overflow-wrap: break-word; hyphens: auto; -webkit-hyphens: auto; }
+.establecimiento-calendar.cal-compacto.is-multi .fc-timegrid-slot { height: 3.3em; }
+.establecimiento-calendar.cal-compacto.is-multi.is-ampliado .fc-timegrid-slot { height: 4.8em; }
+.establecimiento-calendar.is-multi .planilla-evento-nombre { font-size: 0.62rem; line-height: 1.15; letter-spacing: -0.01em; }
+.establecimiento-calendar.is-multi .planilla-evento-hora { font-size: 0.6rem; white-space: nowrap; }
+.establecimiento-calendar.is-multi.is-ampliado .planilla-evento-nombre { font-size: 0.7rem; }
+.establecimiento-calendar.is-multi.is-ampliado .planilla-evento-hora { font-size: 0.72rem; }
+.establecimiento-calendar.is-multi .planilla-evento-prof { font-size: 0.62rem; }
+/* Le gana a #app table:not(.ios-table) { display: block } del bloque mobile: esa regla rompe la grilla del calendario. */
+#app .establecimiento-calendar table { display: table !important; white-space: normal !important; overflow: visible !important; }
+@media (max-width: 575px) {
+    .establecimiento-calendar .fc-toolbar { flex-wrap: wrap; gap: 8px; }
+    .establecimiento-calendar .fc-toolbar-title { font-size: 1rem; }
+}
+
 
 /* ===== Detalle de un dia (nombres en grande, al hacer clic en el dia) ===== */
-.day-detail-teacher {
-    display: flex; justify-content: space-between; align-items: center; gap: 10px;
-    padding: 14px 16px; border-radius: var(--radius-md); margin-bottom: 10px; cursor: pointer;
-    font-size: 1.1rem; font-weight: 700; color: #FFFFFF; transition: filter 0.15s ease;
-}
-.day-detail-teacher:hover { filter: brightness(1.15); }
-.day-detail-teacher .day-detail-status {
-    font-size: 0.8rem; font-weight: 600; background: rgba(255,255,255,0.25);
-    padding: 4px 12px; border-radius: var(--radius-pill); white-space: nowrap;
-}
-.day-detail-teacher.status-present { background: var(--status-present); }
-.day-detail-teacher.status-late { background: var(--status-late); }
-.day-detail-teacher.status-falta { background: var(--status-falta); }
-.day-detail-teacher.status-licencia { background: var(--status-licencia); }
-.day-detail-teacher.status-scheduled { background: var(--status-scheduled); color: #1A1A1A; }
-.day-detail-teacher .day-detail-name { font-size: 0.9rem; }
 
 /* ===== GRILLA COMPLETA DE HORARIOS (vista semana, con estado de
    asistencia por celda) ===== */
@@ -1201,7 +1553,6 @@ body {
 .admin-tabs .nav-link.active .badge { background: var(--white) !important; color: var(--ink) !important; }
 .admin-tab-content .tab-pane .form-section:first-child,
 .admin-tab-content .tab-pane .accordion:first-child { margin-top: 0 !important; }
-.alerts-list-scroll { max-height: 60vh; overflow-y: auto; }
 
 .docente-form-accordion { margin-bottom: 20px; }
 .docente-form-accordion .accordion-body { max-height: none; overflow: visible; padding-top: 20px; }
@@ -1354,9 +1705,6 @@ body {
     .main-container { min-height: 100vh; }
     .dashboard-header { padding-top: 12px; }
     .camera-controls .btn { margin: 5px; }
-    .schedule-grid { grid-template-columns: repeat(6, 1fr); min-width: 350px; }
-    .schedule-slot { min-height: 50px; font-size: 0.55rem; }
-    .schedule-slot .slot-time { font-size: 0.5rem; }
 
     /* Botones y campos con umbral tactil comodo (44px minimo) */
     #app .btn:not(.btn-sm), #app .form-control, #app .form-select { min-height: 46px; }
@@ -1419,15 +1767,181 @@ body {
 }
 .ios-table.teachers-compact td[data-label="Acciones"] {
     grid-column: 3; grid-row: 1 / 3;
-    display: flex; align-items: center; gap: 4px;
-    max-width: 210px; overflow-x: auto;
+    display: flex; align-items: center; gap: 6px;
+    padding-left: 8px !important;
 }
-.ios-table.teachers-compact td[data-label="Acciones"] .btn,
-.ios-table.teachers-compact td[data-label="Acciones"] .btn-whatsapp {
-    width: 28px; height: 28px; min-height: 0 !important; padding: 0 !important;
+/* Botones de acción: todos iguales (cuadrado suave gris, icono
+   oscuro), así ninguno grita más que otro. Solo WhatsApp conserva su
+   verde (en el icono) y Eliminar se tiñe de rojo al pasar el mouse.
+   Especificidad con #app a propósito: le gana a #app .btn-primary /
+   .btn-secondary etc. (que usan !important) de la sección BOTONES. */
+#app .ios-table.teachers-compact td[data-label="Acciones"] .btn {
+    width: 36px !important; height: 36px !important; /* le gana a #app .btn-sm { width: auto !important } */ min-height: 0 !important; padding: 0 !important;
     display: inline-flex !important; align-items: center; justify-content: center;
-    border-radius: 8px; font-size: 0.72rem; flex: 0 0 auto;
+    border-radius: 10px; font-size: 0.95rem; flex: 0 0 auto;
+    background: var(--gray-100) !important;
+    border: 1px solid transparent !important;
+    color: var(--ink) !important;
+    opacity: 1;
+    transition: background var(--transition-base), color var(--transition-base), transform var(--transition-base);
 }
+#app .ios-table.teachers-compact td[data-label="Acciones"] .btn:hover {
+    background: var(--brand-glow) !important;
+    color: var(--brand-bright) !important;
+    transform: translateY(-1px);
+    opacity: 1;
+}
+#app .ios-table.teachers-compact td[data-label="Acciones"] .btn-whatsapp { color: #1DA851 !important; }
+#app .ios-table.teachers-compact td[data-label="Acciones"] .btn-whatsapp:hover { background: rgba(37, 211, 102, 0.16) !important; color: #1DA851 !important; }
+#app .ios-table.teachers-compact td[data-label="Acciones"] .teacher-action-danger:hover { background: rgba(220, 53, 69, 0.12) !important; color: #DC3545 !important; }
+@media (max-width: 575px) {
+    /* En celular: la fila pasa a 2 renglones y los botones van abajo,
+       a lo ancho, para que no aprieten el nombre. */
+    .ios-table.teachers-compact tr { grid-template-columns: 40px 1fr; row-gap: 10px; }
+    .ios-table.teachers-compact td[data-label="Acciones"] { grid-column: 1 / -1; grid-row: 3; padding-left: 0 !important; justify-content: flex-start; flex-wrap: wrap; }
+    .ios-table.teachers-compact tr::after { top: 28px; transform: none; }
+}
+.teacher-row-dni { font-variant-numeric: tabular-nums; }
+.teacher-row-warn { color: #B26A00; font-weight: 600; }
+.teacher-search-hint {
+    font-size: 0.85rem;
+    color: var(--gray-600);
+    margin: -4px 0 12px;
+}
+.teacher-search-hint .btn-link { font-size: 0.85rem; font-weight: 600; color: var(--brand-bright) !important; text-decoration: none; }
+.teacher-search-hint .btn-link:hover { text-decoration: underline; }
+/* Alta de docente: aviso de "fotos listas, falta guardar", botón
+   Guardar resaltado y ventana de alta exitosa (ver
+   updateCaptureStatusUI()/mostrarAltaExitosa() en script.js). */
+#app .capture-status.ready { color: #1E7B45; font-weight: 700; }
+#app .btn.save-teacher-ready {
+    background: linear-gradient(135deg, var(--brand-bright), var(--brand)) !important;
+    border-color: transparent !important;
+    color: #FFFFFF !important;
+    animation: saveTeacherPulse 1.6s ease-out 3;
+}
+@keyframes saveTeacherPulse {
+    0% { box-shadow: 0 0 0 0 rgba(47, 122, 114, 0.55); }
+    100% { box-shadow: 0 0 0 16px rgba(47, 122, 114, 0); }
+}
+@media (prefers-reduced-motion: reduce) { #app .btn.save-teacher-ready { animation: none; } }
+#app .form-control.is-invalid { border-color: #DC3545 !important; box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15) !important; }
+.alta-exitosa-icon { font-size: 3.4rem; color: #1E9E57; line-height: 1; margin-bottom: 10px; }
+.alta-exitosa-datos {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-border);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    display: grid;
+    gap: 8px;
+}
+.alta-exitosa-datos > div { display: flex; justify-content: space-between; gap: 12px; font-size: 0.92rem; }
+.alta-exitosa-datos span { color: var(--gray-600); }
+.alta-exitosa-datos strong i { color: #1E9E57; }
+
+/* ===== Materias asignadas en el alta de docente =====
+   Lista por año con horario en chips + calendario semanal del docente
+   (ver renderMateriasDocenteFiltrado()/renderCalendarioDocente()). */
+.materias-asignar-lista {
+    border: 1px solid var(--gray-border);
+    border-radius: var(--radius-md);
+    padding: 8px;
+    max-height: 340px;
+    overflow-y: auto;
+    background: var(--white);
+}
+.materias-asignar-anio {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--gray-600);
+    padding: 8px 6px 4px;
+}
+.materia-asignar-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    cursor: pointer;
+    margin: 0 0 4px !important;
+    transition: background var(--transition-base), border-color var(--transition-base);
+}
+/* Le gana a #app label:not(.form-check-label) { display: inline-block } (sección FORMULARIOS). */
+#app label.materia-asignar-item { display: flex; flex-direction: row; flex-wrap: nowrap; width: 100%; font-weight: 400; font-size: inherit; }
+#app .materia-asignar-item .form-check-input { float: none; flex: 0 0 auto; width: 1.1em; height: 1.1em; margin: 3px 0 0; }
+.materia-asignar-item:hover { background: var(--gray-50); }
+/* Materia con otro profesor: solo referencia, sin casilla ni hover. */
+.materia-asignar-item.is-ocupada { cursor: default; opacity: 0.6; }
+.materia-asignar-item.is-ocupada:hover { background: transparent; }
+.materia-asignar-lock { width: 1.1em; display: inline-flex; justify-content: center; color: var(--gray-500); margin-top: 2px; flex-shrink: 0; }
+
+.materia-asignar-item.is-selected { background: var(--brand-glow); border-color: var(--brand-bright); }
+.materia-asignar-item .form-check-input { margin: 3px 0 0; flex-shrink: 0; }
+#app .materia-asignar-item .form-check-input:checked { background-color: var(--brand-bright); border-color: var(--brand-bright); }
+.materia-asignar-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.materia-asignar-nombre { font-weight: 600; font-size: 0.9rem; color: var(--ink); }
+.materia-asignar-otro { font-weight: 500; font-size: 0.75rem; color: var(--gray-600); margin-left: 4px; }
+.materia-asignar-horarios { display: flex; flex-wrap: wrap; gap: 4px; }
+.materia-horario-chip {
+    font-size: 0.74rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
+    background: var(--gray-100);
+    color: var(--gray-800);
+    font-variant-numeric: tabular-nums;
+}
+
+.calendario-docente {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+}
+.calendario-dia {
+    border: 1px solid var(--gray-border);
+    border-radius: var(--radius-md);
+    padding: 8px;
+    background: var(--white);
+    min-height: 84px;
+}
+.calendario-dia.is-libre { background: var(--gray-50); }
+.calendario-dia-nombre {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--gray-600);
+    margin-bottom: 6px;
+}
+.calendario-bloque {
+    border-left: 3px solid var(--brand-bright);
+    background: var(--brand-glow);
+    border-radius: 6px;
+    padding: 5px 7px;
+    margin-bottom: 6px;
+    display: flex;
+    flex-direction: column;
+}
+.calendario-bloque-hora { font-size: 0.74rem; font-weight: 700; color: var(--brand-bright); font-variant-numeric: tabular-nums; }
+.calendario-bloque-materia { font-size: 0.78rem; font-weight: 600; color: var(--ink); line-height: 1.2; }
+.calendario-bloque.is-conflicto { border-left-color: #DC3545; background: rgba(220, 53, 69, 0.10); }
+.calendario-bloque.is-conflicto .calendario-bloque-hora { color: #DC3545; }
+.calendario-libre { font-size: 0.75rem; color: var(--gray-500); }
+.calendario-resumen {
+    margin-top: 8px;
+    font-size: 0.82rem;
+    color: var(--gray-600);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    align-items: center;
+}
+.calendario-aviso { color: #DC3545; font-weight: 600; }
+
+
 .ios-table.teachers-compact td[data-label="DNI"],
 .ios-table.teachers-compact td[data-label="Teléfono"],
 .ios-table.teachers-compact td[data-label="Domicilio"],
@@ -1479,3 +1993,334 @@ body {
 
 .teacher-detail-actions { max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 0 32px; }
 .teacher-detail-actions .btn { width: 100%; }
+
+/* ============================================================
+   REFRESH VISUAL (panel): color de marca unificado (verde petróleo
+   del logo, el mismo del login) en vez de negro + azul sueltos, fondo
+   de página con profundidad, header como tarjeta, accesos rápidos con
+   un solo estilo y resumen de Inicio con íconos. Va al final a
+   propósito: pisa reglas anteriores sin tener que reescribirlas.
+============================================================ */
+:root { --page-bg: #F2F5F4; }
+@media (prefers-color-scheme: dark) { html:not([data-theme]) { --page-bg: #121214; } }
+html[data-theme="dark"] { --page-bg: #121214; }
+
+body, .main-container { background: var(--page-bg); }
+#loginScreen { background-color: var(--page-bg); }
+#dashboardScreen { padding-top: 16px; }
+
+/* Header como tarjeta */
+.dashboard-header {
+    background: var(--white);
+    border: 1px solid var(--gray-border);
+    border-bottom: 1px solid var(--gray-border);
+    border-radius: var(--radius-lg);
+    padding: 12px 16px;
+    margin-bottom: 18px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.dashboard-header h2 { font-size: 1.15rem; }
+.dashboard-brand .dashboard-logo { height: 38px; }
+/* Engranaje de Configuración: mismo formato que la campanita */
+.header-icon-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; flex-shrink: 0;
+    border-radius: 50%;
+    border: 1px solid var(--gray-border);
+    background: var(--white);
+    color: var(--ink);
+    font-size: 1.05rem;
+    cursor: pointer;
+    transition: background var(--transition-base), transform var(--transition-base);
+}
+.header-icon-btn:hover { background: var(--gray-100); transform: scale(1.05); }
+.header-icon-btn.active { background: var(--brand-bright); border-color: var(--brand-bright); color: #FFFFFF; }
+.header-icon-btn.hidden { display: none !important; }
+
+/* Menú del usuario: avatar + nombre + rol, con sus opciones personales */
+.user-menu-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 3px 10px 3px 3px;
+    border: 1px solid var(--gray-border);
+    border-radius: var(--radius-pill);
+    background: var(--white);
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--transition-base);
+}
+.user-menu-btn:hover, .user-menu-btn[aria-expanded="true"] { background: var(--gray-100); }
+.user-menu-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.user-avatar {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--brand-bright);
+    color: #FFFFFF;
+    font-size: 0.78rem; font-weight: 800; letter-spacing: 0.02em;
+}
+.user-menu-text { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+.user-menu-name { font-weight: 700; font-size: 0.84rem; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-menu-role { font-size: 0.7rem; color: var(--gray-600); }
+.user-menu-role.hidden { display: none; }
+.user-menu-caret { font-size: 0.7rem; color: var(--gray-600); }
+.user-menu-dropdown { min-width: 220px; padding: 6px; border-radius: var(--radius-md); }
+.user-menu-dropdown .dropdown-item { display: flex; align-items: center; gap: 10px; border-radius: var(--radius-sm); padding: 8px 10px; font-size: 0.88rem; }
+.user-menu-dropdown li.hidden { display: none; }
+.user-menu-dropdown .user-menu-logout { color: #C0392B; }
+/* Encabezado del menú con nombre y rol: solo en celular, donde el botón muestra solo el avatar */
+.user-menu-head { display: none; }
+
+/* Idioma elegido y controles con el color de marca */
+.lang-pill-active { background: var(--brand-bright); box-shadow: 0 3px 10px rgba(47, 122, 114, 0.35); }
+.form-range::-webkit-slider-thumb { background: var(--brand-bright); }
+.form-range::-moz-range-thumb { background: var(--brand-bright); }
+
+/* Botón principal = color de marca (antes negro) */
+#app .btn-primary, #app .btn-success {
+    background: linear-gradient(135deg, var(--brand-bright), var(--brand)) !important;
+    border-color: transparent !important;
+    color: #FFFFFF !important;
+}
+#app .btn-primary:hover, #app .btn-primary:focus,
+#app .btn-success:hover, #app .btn-success:focus { filter: brightness(1.07); opacity: 1; color: #FFFFFF !important; }
+
+/* Pestañas: activa en color de marca */
+.admin-tabs { gap: 6px; }
+.admin-tabs .nav-link { background: var(--white); }
+.admin-tabs .nav-link i { opacity: 0.75; }
+.admin-tabs .nav-link.active {
+    background: var(--brand-bright) !important;
+    border-color: var(--brand-bright) !important;
+    box-shadow: 0 4px 12px rgba(47, 122, 114, 0.28);
+}
+.admin-tabs .nav-link.active i { opacity: 1; }
+
+/* Accesos rápidos: todos iguales, discretos */
+#app .quick-actions .quick-action {
+    background: var(--white) !important;
+    border: 1px solid var(--gray-border) !important;
+    color: var(--ink) !important;
+    font-weight: 600;
+    border-radius: var(--radius-pill);
+    padding: 6px 12px;
+}
+#app .quick-actions .quick-action i { color: var(--brand-bright); }
+#app .quick-actions .quick-action:hover { background: var(--brand-glow) !important; border-color: rgba(47, 122, 114, 0.4) !important; }
+
+/* Tarjetas de contenido */
+.form-section { border: 1px solid var(--gray-border); border-radius: 18px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04); }
+.form-section h4 i { color: var(--brand-bright); }
+
+/* Resumen de Inicio: ícono + número */
+.stat-card.stat-v2 {
+    display: flex; align-items: center; gap: 12px;
+    text-align: left; padding: 12px 14px;
+    border: 1px solid var(--gray-border); border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    height: 100%;
+}
+.stat-v2 .stat-icon {
+    width: 40px; height: 40px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 12px; font-size: 1.15rem;
+    background: var(--stat-bg, var(--gray-100)); color: var(--stat-color, var(--ink));
+}
+.stat-v2 .stat-body { min-width: 0; }
+.stat-card.stat-v2 .number { font-size: 1.55rem; line-height: 1.1; }
+.stat-card.stat-v2 .label { font-size: 0.62rem; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat-total { --stat-bg: var(--brand-glow); --stat-color: var(--brand-bright); }
+.stat-esperados { --stat-bg: rgba(47, 94, 158, 0.13); --stat-color: #2F5E9E; }
+.stat-presentes { --stat-bg: rgba(34, 197, 94, 0.14); --stat-color: #1E9E57; }
+.stat-ausentes { --stat-bg: rgba(239, 68, 68, 0.13); --stat-color: #D93636; }
+.stat-tardanzas { --stat-bg: rgba(234, 179, 8, 0.16); --stat-color: #A77A00; }
+.stat-media { --stat-bg: rgba(249, 115, 22, 0.14); --stat-color: #D5620F; }
+
+/* Estado vacío amable */
+.empty-state { text-align: center; padding: 26px 12px 18px; }
+.empty-state-icon {
+    width: 58px; height: 58px; margin: 0 auto 10px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; background: var(--brand-glow); color: var(--brand-bright); font-size: 1.6rem;
+}
+.empty-state-title { font-weight: 700; color: var(--ink); }
+.empty-state-text { font-size: 0.86rem; color: var(--gray-600); margin-top: 2px; }
+
+/* Celular: header prolijo (marca arriba, controles en una fila) */
+@media (max-width: 575px) {
+    .dashboard-header { padding: 10px 12px; gap: 10px; }
+    .dashboard-header h2 { font-size: 1rem; }
+    .dashboard-brand .dashboard-logo { height: 30px; }
+    .dashboard-header-actions { width: 100%; gap: 6px; justify-content: space-between; }
+    .dashboard-header-actions .lang-switcher { order: 1; }
+    .dashboard-header-actions .theme-switcher { order: 2; }
+    .dashboard-header-actions .alerts-bell { order: 3; }
+    .dashboard-header-actions .header-icon-btn { order: 4; }
+    .dashboard-header-actions .user-menu { order: 5; }
+    .user-menu-btn { padding: 3px; }
+    .user-menu-text, .user-menu-caret { display: none; }
+    .user-menu-head { display: flex; flex-direction: column; padding: 6px 10px 8px; margin-bottom: 4px; border-bottom: 1px solid var(--gray-border); }
+    .stat-card.stat-v2 { padding: 10px; gap: 8px; }
+    .stat-v2 .stat-icon { width: 34px; height: 34px; font-size: 1rem; }
+    .stat-card.stat-v2 .number { font-size: 1.3rem; }
+}
+
+/* Modo oscuro: estados de Asistencias con texto claro (contraste). */
+@media (prefers-color-scheme: dark) { html:not([data-theme]) .asis-presente { color: #6EE7A0; } html:not([data-theme]) .asis-tarde, html:not([data-theme]) .asis-tarde-txt { color: #F5C451; } html:not([data-theme]) .asis-media { color: #FDBA74; } html:not([data-theme]) .asis-falta { color: #FCA5A5; } html:not([data-theme]) .asis-pendiente { color: #7FC4BB; } html:not([data-theme]) .asis-licencia { color: var(--gray-800); } }
+html[data-theme="dark"] .asis-presente { color: #6EE7A0; } html[data-theme="dark"] .asis-tarde, html[data-theme="dark"] .asis-tarde-txt { color: #F5C451; } html[data-theme="dark"] .asis-media { color: #FDBA74; } html[data-theme="dark"] .asis-falta { color: #FCA5A5; } html[data-theme="dark"] .asis-pendiente { color: #7FC4BB; } html[data-theme="dark"] .asis-licencia { color: var(--gray-800); }
+
+/* ===== Eventos Especiales en filas (ver renderListaEventos()) ===== */
+.eventos-lista { display: flex; flex-direction: column; gap: 8px; }
+.eventos-grupo-titulo {
+    font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--gray-600); margin: 4px 0 2px;
+}
+.eventos-grupo-titulo span { background: var(--gray-100); color: var(--ink); border-radius: 999px; padding: 1px 8px; margin-left: 4px; }
+.evento-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 10px 12px;
+    background: var(--white);
+    border: 1px solid var(--gray-border);
+    border-radius: 14px;
+    transition: border-color var(--transition-base), box-shadow var(--transition-base);
+}
+.evento-row:hover { border-color: rgba(47, 122, 114, 0.45); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
+.evento-row.is-hoy { border-color: var(--brand-bright); box-shadow: 0 0 0 3px var(--brand-glow); }
+.evento-row.is-pasado { opacity: 0.62; }
+.evento-fecha {
+    width: 56px; flex-shrink: 0; text-align: center;
+    border-radius: 12px; padding: 6px 0;
+    background: var(--brand-glow); color: var(--brand-bright);
+    display: flex; flex-direction: column; line-height: 1;
+}
+.evento-row.is-pasado .evento-fecha { background: var(--gray-100); color: var(--gray-600); }
+.evento-dia { font-size: 1.35rem; font-weight: 800; }
+.evento-mes { font-size: 0.66rem; font-weight: 800; letter-spacing: 0.08em; margin-top: 3px; }
+.evento-hoy { font-size: 0.56rem; font-weight: 800; letter-spacing: 0.08em; margin-bottom: 3px; }
+.evento-info { flex: 1; min-width: 0; }
+.evento-titulo { font-weight: 700; color: var(--ink); display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.evento-tag {
+    font-size: 0.66rem; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+    background: var(--gray-100); color: var(--gray-800); white-space: nowrap;
+}
+.evento-tag.is-perjuicio { background: rgba(249, 115, 22, 0.14); color: #B4530B; }
+.evento-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 3px; font-size: 0.8rem; color: var(--gray-600); }
+.evento-meta i { margin-right: 3px; }
+.evento-acciones { display: flex; gap: 6px; flex-shrink: 0; }
+#app .evento-acciones .evento-btn {
+    width: 36px !important; height: 36px !important; min-height: 0 !important; padding: 0 !important;
+    display: inline-flex !important; align-items: center; justify-content: center;
+    border-radius: 10px; font-size: 0.95rem;
+    background: var(--gray-100) !important; border: 1px solid transparent !important; color: var(--ink) !important;
+}
+#app .evento-acciones .evento-btn:hover { background: var(--brand-glow) !important; color: var(--brand-bright) !important; }
+#app .evento-acciones .evento-btn-danger:hover { background: rgba(220, 53, 69, 0.12) !important; color: #DC3545 !important; }
+@media (prefers-color-scheme: dark) { html:not([data-theme]) .evento-tag.is-perjuicio { color: #FDBA74; } }
+html[data-theme="dark"] .evento-tag.is-perjuicio { color: #FDBA74; }
+@media (max-width: 575px) {
+    .evento-row { flex-wrap: wrap; gap: 10px; }
+    .evento-info { flex-basis: calc(100% - 70px); }
+    .evento-acciones { width: 100%; justify-content: flex-end; }
+}
+
+/* ============================================================
+   MODO OSCURO para componentes de Bootstrap (ventanas, menús,
+   acordeones, tablas, botón X): antes quedaban con el fondo blanco
+   de Bootstrap y el texto claro de la app -> ilegibles.
+============================================================ */
+@media (prefers-color-scheme: dark) {
+    html:not([data-theme]) {
+    --bs-body-bg: var(--white);
+    --bs-body-color: var(--ink);
+    --bs-emphasis-color: var(--ink);
+    --bs-secondary-color: var(--gray-600);
+    --bs-tertiary-bg: var(--gray-50);
+    --bs-border-color: var(--gray-border);
+    --bs-heading-color: var(--ink);
+    --bs-link-color: #7FC4BB;
+    --bs-link-hover-color: #A5D8D0;
+    }
+
+    html:not([data-theme]) .modal { --bs-modal-bg: var(--white); --bs-modal-color: var(--ink); --bs-modal-header-border-color: var(--gray-border); --bs-modal-footer-border-color: var(--gray-border); }
+    html:not([data-theme]) .dropdown-menu { --bs-dropdown-bg: var(--white); --bs-dropdown-color: var(--ink); --bs-dropdown-link-color: var(--ink); --bs-dropdown-link-hover-color: var(--ink); --bs-dropdown-link-hover-bg: var(--gray-100); --bs-dropdown-border-color: var(--gray-border); --bs-dropdown-divider-bg: var(--gray-border); }
+    html:not([data-theme]) .accordion { --bs-accordion-bg: var(--white); --bs-accordion-color: var(--ink); --bs-accordion-border-color: var(--gray-border); --bs-accordion-btn-bg: var(--white); --bs-accordion-btn-color: var(--ink); --bs-accordion-active-bg: var(--gray-100); --bs-accordion-active-color: var(--ink); }
+    html:not([data-theme]) .accordion-button::after { filter: invert(1) grayscale(100%) brightness(200%); }
+    html:not([data-theme]) .card { --bs-card-bg: var(--white); --bs-card-color: var(--ink); --bs-card-border-color: var(--gray-border); --bs-card-cap-bg: var(--gray-50); }
+    html:not([data-theme]) .list-group { --bs-list-group-bg: var(--white); --bs-list-group-color: var(--ink); --bs-list-group-border-color: var(--gray-border); }
+    html:not([data-theme]) .table { --bs-table-bg: transparent; --bs-table-color: var(--ink); --bs-table-border-color: var(--gray-border); --bs-table-striped-bg: rgba(255, 255, 255, 0.03); --bs-table-hover-bg: rgba(255, 255, 255, 0.05); }
+    html:not([data-theme]) .popover { --bs-popover-bg: var(--white); --bs-popover-body-color: var(--ink); --bs-popover-border-color: var(--gray-border); }
+    html:not([data-theme]) .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
+    html:not([data-theme]) .form-select { background-color: var(--gray-50); color: var(--ink); border-color: var(--gray-border); }
+    html:not([data-theme]) .text-dark { color: var(--ink) !important; }
+    html:not([data-theme]) .bg-light { background-color: var(--gray-50) !important; }
+}
+html[data-theme="dark"] {
+    --bs-body-bg: var(--white);
+    --bs-body-color: var(--ink);
+    --bs-emphasis-color: var(--ink);
+    --bs-secondary-color: var(--gray-600);
+    --bs-tertiary-bg: var(--gray-50);
+    --bs-border-color: var(--gray-border);
+    --bs-heading-color: var(--ink);
+    --bs-link-color: #7FC4BB;
+    --bs-link-hover-color: #A5D8D0;
+}
+html[data-theme="dark"] .modal { --bs-modal-bg: var(--white); --bs-modal-color: var(--ink); --bs-modal-header-border-color: var(--gray-border); --bs-modal-footer-border-color: var(--gray-border); }
+html[data-theme="dark"] .dropdown-menu { --bs-dropdown-bg: var(--white); --bs-dropdown-color: var(--ink); --bs-dropdown-link-color: var(--ink); --bs-dropdown-link-hover-color: var(--ink); --bs-dropdown-link-hover-bg: var(--gray-100); --bs-dropdown-border-color: var(--gray-border); --bs-dropdown-divider-bg: var(--gray-border); }
+html[data-theme="dark"] .accordion { --bs-accordion-bg: var(--white); --bs-accordion-color: var(--ink); --bs-accordion-border-color: var(--gray-border); --bs-accordion-btn-bg: var(--white); --bs-accordion-btn-color: var(--ink); --bs-accordion-active-bg: var(--gray-100); --bs-accordion-active-color: var(--ink); }
+html[data-theme="dark"] .accordion-button::after { filter: invert(1) grayscale(100%) brightness(200%); }
+html[data-theme="dark"] .card { --bs-card-bg: var(--white); --bs-card-color: var(--ink); --bs-card-border-color: var(--gray-border); --bs-card-cap-bg: var(--gray-50); }
+html[data-theme="dark"] .list-group { --bs-list-group-bg: var(--white); --bs-list-group-color: var(--ink); --bs-list-group-border-color: var(--gray-border); }
+html[data-theme="dark"] .table { --bs-table-bg: transparent; --bs-table-color: var(--ink); --bs-table-border-color: var(--gray-border); --bs-table-striped-bg: rgba(255, 255, 255, 0.03); --bs-table-hover-bg: rgba(255, 255, 255, 0.05); }
+html[data-theme="dark"] .popover { --bs-popover-bg: var(--white); --bs-popover-body-color: var(--ink); --bs-popover-border-color: var(--gray-border); }
+html[data-theme="dark"] .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
+html[data-theme="dark"] .form-select { background-color: var(--gray-50); color: var(--ink); border-color: var(--gray-border); }
+html[data-theme="dark"] .text-dark { color: var(--ink) !important; }
+html[data-theme="dark"] .bg-light { background-color: var(--gray-50) !important; }
+
+/* Detalle de evento (ver viewEvento()) */
+.evento-detalle { display: grid; gap: 10px; }
+.evento-detalle-fila { display: flex; gap: 12px; align-items: flex-start; }
+.evento-detalle-fila > i { width: 34px; height: 34px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; background: var(--brand-glow); color: var(--brand-bright); font-size: 1rem; }
+.evento-detalle-label { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray-600); }
+.evento-detalle-valor { color: var(--ink); }
+.evento-detalle-docentes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.evento-detalle-docentes span { font-size: 0.8rem; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: var(--gray-100); color: var(--ink); }
+
+/* Estado del evento (formulario + etiquetas) */
+.evento-estado-opciones { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.evento-estado-opcion {
+    display: flex; flex-direction: column; gap: 2px; cursor: pointer;
+    padding: 10px 12px; border-radius: 12px; border: 1.5px solid var(--gray-border); background: var(--white);
+    font-weight: 400 !important; margin: 0 !important;
+}
+.evento-estado-opcion i { color: var(--brand-bright); font-size: 1.1rem; }
+.evento-estado-opcion small { color: var(--gray-600); font-size: 0.78rem; }
+.btn-check:checked + .evento-estado-opcion { border-color: var(--brand-bright); background: var(--brand-glow); }
+#app label.evento-estado-opcion { display: flex; }
+.evento-tag.is-optativo { background: rgba(47, 94, 158, 0.13); color: #2F5E9E; }
+@media (prefers-color-scheme: dark) { html:not([data-theme]) .evento-tag.is-optativo { color: #93B4E6; } }
+html[data-theme="dark"] .evento-tag.is-optativo { color: #93B4E6; }
+@media (max-width: 575px) { .evento-estado-opciones { grid-template-columns: 1fr; } }
+
+/* ===== Cupo anual de faltas (pestaña Asistencias) ===== */
+.asis-cupo { display: inline-block; min-width: 44px; text-align: center; font-weight: 700; font-size: 0.78rem; padding: 3px 8px; border-radius: var(--radius-pill); }
+.asis-cupo-ok { background: var(--gray-100); color: var(--gray-600); }
+.asis-cupo-aviso { background: rgba(201, 138, 11, 0.18); color: #8A5E00; }
+.asis-cupo-limite { background: rgba(234, 88, 12, 0.18); color: #B4530B; }
+.asis-cupo-descuento { background: #C62828; color: #FFFFFF; }
+.asis-chip.asis-cupo-aviso { background: rgba(201, 138, 11, 0.18); color: #8A5E00; }
+.asis-chip.asis-cupo-descuento { background: #C62828; color: #FFFFFF; }
+.asis-badge.asis-descuento { background: #C62828; color: #FFFFFF; margin-left: 4px; }
+#app .asis-tabla tr.asis-fila-descuento td { background: rgba(198, 40, 40, 0.09); }
+#app .asis-tabla tr.asis-fila-descuento td:first-child { box-shadow: inset 4px 0 0 #C62828; }
+.asis-aviso-col { white-space: nowrap; }
+.asis-aviso-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; text-decoration: none; font-size: 1rem; transition: transform var(--transition-base), filter var(--transition-base); }
+.asis-aviso-btn:hover { transform: scale(1.08); filter: brightness(1.05); }
+.asis-aviso-btn.is-wa { background: rgba(37, 211, 102, 0.16); color: #1DA851; }
+.asis-aviso-btn.is-mail { background: rgba(36, 71, 201, 0.12); color: #2447C9; }
+.asis-aviso-falta { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: rgba(198, 40, 40, 0.1); color: #C62828; cursor: help; }
+html[data-theme="dark"] .asis-cupo-aviso, html[data-theme="dark"] .asis-chip.asis-cupo-aviso { color: #F2C14E; }
+html[data-theme="dark"] .asis-cupo-limite { color: #FB923C; }
+html[data-theme="dark"] .asis-aviso-btn.is-mail { color: #8FA8FF; background: rgba(143, 168, 255, 0.14); }
+html[data-theme="dark"] #app .asis-tabla tr.asis-fila-descuento td { background: rgba(239, 68, 68, 0.14); }

@@ -418,7 +418,7 @@ async function verifyGeofence(geofenceOverride) {
     const distance = haversineDistanceMeters(position.coords.latitude, position.coords.longitude, geofence.lat, geofence.lng);
     // coords real del fichaje (no solo si pasó o no la geocerca): se
     // guarda en el registro de asistencia para el reporte "ubicación
-    // real vs configurada" (ver registerAttendance()/generateReport()).
+    // real vs configurada" (ver registrarEntradaJornada()/generateReport()).
     const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
     const precision = Number.isFinite(position.coords.accuracy) ? Math.round(position.coords.accuracy) : null;
     const fakeGpsSospechoso = esGpsSospechoso(position.coords);
@@ -875,6 +875,11 @@ document.addEventListener('DOMContentLoaded', () => {
         tabConfigBtn.addEventListener('shown.bs.tab', () => {
             if (geocercaMaps.config) geocercaMaps.config.map.invalidateSize();
         });
+        // El engranaje del header se marca como activo mientras
+        // Configuración está abierta (la pestaña en sí está oculta).
+        const marcarEngranaje = (activo) => document.getElementById('settingsHeaderBtn')?.classList.toggle('active', activo);
+        tabConfigBtn.addEventListener('shown.bs.tab', () => marcarEngranaje(true));
+        tabConfigBtn.addEventListener('hidden.bs.tab', () => marcarEngranaje(false));
     }
     const eventoModalEl = document.getElementById('eventoModal');
     if (eventoModalEl) {
@@ -907,7 +912,7 @@ function loadGeofenceAdminForm() {
     document.getElementById('geofenceUpdatedInfo').textContent = geofence.actualizadoEn
         ? `Última actualización: ${new Date(geofence.actualizadoEn).toLocaleString()} (por ${geofence.actualizadoPor || 'desconocido'})`
         : '';
-    document.getElementById('modoPruebaToggle').checked = !!getModoPrueba().activo;
+    renderEstadoModoPrueba();
     updateGeofenceMapPreview();
 
     // Geocerca: exclusiva de Rector/Programador (ver MATRIZ_PERMISOS).
@@ -989,10 +994,42 @@ function useCurrentLocationForEventoGeocerca() {
 }
 
 function toggleModoPrueba(activo) {
-    saveModoPruebaToStorage({ activo });
+    const quien = currentUser ? (currentUser.username || currentUser.dni || '-') : '-';
+    saveModoPruebaToStorage(activo
+        ? { activo: true, desde: new Date().toISOString(), por: quien }
+        : { activo: false, hasta: new Date().toISOString(), por: quien });
+    logAccion('MODO_PRUEBA', activo ? 'Activó el Modo Prueba (geocerca desactivada para todos)' : 'Desactivó el Modo Prueba (geocerca activa de nuevo)', null);
     showToast(activo ? '⚠️ Modo Prueba activado: la geocerca queda desactivada para todos' : 'Modo Prueba desactivado', activo ? 'warning' : 'info');
     renderFichajeContextBadges();
+    renderEstadoModoPrueba();
 }
+
+// Estado del Modo Prueba: texto al lado del switch (Configuración) y
+// cartel fijo arriba del panel mientras esté activo, para que no quede
+// prendido por olvido.
+function renderEstadoModoPrueba() {
+    const mp = getModoPrueba();
+    const toggle = document.getElementById('modoPruebaToggle');
+    if (toggle) toggle.checked = !!mp.activo;
+    const estado = document.getElementById('modoPruebaEstado');
+    if (estado) {
+        estado.className = 'modo-prueba-estado ' + (mp.activo ? 'is-activo' : '');
+        estado.textContent = mp.activo
+            ? t('config.testModeOnSince', { fecha: mp.desde ? new Date(mp.desde).toLocaleString() : '-', por: mp.por || '-' })
+            : t('config.testModeOff');
+    }
+    document.getElementById('modoPruebaSection')?.classList.toggle('is-activo', !!mp.activo);
+    const banner = document.getElementById('modoPruebaBanner');
+    if (banner) {
+        const esAdmin = !!currentUser && currentUser.role === 'admin';
+        banner.classList.toggle('hidden', !mp.activo);
+        banner.innerHTML = mp.activo ? `
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <span>${t('config.testModeBanner')}</span>
+            ${esAdmin && document.getElementById('modoPruebaToggle') ? `<button type="button" class="btn btn-sm btn-light" onclick="toggleModoPrueba(false)">${t('config.testModeTurnOff')}</button>` : ''}` : '';
+    }
+}
+if (typeof onLocaleChangeRerender === 'function') onLocaleChangeRerender(renderEstadoModoPrueba);
 
 // ===== Dispositivos / kiosco =====
 function formatKioskDeviceId(id) { return id ? (id.length > 12 ? id.slice(0, 8) + '…' + id.slice(-4) : id) : '-'; }
@@ -1163,7 +1200,6 @@ let currentCamera = null;
 let capturedPhotos = [];       // dataURLs (solo para mostrar/almacenar la foto de perfil)
 let capturedDescriptors = [];  // descriptores faciales (arrays de 128 floats)
 let recognizedTeacher = null;
-let horarioLaboralList = [];
 // Cuando no es null, el formulario de "Registrar Nuevo Docente" está
 // en modo edición: saveTeacher() actualiza a este docente en vez de
 // crear uno nuevo. Ver editTeacher() / cancelEditTeacher().
@@ -1174,7 +1210,6 @@ let isFaceVerified = false;
 // asignadas (usa su horario_laboral propio) o si tiene una sola (se
 // autoselecciona sola, sin mostrar nada para elegir).
 let materiaFichajeSeleccionada = null;
-let annualCalendarByDate = {}; // último cálculo de showAnnualCalendar(), usado por showDayDetail()
 // Estado de la Grilla Completa de Horarios (vista semana): offset de
 // semanas respecto de la actual (0 = semana de hoy, -1 = anterior,
 // 1 = siguiente) y los filtros activos. Se reinicia cada vez que se
@@ -1183,7 +1218,6 @@ let grillaSemanaOffset = 0;
 let grillaFiltro = { profesor: '', materia: '', carrera: '', estado: '' };
 let grillaEntriesPorCelda = {}; // `${teacherId}_${dateStr}_${inicio}` -> entry, usado por showGridCellDetail()
 let modelsLoaded = false;
-let exitWindowPollInterval = null;
 let liveOverlayInterval = null;
 let regLiveOverlayInterval = null;
 let detectorOptions = null;
@@ -1424,6 +1458,10 @@ function toastSegunConfirmacion({ ok, offline, error }, mensajeExito) {
     }
 }
 
+// Cupo anual de faltas por docente (ver getCriteria() y faltasDelAnio()).
+const FALTAS_PERMITIDAS_DEFAULT = 6;
+const AVISO_FALTAS_DEFAULT = 4;
+
 function getTeachers() { return dataStore.teachers; }
 function saveTeachers(teachers) { dataStore.teachers = teachers; persistToSupabase('teachers', teachers); }
 function getAttendance() { return dataStore.attendance; }
@@ -1448,6 +1486,11 @@ function getCriteria() {
         limitePresenteMin: criteria.limitePresenteMin ?? CRITERIA_PUNTUALIDAD_DEFAULT.limitePresenteMin,
         limiteTardanzaMin: criteria.limiteTardanzaMin ?? CRITERIA_PUNTUALIDAD_DEFAULT.limiteTardanzaMin,
         limiteMediaFaltaMin: criteria.limiteMediaFaltaMin ?? CRITERIA_PUNTUALIDAD_DEFAULT.limiteMediaFaltaMin,
+        // Cupo anual de faltas (sin contar licencias): pasado este número,
+        // los días faltados se descuentan del sueldo. Desde avisoFaltasDesde
+        // se ofrece avisarle al docente por WhatsApp o mail.
+        faltasPermitidasAnio: criteria.faltasPermitidasAnio ?? FALTAS_PERMITIDAS_DEFAULT,
+        avisoFaltasDesde: criteria.avisoFaltasDesde ?? AVISO_FALTAS_DEFAULT,
     };
 }
 function saveCriteriaToStorage(criteria) { dataStore.criteria = criteria; persistToSupabase('criteria', criteria); }
@@ -1596,39 +1639,55 @@ function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 // ============================================================
 // NAVEGACIÓN
 // ============================================================
-// Paso 1 del login: elige rol y pasa al paso 2 (usuario/contraseña),
-// adaptando la etiqueta del campo usuario (DNI para docente, Usuario
-// para los 3 roles de tipo admin).
-function selectRole(role) {
-    selectedRole = role;
-    document.getElementById('roleSelectStep').classList.add('hidden');
-    document.getElementById('credentialsStep').classList.remove('hidden');
-    document.getElementById('selectedRoleLabel').textContent = t('roles.' + role, ROL_LABEL[role] || role);
-    document.getElementById('loginUserLabel').textContent = role === ROLES.DOCENTE ? t('login.userLabelDocente') : t('login.userLabelDefault');
-    document.getElementById('loginUser').placeholder = role === ROLES.DOCENTE ? t('login.userPlaceholderDocente') : t('login.userPlaceholderDefault');
-    document.getElementById('loginUser').value = '';
-    document.getElementById('loginPass').value = '';
-    document.getElementById('loginError').style.display = 'none';
-    document.getElementById('loginUser').focus();
+// Login único: ya no se elige rol antes. El perfil se deduce del
+// usuario ingresado - ADMIN1/ADMIN2 (Secretaría/Rector, ver
+// CREDENCIALES_ADMIN_USUARIO), MEUDEUS (Programador) y cualquier otro
+// valor se toma como DNI de docente. Los usuarios admin se comparan en
+// mayúsculas para que el autocapitalizado del celular no moleste.
+function detectarRolLogin(user) {
+    const upper = user.toUpperCase();
+    if (upper === PROGRAMADOR_LOGIN_USER) return ROLES.PROGRAMADOR;
+    const rolAdmin = Object.keys(CREDENCIALES_ADMIN_USUARIO).find(r => CREDENCIALES_ADMIN_USUARIO[r] === upper);
+    return rolAdmin || ROLES.DOCENTE;
 }
 
-// El label/placeholder de usuario dependen del rol elegido (ver
-// selectRole()), así que data-i18n solo no alcanza para mantenerlos
-// traducidos si el idioma cambia CON el paso 2 del login ya abierto -
-// se vuelve a aplicar acá, enganchado a onLocaleChangeRerender() más
-// abajo.
-function reaplicarTraduccionLogin() {
-    if (!selectedRole || document.getElementById('credentialsStep').classList.contains('hidden')) return;
-    document.getElementById('selectedRoleLabel').textContent = t('roles.' + selectedRole, ROL_LABEL[selectedRole] || selectedRole);
-    document.getElementById('loginUserLabel').textContent = selectedRole === ROLES.DOCENTE ? t('login.userLabelDocente') : t('login.userLabelDefault');
-    document.getElementById('loginUser').placeholder = selectedRole === ROLES.DOCENTE ? t('login.userPlaceholderDocente') : t('login.userPlaceholderDefault');
+// Ojito del campo contraseña en el login: alterna texto/password y
+// cambia icono + aria-label (traducido) según el estado.
+function toggleLoginPasswordVisibility() {
+    const input = document.getElementById('loginPass');
+    const btn = document.getElementById('loginPassToggle');
+    const mostrar = input.type === 'password';
+    input.type = mostrar ? 'text' : 'password';
+    btn.innerHTML = mostrar ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
+    btn.setAttribute('aria-label', t(mostrar ? 'login.hidePassword' : 'login.showPassword'));
+    input.focus();
 }
-if (typeof onLocaleChangeRerender === 'function') onLocaleChangeRerender(reaplicarTraduccionLogin);
 
-function backToRoleSelect() {
-    selectedRole = null;
-    document.getElementById('credentialsStep').classList.add('hidden');
-    document.getElementById('roleSelectStep').classList.remove('hidden');
+// Valida usuario/contraseña de Secretaría, Rector o Programador y
+// devuelve el objeto de sesión admin, o null si no coinciden (o si el
+// usuario no es de administración). No registra nada en auditoría: eso
+// lo decide quien la llama (login() o el "Dar de alta" del fichaje
+// rápido). Requiere Web Crypto (HTTPS o localhost).
+async function autenticarAdmin(rawUser, pass) {
+    const rol = detectarRolLogin(rawUser);
+    const user = rawUser.toUpperCase();
+    if (rol === ROLES.PROGRAMADOR) {
+        // Si ya existe una fila real en `usuarios` (Supabase o su
+        // caché local), la contraseña vigente vive ahí en texto
+        // plano - es un dato de runtime propio de esta escuela,
+        // nunca estuvo comprometido en git. Recién clonado el repo
+        // (sin esa fila todavía) se valida contra el hash de
+        // arranque de config.secrets.js/config.example.js.
+        const ok = adminUsuario && adminUsuario.id
+            ? pass === adminUsuario.password
+            : await coincideHashCredencial('PROGRAMADOR_BOOTSTRAP', pass);
+        return ok ? { role: 'admin', rol: ROLES.PROGRAMADOR, username: PROGRAMADOR_LOGIN_USER } : null;
+    }
+    const usuarioEsperado = CREDENCIALES_ADMIN_USUARIO[rol];
+    if (usuarioEsperado && user === usuarioEsperado && await coincideHashCredencial(rol, pass)) {
+        return { role: 'admin', rol, username: usuarioEsperado };
+    }
+    return null;
 }
 
 async function login() {
@@ -1636,7 +1695,6 @@ async function login() {
         showToast('Todavía se están cargando los datos, esperá un momento e intentá de nuevo', 'warning');
         return;
     }
-    if (!selectedRole) { showToast('Elegí un rol para continuar', 'warning'); return; }
     if (!window.crypto || !window.crypto.subtle) {
         // sha256Hex() necesita Web Crypto (solo disponible en HTTPS o
         // localhost). Sin esto no hay forma segura de validar Secretaría/
@@ -1644,9 +1702,11 @@ async function login() {
         showToast('Este navegador/conexión no permite validar credenciales de forma segura (hace falta HTTPS)', 'error');
         return;
     }
-    const user = document.getElementById('loginUser').value.trim();
+    const rawUser = document.getElementById('loginUser').value.trim();
     const pass = document.getElementById('loginPass').value.trim();
     const errorEl = document.getElementById('loginError');
+    selectedRole = detectarRolLogin(rawUser);
+    const user = selectedRole === ROLES.DOCENTE ? rawUser : rawUser.toUpperCase();
     let ok = false;
 
     if (selectedRole === ROLES.DOCENTE) {
@@ -1662,39 +1722,21 @@ async function login() {
             logAccion('LOGIN', `Login docente DNI ${teacher.dni}`, null);
             ok = true;
         }
-    } else if (selectedRole === ROLES.PROGRAMADOR) {
-        if (user === PROGRAMADOR_LOGIN_USER) {
-            // Si ya existe una fila real en `usuarios` (Supabase o su
-            // caché local), la contraseña vigente vive ahí en texto
-            // plano - es un dato de runtime propio de esta escuela,
-            // nunca estuvo comprometido en git. Recién clonado el repo
-            // (sin esa fila todavía) se valida contra el hash de
-            // arranque de config.secrets.js/config.example.js.
-            if (adminUsuario.id) {
-                ok = pass === adminUsuario.password;
-            } else {
-                ok = await coincideHashCredencial('PROGRAMADOR_BOOTSTRAP', pass);
-            }
-        }
-        if (ok) {
-            currentUser = { role: 'admin', rol: ROLES.PROGRAMADOR, username: PROGRAMADOR_LOGIN_USER };
+    } else {
+        const admin = await autenticarAdmin(rawUser, pass);
+        if (admin) {
+            currentUser = admin;
             // 2 argumentos a propósito (sin ubicacion): logAccion() ya
             // intenta GPS de alta precisión en segundo plano sola, sin
             // bloquear el login - no hace falta un wrapper aparte.
-            logAccion('LOGIN', 'Login PROGRAMADOR');
-        }
-    } else {
-        const usuarioEsperado = CREDENCIALES_ADMIN_USUARIO[selectedRole];
-        if (usuarioEsperado && user === usuarioEsperado && await coincideHashCredencial(selectedRole, pass)) {
-            currentUser = { role: 'admin', rol: selectedRole, username: usuarioEsperado };
-            logAccion('LOGIN', `Login ${selectedRole}`);
+            logAccion('LOGIN', `Login ${admin.rol}`);
             ok = true;
         }
     }
 
     if (ok) { showDashboard(); return; }
     errorEl.style.display = 'block';
-    logAccion('LOGIN_FALLIDO', `Intento fallido - rol elegido: ${selectedRole}, usuario: ${user}`);
+    logAccion('LOGIN_FALLIDO', `Intento fallido - rol detectado: ${selectedRole}, usuario: ${user}`);
     setTimeout(() => errorEl.style.display = 'none', 3000);
 }
 
@@ -1703,18 +1745,19 @@ function logout() {
     currentUser = null;
     selectedRole = null;
     recognizedTeacher = null;
+    quickFichajeActivo = false;
+    quickFichajeBusy = false;
+    document.getElementById('teacherDashboard').classList.remove('quick-mode');
     isFaceVerified = false;
     materiaFichajeSeleccionada = null;
     lastLivenessResult = null;
     stopLiveOverlay();
     stopRegLiveOverlay();
-    stopExitWindowPoll();
     document.getElementById('dashboardScreen').classList.add('hidden');
     document.getElementById('loginScreen').classList.remove('hidden');
-    document.getElementById('credentialsStep').classList.add('hidden');
-    document.getElementById('roleSelectStep').classList.remove('hidden');
     document.getElementById('loginUser').value = '';
     document.getElementById('loginPass').value = '';
+    if (document.getElementById('loginPass').type === 'text') toggleLoginPasswordVisibility();
     if (currentCamera) {
         currentCamera.getTracks().forEach(track => track.stop());
         currentCamera = null;
@@ -2030,29 +2073,21 @@ async function confirmarNuevaPassword() {
 }
 
 function showDashboard() {
+    setTimeout(renderEstadoModoPrueba, 0);
+    // Campanita de alertas: solo en el panel de administración.
+    document.getElementById('alertsBellBtn')?.classList.toggle('hidden', !currentUser || currentUser.role !== 'admin');
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('dashboardScreen').classList.remove('hidden');
     document.getElementById('statsScreen').classList.add('hidden');
     if (currentUser.role === 'admin') {
         document.getElementById('adminDashboard').classList.remove('hidden');
         document.getElementById('teacherDashboard').classList.add('hidden');
-        document.getElementById('dashboardTitle').textContent = `${t('header.panelOf')} ${t('roles.' + currentUser.rol, ROL_LABEL[currentUser.rol] || 'Administración')}`;
-        document.getElementById('userRoleBadge').textContent = t('roles.' + currentUser.rol, ROL_LABEL[currentUser.rol] || 'Admin');
-        document.getElementById('userRoleBadge').className = 'badge bg-danger me-2';
-
-        // El cambio de contraseña por e-mail (recuperación) es
-        // exclusivo de PROGRAMADOR: es el único de los 3 roles admin
-        // cuya contraseña vive en la tabla `usuarios` de Supabase y se
-        // puede cambiar/recuperar. Secretaría y Rector tienen
-        // contraseña fija por hash (ver ASISCAM_CRED_HASHES en roles.js).
+        renderUserMenu();
         const esProgramador = currentUser.rol === ROLES.PROGRAMADOR;
-        document.getElementById('adminChangePasswordBtnDesktop').classList.toggle('hidden', !esProgramador);
-        document.getElementById('adminChangePasswordBtnMobile').classList.toggle('hidden', !esProgramador);
         document.getElementById('tabAuditoriaNavItem').classList.toggle('hidden', !tienePermiso(currentUser.rol, 'ver_auditoria'));
         document.getElementById('tabReportesNavItem').classList.toggle('hidden', !tienePermiso(currentUser.rol, 'ver_reportes'));
 
         loadAdminDashboard();
-        resetHorarioLaboralForm();
         if (tienePermiso(currentUser.rol, 'ver_auditoria')) cargarLogsAuditoria().then(renderAuditoriaPanel);
         if (esProgramador && !adminUsuario.email) {
             document.getElementById('adminEmailInput').value = '';
@@ -2062,121 +2097,93 @@ function showDashboard() {
     } else {
         document.getElementById('adminDashboard').classList.add('hidden');
         document.getElementById('teacherDashboard').classList.remove('hidden');
-        document.getElementById('dashboardTitle').textContent = `${t('header.welcome')} ${currentUser.nombre} ${currentUser.apellido}`;
-        document.getElementById('userRoleBadge').textContent = t('roles.DOCENTE');
-        document.getElementById('userRoleBadge').className = 'badge bg-success me-2';
+        renderUserMenu();
         loadTeacherDashboard();
         if (currentUser.debeCambiarPassword) forceChangePasswordModal();
     }
 }
 
-// El título/badge del header dependen del rol logueado (ver
-// showDashboard()) - se vuelven a aplicar acá si cambia el idioma con
-// una sesión ya abierta, sin tener que recorrer todo showDashboard()
-// de nuevo (que además recarga datos).
-function reaplicarTraduccionHeader() {
-    if (!currentUser || document.getElementById('dashboardScreen').classList.contains('hidden')) return;
-    if (currentUser.role === 'admin') {
-        document.getElementById('dashboardTitle').textContent = `${t('header.panelOf')} ${t('roles.' + currentUser.rol, ROL_LABEL[currentUser.rol] || 'Administración')}`;
-        document.getElementById('userRoleBadge').textContent = t('roles.' + currentUser.rol, ROL_LABEL[currentUser.rol] || 'Admin');
-    } else {
-        document.getElementById('dashboardTitle').textContent = `${t('header.welcome')} ${currentUser.nombre} ${currentUser.apellido}`;
-        document.getElementById('userRoleBadge').textContent = t('roles.DOCENTE');
+// Header: a la izquierda la identidad del sistema (título) y a la
+// derecha el menú del usuario con quién ingresó y sus opciones
+// personales. Secretaría y Rector no tienen nombre propio (usuario
+// fijo ADMIN1/ADMIN2), así que ahí el rol es el dato principal.
+function renderUserMenu() {
+    const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+    const toggle = (id, visible) => document.getElementById(id)?.classList.toggle('hidden', !visible);
+    const avatar = document.getElementById('userAvatar');
+    let titulo = 'ASISCAM PRO', nombre = '', rol = '', inicial = '';
+    let puedeCambiarPass = false, puedeConfigurar = false;
+
+    if (quickFichajeActivo && !currentUser) {
+        titulo = t('fichaje.quickTitle');
+        nombre = t('fichaje.quickBadge');
+    } else if (currentUser && currentUser.role === 'admin') {
+        rol = t('roles.' + currentUser.rol, ROL_LABEL[currentUser.rol] || 'Admin');
+        nombre = rol;
+        rol = `${t('header.user')} ${currentUser.username || ''}`.trim();
+        inicial = nombre.charAt(0);
+        // Solo PROGRAMADOR puede cambiar su contraseña: es el único rol
+        // admin cuya contraseña vive en la tabla `usuarios` de Supabase.
+        // Secretaría y Rector tienen contraseña fija por hash (ver
+        // ASISCAM_CRED_HASHES en roles.js).
+        puedeCambiarPass = currentUser.rol === ROLES.PROGRAMADOR;
+        puedeConfigurar = true;
+    } else if (currentUser) {
+        nombre = `${currentUser.nombre || ''} ${currentUser.apellido || ''}`.trim();
+        rol = t('roles.DOCENTE');
+        inicial = (currentUser.nombre || '').charAt(0) + (currentUser.apellido || '').charAt(0);
+        puedeCambiarPass = !quickFichajeActivo;
     }
+
+    set('dashboardTitle', titulo);
+    set('userMenuName', nombre);
+    set('userMenuRole', rol);
+    set('userMenuHeadName', nombre);
+    set('userMenuHeadRole', rol);
+    if (avatar) {
+        if (inicial) avatar.textContent = inicial.toUpperCase();
+        else avatar.innerHTML = `<i class="bi ${quickFichajeActivo ? 'bi-camera' : 'bi-person'}"></i>`;
+    }
+    document.getElementById('userMenuRole')?.classList.toggle('hidden', !rol);
+    toggle('userMenuChangePasswordItem', puedeCambiarPass);
+    toggle('userMenuSettingsItem', puedeConfigurar);
+    toggle('userMenuDivider', puedeCambiarPass || puedeConfigurar);
+    toggle('settingsHeaderBtn', puedeConfigurar);
+    const btn = document.getElementById('userMenuBtn');
+    if (btn) btn.setAttribute('aria-label', `${t('header.userMenu')}: ${nombre}`);
+    const gear = document.getElementById('settingsHeaderBtn');
+    if (gear) { gear.title = t('nav.settings'); gear.setAttribute('aria-label', t('nav.settings')); }
+}
+
+// Configuración ya no es una pestaña visible: el engranaje del header
+// y el menú del usuario activan la pestaña oculta #tabConfiguracion.
+function abrirConfiguracion() {
+    const btn = document.querySelector('[data-bs-target="#tabConfiguracion"]');
+    if (!btn || !currentUser || currentUser.role !== 'admin') return;
+    bootstrap.Tab.getOrCreateInstance(btn).show();
+    document.getElementById('adminTabsContent')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function abrirCambioContrasenaUsuario() {
+    if (!currentUser) return;
+    if (currentUser.role === 'admin') {
+        if (currentUser.rol !== ROLES.PROGRAMADOR) return;
+        resetAdminChangePasswordForm();
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('adminChangePasswordModal')).show();
+    } else {
+        resetChangePasswordForm();
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('changePasswordModal')).show();
+    }
+}
+
+// Al cambiar de idioma con una sesión abierta se vuelve a pintar el
+// header, sin recorrer todo showDashboard() (que además recarga datos).
+function reaplicarTraduccionHeader() {
+    if (document.getElementById('dashboardScreen').classList.contains('hidden')) return;
+    if (!currentUser && !quickFichajeActivo) return;
+    renderUserMenu();
 }
 if (typeof onLocaleChangeRerender === 'function') onLocaleChangeRerender(reaplicarTraduccionHeader);
-
-// ============================================================
-// HORARIO LABORAL DEL DOCENTE (alta/edición: día + inicio + fin)
-// Se guarda por docente como horario_laboral: [{dia, inicio, fin}].
-// ============================================================
-const DIAS_HORARIO_RAPIDO = [
-    { id: 'horarioRapidoLunes', dia: 'Lunes' },
-    { id: 'horarioRapidoMartes', dia: 'Martes' },
-    { id: 'horarioRapidoMiercoles', dia: 'Miércoles' },
-    { id: 'horarioRapidoJueves', dia: 'Jueves' },
-    { id: 'horarioRapidoViernes', dia: 'Viernes' },
-    { id: 'horarioRapidoSabado', dia: 'Sábado' },
-    { id: 'horarioRapidoDomingo', dia: 'Domingo' },
-];
-
-function resetHorarioLaboralForm() {
-    horarioLaboralList = [];
-    const dia = document.getElementById('horarioDiaInput');
-    const inicio = document.getElementById('horarioInicioInput');
-    const fin = document.getElementById('horarioFinInput');
-    if (dia) dia.selectedIndex = 0;
-    if (inicio) inicio.value = '';
-    if (fin) fin.value = '';
-    DIAS_HORARIO_RAPIDO.forEach(({ id }) => {
-        const checkbox = document.getElementById(id);
-        if (checkbox) checkbox.checked = false;
-    });
-    const rapidoInicio = document.getElementById('horarioRapidoInicioInput');
-    const rapidoFin = document.getElementById('horarioRapidoFinInput');
-    if (rapidoInicio) rapidoInicio.value = '';
-    if (rapidoFin) rapidoFin.value = '';
-    renderHorarioLaboralChips();
-}
-
-// Atajo para el caso típico (mismo horario Lunes a Viernes): tilda los
-// días con checkbox y aplica un único inicio/fin a todos de una vez,
-// agregándolos a la misma horarioLaboralList que usa el selector
-// día-por-día de abajo (incluye el mismo chequeo antiduplicados).
-function aplicarHorarioRapido() {
-    const inicio = document.getElementById('horarioRapidoInicioInput').value;
-    const fin = document.getElementById('horarioRapidoFinInput').value;
-    if (!inicio || !fin) { showToast('Completá la hora de inicio y de finalización', 'error'); return; }
-    if (fin <= inicio) { showToast('La hora de finalización debe ser posterior a la de inicio', 'error'); return; }
-
-    const diasMarcados = DIAS_HORARIO_RAPIDO.filter(({ id }) => document.getElementById(id).checked);
-    if (diasMarcados.length === 0) { showToast('Marcá al menos un día', 'error'); return; }
-
-    let agregados = 0;
-    diasMarcados.forEach(({ dia }) => {
-        if (horarioLaboralList.some(h => h.dia === dia && h.inicio === inicio && h.fin === fin)) return;
-        horarioLaboralList.push({ dia, inicio, fin });
-        agregados++;
-    });
-    renderHorarioLaboralChips();
-    showToast(agregados > 0 ? `✅ Horario aplicado a ${agregados} día(s)` : 'Esos horarios ya estaban agregados', agregados > 0 ? 'success' : 'info');
-}
-
-function agregarHorarioLaboral() {
-    const dia = document.getElementById('horarioDiaInput').value;
-    const inicio = document.getElementById('horarioInicioInput').value;
-    const fin = document.getElementById('horarioFinInput').value;
-    if (!inicio || !fin) { showToast('Completá la hora de inicio y de finalización', 'error'); return; }
-    if (fin <= inicio) { showToast('La hora de finalización debe ser posterior a la de inicio', 'error'); return; }
-    if (horarioLaboralList.some(h => h.dia === dia && h.inicio === inicio && h.fin === fin)) {
-        showToast('Ese horario ya fue agregado', 'warning');
-        return;
-    }
-    horarioLaboralList.push({ dia, inicio, fin });
-    document.getElementById('horarioInicioInput').value = '';
-    document.getElementById('horarioFinInput').value = '';
-    renderHorarioLaboralChips();
-}
-
-function quitarHorarioLaboral(index) {
-    horarioLaboralList = horarioLaboralList.filter((_, i) => i !== index);
-    renderHorarioLaboralChips();
-}
-
-function renderHorarioLaboralChips() {
-    const container = document.getElementById('horarioLaboralChips');
-    if (!container) return;
-    if (horarioLaboralList.length === 0) {
-        container.innerHTML = '<span class="text-muted">No se ha agregado ningún horario</span>';
-        return;
-    }
-    container.innerHTML = horarioLaboralList.map((h, i) => `
-        <span class="horario-chip">
-            ${h.dia} ${h.inicio}-${h.fin}
-            <button type="button" class="horario-chip-remove" onclick="quitarHorarioLaboral(${i})" aria-label="Quitar horario">&times;</button>
-        </span>
-    `).join('');
-}
 
 // Devuelve el horario de un docente como [{dia, inicio, fin}]. Si el
 // docente fue registrado con el formato viejo (schedule: bloques
@@ -2230,6 +2237,9 @@ function getMateriasDeDocente(teacherId) {
 // dejar sin horario a un docente que no tiene materia asignada
 // todavía (ver getHorarioLaboral()).
 function getHorarioEfectivo(teacher) {
+    // Materias todavía sin cargar: no se sabe el horario real, así que
+    // no se inventa uno con el horario_laboral viejo (ver materiasCargadas).
+    if (!materiasCargadas) return [];
     const materias = getMateriasDeDocente(teacher.id);
     if (materias.length === 0) return getHorarioLaboral(teacher);
     const bloques = [];
@@ -2292,8 +2302,62 @@ function stopRegLiveOverlay() {
 function updateCaptureStatusUI() {
     const el = document.getElementById('captureStatus');
     const count = capturedDescriptors.length;
-    el.textContent = `Fotos válidas: ${count}/${CONFIG.MIN_CAPTURES}`;
-    el.classList.toggle('ready', count >= CONFIG.MIN_CAPTURES);
+    const listo = count >= CONFIG.MIN_CAPTURES;
+    // Con las 3 fotos la biometría está lista, pero el docente todavía
+    // NO está guardado: se avisa explícito y se lleva la vista al botón
+    // "Guardar Docente" (antes quedaba "3/3" y parecía que ya estaba).
+    el.innerHTML = listo
+        ? `<i class="bi bi-check-circle-fill"></i> ${t('teachers.captureDone', { n: count })}`
+        : `Fotos válidas: ${count}/${CONFIG.MIN_CAPTURES}`;
+    el.classList.toggle('ready', listo);
+    const btn = document.getElementById('saveTeacherBtn');
+    if (btn) btn.classList.toggle('save-teacher-ready', listo);
+    if (listo && btn) setTimeout(() => btn.scrollIntoView({ behavior: 'smooth', block: 'center' }), 400);
+}
+
+// Validación del alta: además del toast, abre la sección plegada
+// del acordeón donde está el campo (Contacto/Laboral quedan cerradas
+// por defecto), lo marca en rojo y le pone el foco - antes solo salía
+// el toast arriba y no se veía qué faltaba.
+function marcarCampoFaltante(inputId, mensaje) {
+    showToast(mensaje, 'error');
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const seccion = input.closest('.accordion-collapse');
+    if (seccion && !seccion.classList.contains('show')) bootstrap.Collapse.getOrCreateInstance(seccion, { toggle: false }).show();
+    input.classList.add('is-invalid');
+    input.addEventListener('input', () => input.classList.remove('is-invalid'), { once: true });
+    setTimeout(() => { input.scrollIntoView({ behavior: 'smooth', block: 'center' }); input.focus({ preventScroll: true }); }, 350);
+}
+
+// Confirmación clara de un alta nueva (antes era solo un toast de unos
+// segundos): datos de acceso + atajo para probar el fichaje con cámara
+// en el momento (cierra la sesión admin y abre el fichaje rápido).
+function mostrarAltaExitosa(teacher, password) {
+    const body = document.getElementById('altaExitosaBody');
+    if (!body) return;
+    body.innerHTML = `
+        <div class="alta-exitosa-icon"><i class="bi bi-check-circle-fill"></i></div>
+        <h4 class="mb-1">${t('teachers.altaOkTitle')}</h4>
+        <p class="text-muted mb-3">${teacher.apellido} ${teacher.nombre}</p>
+        <div class="alta-exitosa-datos text-start mb-3">
+            <div><span>${t('teachers.altaOkUser')}</span><strong>${teacher.dni}</strong></div>
+            <div><span>${t('teachers.altaOkPassword')}</span><strong>${password}</strong></div>
+            <div><span>${t('teachers.altaOkFace')}</span><strong><i class="bi bi-check-circle-fill"></i> ${t('teachers.altaOkFaceDone')}</strong></div>
+        </div>
+        <p class="small text-muted mb-3">${t('teachers.altaOkHint')}</p>
+        <div class="d-grid gap-2">
+            <button class="btn btn-primary" onclick="irAFichajeRapidoTrasAlta()"><i class="bi bi-camera-video"></i> ${t('teachers.altaOkTryCamera')}</button>
+            <button class="btn btn-secondary" data-bs-dismiss="modal">${t('teachers.altaOkStay')}</button>
+        </div>`;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('altaExitosaModal')).show();
+}
+
+function irAFichajeRapidoTrasAlta() {
+    const el = document.getElementById('altaExitosaModal');
+    const modal = bootstrap.Modal.getOrCreateInstance(el);
+    el.addEventListener('hidden.bs.modal', () => { logout(); enterQuickFichaje(); }, { once: true });
+    modal.hide();
 }
 
 function renderCaptureThumbs() {
@@ -2354,12 +2418,12 @@ function clearRegistrationForm() {
     document.getElementById('regProvincia').value = 'Chaco';
     document.getElementById('regPais').value = 'Argentina';
     document.getElementById('regPassword').value = CONFIG.DEFAULT_PASSWORD;
-    resetHorarioLaboralForm();
     renderMateriasDocenteChecklist(null);
     capturedPhotos = [];
     capturedDescriptors = [];
     renderCaptureThumbs();
     updateCaptureStatusUI();
+    document.querySelectorAll('#tabDocentes .is-invalid').forEach(el => el.classList.remove('is-invalid'));
     showToast('Formulario limpiado', 'info');
 }
 
@@ -2476,13 +2540,35 @@ async function saveTeacher() {
     const pais = normalizarCampoDomicilio(document.getElementById('regPais').value);
     const password = document.getElementById('regPassword').value.trim() || CONFIG.DEFAULT_PASSWORD;
 
-    if (!apellido) { showToast('El apellido es obligatorio', 'error'); return; }
-    if (!nombre) { showToast('El nombre es obligatorio', 'error'); return; }
-    if (!dni) { showToast('El DNI es obligatorio', 'error'); return; }
-    if (!telefono) { showToast('El teléfono personal es obligatorio', 'error'); return; }
-    if (!telefonoFamiliar) { showToast('El teléfono de contacto familiar es obligatorio', 'error'); return; }
-    if (!email) { showToast('El e-mail es obligatorio', 'error'); return; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('El e-mail no tiene un formato válido', 'error'); return; }
+    if (!apellido) { marcarCampoFaltante('regApellido', 'El apellido es obligatorio'); return; }
+    if (!nombre) { marcarCampoFaltante('regNombre', 'El nombre es obligatorio'); return; }
+    if (!dni) { marcarCampoFaltante('regDni', 'El DNI es obligatorio'); return; }
+    if (!telefono) { marcarCampoFaltante('regTelefono', 'El teléfono personal es obligatorio'); return; }
+    // Completo con característica: se usa para avisarle por WhatsApp
+    // cuando se acerca al cupo anual de faltas (ver botonesAvisoFaltas()).
+    if (!telefonoValidoParaWhatsApp(telefono)) { marcarCampoFaltante('regTelefono', t('teachers.phoneIncomplete')); return; }
+    if (!telefonoFamiliar) { marcarCampoFaltante('regTelefonoFamiliar', 'El teléfono de contacto familiar es obligatorio'); return; }
+    if (!email) { marcarCampoFaltante('regEmail', 'El e-mail es obligatorio'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { marcarCampoFaltante('regEmail', 'El e-mail no tiene un formato válido'); return; }
+    // Alta nueva: tiene que salir con al menos una materia, porque de
+    // ahí sale su horario (y contra ese horario se controla tarde/
+    // presente/falta). Solo si hay materias cargadas en el sistema.
+    if (!editingTeacherId && currentMaterias.length > 0 && materiasSeleccionadasDocenteIds.size === 0) {
+        marcarCampoFaltante('materiaAsignarCarrera', t('teachers.subjectRequired'));
+        return;
+    }
+    // Un docente no puede dar dos materias a la misma hora (el
+    // calendario ya las marca en rojo; acá se impide guardar).
+    const elegidas = currentMaterias.filter(m => materiasSeleccionadasDocenteIds.has(m.id));
+    for (let i = 0; i < elegidas.length; i++) {
+        for (let j = i + 1; j < elegidas.length; j++) {
+            const h1 = materiaHorarios(elegidas[i]).find(a => materiaHorarios(elegidas[j]).some(b => horariosSeSuperponen(a, b)));
+            if (h1) {
+                marcarCampoFaltante('materiaAsignarCarrera', `"${elegidas[i].nombre}" y "${elegidas[j].nombre}" se superponen el ${h1.dia}. Un docente no puede dar dos materias a la vez.`);
+                return;
+            }
+        }
+    }
     // Ya no se pide horario acá: el horario de cátedra se carga y edita
     // solo desde el CRUD de Materias (ver checklist "Materias asignadas"
     // más abajo en este mismo formulario). Un docente sin materias
@@ -2490,7 +2576,7 @@ async function saveTeacher() {
 
     const teachers = getTeachers();
     if (teachers.some(t => t.dni === dni && t.id !== editingTeacherId)) {
-        showToast('Ya existe un docente con el DNI ' + dni, 'error');
+        marcarCampoFaltante('regDni', 'Ya existe un docente con el DNI ' + dni);
         return;
     }
 
@@ -2555,8 +2641,8 @@ async function saveTeacher() {
         savedTeacher = newTeacher;
         saveTeachers(teachers);
         logAccion('ALTA_DOCENTE', `Registró al docente DNI ${dni}`);
-        showToast(`✅ Docente registrado. Usuario: ${dni}, Contraseña: ${password}`, 'success');
     }
+    const esAltaNueva = !editingTeacherId;
 
     await guardarMateriasAsignadasDocente(savedTeacher);
     // Fuerza a que la próxima vez que se abra el formulario (edición u
@@ -2571,12 +2657,16 @@ async function saveTeacher() {
     updateStats();
     loadReportTeachers();
     populateTeacherSelect();
+    if (esAltaNueva) mostrarAltaExitosa(savedTeacher, password);
 }
 
 // ============================================================
 // ADMIN - DASHBOARD
 // ============================================================
 async function loadAdminDashboard() {
+    // Si se entró al panel antes de que terminara la carga inicial, se
+    // esperan las materias acá: checkFaltas()/updateStats() las necesitan.
+    if (!materiasCargadas) { await loadCarreras(); await loadMaterias(); }
     await loadEventoConvocatoriasPorDocente();
     checkFaltas();
     checkFaltasEvento();
@@ -2592,6 +2682,10 @@ async function loadAdminDashboard() {
     populateTeacherSelect();
     loadLicenciasList();
     loadEventosEspeciales();
+    // "Materias asignadas" del formulario de alta: antes solo se pintaba
+    // al tocar Limpiar/Editar, así que al entrar al panel el selector de
+    // Carrera quedaba vacío.
+    renderMateriasDocenteChecklist(editingTeacherId || null);
 }
 
 function loadTeachersTable() {
@@ -2625,18 +2719,18 @@ function loadTeachersTable() {
                 <td data-label="Teléfono">${teacher.telefono || '-'}</td>
                 <td data-label="Domicilio">${domicilioDisplay}</td>
                 <td data-label="Localidad">${localidadDisplay}</td>
-                <td data-label="Materia">${teacher.materia}</td>
+                <td data-label="Materia"><span class="teacher-row-dni">DNI ${teacher.dni}</span> · ${teacher.materia || '-'}${teacher.faceDescriptor ? '' : ` · <span class="teacher-row-warn"><i class="bi bi-exclamation-circle"></i> ${t('teachers.noBiometrics')}</span>`}</td>
                 <td data-label="Horario"><small>${scheduleDisplay}</small></td>
                 <td data-label="Contraseña"><span class="badge bg-info">${tienePermiso(currentUser.rol, 'ver_claves') ? teacher.password : '••••••'}</span></td>
                 <td data-label="Biometría">${bioBadge}</td>
                 <td data-label="Estado hoy">${status}</td>
                 <td data-label="Acciones" onclick="event.stopPropagation()">
                     ${renderWhatsAppButton(teacher.telefono, teacher.nombre)}
-                    <button class="btn btn-sm btn-primary" title="Editar docente" onclick="editTeacher('${teacher.id}')"><i class="bi bi-pencil"></i></button>
-                    <button class="btn btn-sm btn-info" title="Calendario ${SCHEDULE_CALENDAR_YEAR}" onclick="showTeacherCalendar('${teacher.id}')"><i class="bi bi-calendar3"></i></button>
-                    <button class="btn btn-sm btn-warning" title="Fichaje manual" onclick="openManualAttendanceModal('${teacher.id}')"><i class="bi bi-fingerprint"></i></button>
-                    <button class="btn btn-sm btn-secondary" title="Restablecer contraseña" onclick="resetTeacherPassword('${teacher.id}')"><i class="bi bi-key"></i></button>
-                    ${tienePermiso(currentUser.rol, 'borrar') ? `<button class="btn btn-sm btn-danger" title="Eliminar" onclick="deleteTeacher('${teacher.id}')"><i class="bi bi-trash"></i></button>` : ''}
+                    <button class="btn btn-sm teacher-action" title="Editar docente" aria-label="Editar docente" onclick="editTeacher('${teacher.id}')"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-sm teacher-action" title="Calendario ${SCHEDULE_CALENDAR_YEAR}" aria-label="Calendario" onclick="showTeacherCalendar('${teacher.id}')"><i class="bi bi-calendar3"></i></button>
+                    <button class="btn btn-sm teacher-action" title="Fichaje manual" aria-label="Fichaje manual" onclick="openManualAttendanceModal('${teacher.id}')"><i class="bi bi-fingerprint"></i></button>
+                    <button class="btn btn-sm teacher-action" title="Restablecer contraseña" aria-label="Restablecer contraseña" onclick="resetTeacherPassword('${teacher.id}')"><i class="bi bi-key"></i></button>
+                    ${tienePermiso(currentUser.rol, 'borrar') ? `<button class="btn btn-sm teacher-action teacher-action-danger" title="Eliminar" aria-label="Eliminar" onclick="deleteTeacher('${teacher.id}')"><i class="bi bi-trash"></i></button>` : ''}
                 </td>
             </tr>
         `;
@@ -2646,14 +2740,49 @@ function loadTeachersTable() {
 
 // Filtra en vivo las filas de la tabla de docentes (no vuelve a
 // pedir datos, solo oculta/muestra filas ya renderizadas) según lo
-// que el administrador va tipeando en el buscador.
+// que el administrador va tipeando en el buscador. Sin texto no se
+// lista a nadie (la planta puede ser larga): solo un aviso con el
+// total y el link "Ver todos", que muestra la lista completa hasta
+// que se vuelva a escribir algo. Ignora tildes y mayúsculas.
+let teachersShowAll = false;
+const normalizarBusqueda = (txt) => String(txt || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
 function filterTeachersTable() {
     const input = document.getElementById('teacherSearchInput');
     if (!input) return;
-    const q = input.value.trim().toLowerCase();
-    document.querySelectorAll('#teachersTableBody tr[data-search]').forEach(tr => {
-        tr.style.display = (!q || tr.dataset.search.includes(q)) ? '' : 'none';
+    const q = normalizarBusqueda(input.value.trim());
+    if (q) teachersShowAll = false;
+    const rows = document.querySelectorAll('#teachersTableBody tr[data-search]');
+    let visibles = 0;
+    rows.forEach(tr => {
+        const mostrar = q ? normalizarBusqueda(tr.dataset.search).includes(q) : teachersShowAll;
+        tr.style.display = mostrar ? '' : 'none';
+        if (mostrar) visibles++;
     });
+
+    // Sin filas visibles no se deja la caja de la tabla vacía a la vista.
+    const tabla = document.querySelector('#teachersAccordionBody .admin-table');
+    if (tabla) tabla.classList.toggle('hidden', visibles === 0);
+
+    const hint = document.getElementById('teacherSearchHint');
+    if (!hint) return;
+    const total = rows.length;
+    if (total === 0) { hint.innerHTML = ''; return; }
+    if (q) {
+        hint.innerHTML = visibles === 0
+            ? `<i class="bi bi-emoji-frown"></i> ${t('teachers.searchNoResults')}`
+            : `${t('teachers.searchResults', { n: visibles })}`;
+    } else if (teachersShowAll) {
+        hint.innerHTML = `${t('teachers.searchShowingAll', { n: total })} · <button type="button" class="btn btn-link btn-sm p-0 align-baseline" onclick="toggleTeachersShowAll(false)">${t('teachers.searchHideAll')}</button>`;
+    } else {
+        hint.innerHTML = `<i class="bi bi-search"></i> ${t('teachers.searchPrompt', { n: total })} · <button type="button" class="btn btn-link btn-sm p-0 align-baseline" onclick="toggleTeachersShowAll(true)">${t('teachers.searchShowAll')}</button>`;
+    }
+}
+if (typeof onLocaleChangeRerender === 'function') onLocaleChangeRerender(filterTeachersTable);
+
+function toggleTeachersShowAll(mostrar) {
+    teachersShowAll = mostrar;
+    filterTeachersTable();
 }
 
 // Todos los contadores de "Hoy" se calculan sobre el set de docentes
@@ -2674,10 +2803,74 @@ function updateStats() {
     renderDocentesEsperadosHoy();
 }
 
+// ===== Envío múltiple a Rectoría =====
+// Secretaría puede tildar varias alertas y mandarlas juntas, en vez de
+// tocar "Enviar a Rectoría" una por una. Solo son seleccionables las
+// que tendrían ese botón (no resueltas y todavía no enviadas).
+let alertasSeleccionadas = new Set();
+
+function alertaSeleccionablePorMi(alert) {
+    return !!currentUser && currentUser.rol === ROLES.SECRETARIA && !alert.justified &&
+        alert.justification !== 'pendiente_aprobacion_rectoria';
+}
+
+function renderBarraAlertasMasivo() {
+    const bar = document.getElementById('alertsBulkBar');
+    if (!bar) return;
+    const seleccionables = getAlerts().filter(alertaSeleccionablePorMi);
+    const ids = new Set(seleccionables.map(a => a.id));
+    alertasSeleccionadas = new Set([...alertasSeleccionadas].filter(id => ids.has(id)));
+    if (seleccionables.length === 0) { bar.classList.add('hidden'); bar.innerHTML = ''; return; }
+    const n = alertasSeleccionadas.size;
+    const todas = n === seleccionables.length;
+    bar.classList.remove('hidden');
+    bar.innerHTML = `
+        <label class="alerts-bulk-all">
+            <input type="checkbox" class="form-check-input" ${todas ? 'checked' : ''} onchange="seleccionarTodasLasAlertas(this.checked)">
+            <span>${t('alerts.selectAll', { n: seleccionables.length })}</span>
+        </label>
+        <button type="button" class="btn btn-primary btn-sm" ${n === 0 ? 'disabled' : ''} onclick="enviarAlertasSeleccionadasARectoria()">
+            <i class="bi bi-send"></i> ${t('alerts.sendSelected', { n })}
+        </button>`;
+}
+
+function toggleSeleccionAlerta(id, checked) {
+    if (checked) alertasSeleccionadas.add(id);
+    else alertasSeleccionadas.delete(id);
+    document.querySelector(`.alert-card[data-alert-id="${id}"]`)?.classList.toggle('is-selected', checked);
+    renderBarraAlertasMasivo();
+}
+
+function seleccionarTodasLasAlertas(checked) {
+    alertasSeleccionadas = checked ? new Set(getAlerts().filter(alertaSeleccionablePorMi).map(a => a.id)) : new Set();
+    loadAlerts();
+}
+
+// Mismo efecto que justifyAlert(id, 'pendiente_aprobacion_rectoria')
+// alerta por alerta, pero guardando una sola vez.
+function enviarAlertasSeleccionadasARectoria() {
+    if (!currentUser || currentUser.rol !== ROLES.SECRETARIA) {
+        showToast(mensajeSinPermiso('justificar_alerta'), 'error');
+        logAccion('PERMISO_DENEGADO', 'Intentó enviar alertas a Rectoría sin permiso');
+        return;
+    }
+    const alerts = getAlerts();
+    const aEnviar = alerts.filter(a => alertasSeleccionadas.has(a.id) && alertaSeleccionablePorMi(a));
+    if (aEnviar.length === 0) return;
+    if (!confirm(t('alerts.confirmSendSelected', { n: aEnviar.length }))) return;
+    aEnviar.forEach(a => { a.justified = false; a.justification = 'pendiente_aprobacion_rectoria'; });
+    saveAlerts(alerts);
+    logAccion('ENVIAR_ALERTAS_RECTORIA', `Envió ${aEnviar.length} alerta(s) a Rectoría: ${aEnviar.map(a => `${a.type} - ${a.teacherName}`).join('; ')}`);
+    alertasSeleccionadas = new Set();
+    loadAlerts();
+    showToast(t('alerts.sentSelected', { n: aEnviar.length }), 'info');
+}
+
 function loadAlerts() {
     // Más reciente arriba, más antigua abajo.
     const alerts = getAlerts().slice().sort((a, b) => new Date(b.date) - new Date(a.date));
     const container = document.getElementById('alertsList');
+    renderBarraAlertasMasivo();
     if (alerts.length === 0) { container.innerHTML = `<p class="text-muted">${t('alerts.none')}</p>`; return; }
     const puedeJustificar = tienePermiso(currentUser.rol, 'justificar_alerta');
     const puedeBorrarAlerta = tienePermiso(currentUser.rol, 'borrar');
@@ -2731,10 +2924,16 @@ function loadAlerts() {
             : alert.justification === 'pendiente_aprobacion_rectoria' ? 'Enviada a Rectoría, pendiente de resolución'
             : alert.justification;
 
+        const seleccionable = alertaSeleccionablePorMi(alert);
+        const seleccionada = seleccionable && alertasSeleccionadas.has(alert.id);
+        const checkbox = seleccionable
+            ? `<input type="checkbox" class="form-check-input alert-select" ${seleccionada ? 'checked' : ''} onchange="toggleSeleccionAlerta('${alert.id}', this.checked)" aria-label="Seleccionar alerta">`
+            : '';
         return `
-            <div class="alert-card ${isJustified && !isDenied ? 'justified' : ''}">
+            <div class="alert-card ${isJustified && !isDenied ? 'justified' : ''} ${seleccionada ? 'is-selected' : ''}" data-alert-id="${alert.id}">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
+                        ${checkbox}
                         <strong>${alert.teacherName}</strong>
                         <span class="badge ${badgeClass}">${badgeText}</span>
                         <span class="text-muted ms-2">${alert.type}</span>
@@ -2754,7 +2953,10 @@ function loadAlerts() {
 
 function updateAlertCount() {
     const alerts = getAlerts();
-    document.getElementById('alertCount').textContent = alerts.filter(a => !a.justified).length;
+    const pendientes = alerts.filter(a => !a.justified).length;
+    const countEl = document.getElementById('alertCount');
+    countEl.textContent = pendientes > 99 ? '99+' : pendientes;
+    countEl.classList.toggle('hidden', pendientes === 0);
 }
 
 // reason === 'pendiente_aprobacion_rectoria' es el único valor que
@@ -2809,6 +3011,9 @@ function loadCriteria() {
     const criteria = getCriteria();
     document.getElementById('minAttendance').value = criteria.minAttendance;
     document.getElementById('minHours').value = criteria.minHours;
+    document.getElementById('lateLimitInput').value = criteria.lateLimit;
+    document.getElementById('faltasPermitidasInput').value = criteria.faltasPermitidasAnio;
+    document.getElementById('avisoFaltasInput').value = criteria.avisoFaltasDesde;
     loadCriteriosPuntualidad();
 }
 
@@ -2820,16 +3025,24 @@ function loadCriteria() {
 // Parte de getCriteria() (spread primero): así este botón nunca pisa
 // los criterios de puntualidad guardados por guardarCriteriosPuntualidad()
 // (y viceversa) - son 2 secciones/botones separados sobre el mismo
-// objeto criteria en Supabase. lateLimit ya no tiene campo propio acá
-// (se sacó de "Criterios de Asistencia" a pedido) - el spread lo deja
-// tal cual estaba guardado, sin tocarlo; lo sigue usando la lógica de
-// tardanza existente (checkFaltas, registerAttendance, etc.).
+// objeto criteria en Supabase. lateLimit volvió a tener campo propio
+// ("Tolerancia de fichaje", pedido para el fichaje automático): antes
+// había quedado guardado sin forma de editarlo desde la pantalla.
 async function saveCriteria() {
     const criteria = {
         ...getCriteria(),
         minAttendance: parseInt(document.getElementById('minAttendance').value) || 80,
-        minHours: parseInt(document.getElementById('minHours').value) || 4
+        minHours: parseInt(document.getElementById('minHours').value) || 4,
+        // Tolerancia de fichaje (tardanza): la usan el fichaje automático
+        // (toleranciaFichajeMin()), checkFaltas() y calcularEstadoFichajeAutomatico().
+        lateLimit: Math.max(0, parseInt(document.getElementById('lateLimitInput').value, 10) || CONFIG.LATE_LIMIT),
+        faltasPermitidasAnio: Math.max(0, parseInt(document.getElementById('faltasPermitidasInput').value, 10) || FALTAS_PERMITIDAS_DEFAULT),
+        avisoFaltasDesde: Math.max(1, parseInt(document.getElementById('avisoFaltasInput').value, 10) || AVISO_FALTAS_DEFAULT),
     };
+    if (criteria.avisoFaltasDesde > criteria.faltasPermitidasAnio) {
+        marcarCampoFaltante('avisoFaltasInput', t('config.warnAfterLimit'));
+        return;
+    }
     const resultado = await persistToSupabaseEsperando('criteria', criteria);
     toastSegunConfirmacion(resultado, 'Criterios guardados');
 }
@@ -3202,8 +3415,6 @@ function loadTeacherDashboard() {
     status.className = 'face-recognition-status waiting';
     status.innerHTML = '<i class="bi bi-info-circle"></i> Esperando identificación...';
     document.getElementById('recognitionProgress').style.display = 'none';
-    updateAttendanceButtonsState();
-    startExitWindowPoll();
     renderFichajeContextBadges();
     renderMateriaFichajeInfo();
     // Si este DNI sigue bloqueado por prueba de vida (ver liveness.js),
@@ -3375,51 +3586,6 @@ function hasEntryToday(teacherId, categoria, eventoId) {
         (categoria !== 'evento' || a.eventoId === eventoId) && !a.anulado);
 }
 
-// Habilita/deshabilita los botones de Entrada/Salida/Retirada según
-// si hay una identificación facial vigente y si ya registró la
-// entrada de hoy, y además decide cuál de los dos botones de salida
-// corresponde mostrar: "Salida" normal solo dentro de la ventana de
-// horario de salida (con tolerancia), "Retirada antes de tiempo" en
-// cualquier otro momento. Se requiere identificarse de nuevo antes
-// de CADA registro (por seguridad, para que nadie marque por otra
-// persona), así que los botones quedan visualmente apagados en vez
-// de fallar en silencio con solo un toast.
-function updateAttendanceButtonsState() {
-    const yaEntroHoy = currentUser && currentUser.role === 'teacher' ? hasEntryToday(currentUser.id) : false;
-
-    const btnEntrada = document.getElementById('btnEntrada');
-    if (btnEntrada) btnEntrada.disabled = !isFaceVerified || yaEntroHoy;
-
-    const btnSalida = document.getElementById('btnSalida');
-    const btnRetirada = document.getElementById('btnRetirada');
-    const exitInfo = currentUser && currentUser.role === 'teacher' ? getExitWindowInfo(currentUser, materiaFichajeSeleccionada) : { isExitTime: false };
-    if (btnSalida) {
-        btnSalida.classList.toggle('hidden', !exitInfo.isExitTime);
-        btnSalida.disabled = !isFaceVerified || !yaEntroHoy;
-    }
-    if (btnRetirada) {
-        btnRetirada.classList.toggle('hidden', exitInfo.isExitTime);
-        btnRetirada.disabled = !isFaceVerified || !yaEntroHoy;
-    }
-
-    const hint = document.getElementById('attendanceButtonsHint');
-    if (hint) hint.classList.toggle('hidden', isFaceVerified);
-}
-
-// Reevalúa cuál botón de salida corresponde cada cierto tiempo,
-// aunque el docente no haya vuelto a identificarse, para que el
-// cambio de "Retirada antes de tiempo" a "Salida" (o viceversa) se
-// refleje solo al cruzar el horario, sin depender de una acción del
-// usuario.
-function startExitWindowPoll() {
-    stopExitWindowPoll();
-    exitWindowPollInterval = setInterval(updateAttendanceButtonsState, 30000);
-}
-
-function stopExitWindowPoll() {
-    if (exitWindowPollInterval) { clearInterval(exitWindowPollInterval); exitWindowPollInterval = null; }
-}
-
 function startTeacherCamera() {
     const video = document.getElementById('teacherVideo');
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -3454,6 +3620,7 @@ async function runLiveOverlay() {
             ctx.lineWidth = 3;
             ctx.strokeRect(result.box.x, result.box.y, result.box.width, result.box.height);
         }
+        quickFichajeOnFrame(!!result);
     } catch (e) { /* silencioso, se reintenta en el próximo intervalo */ }
 }
 
@@ -3527,7 +3694,7 @@ function renderMiUltimoFichaje() {
 }
 
 // Recalcula "present"/"late" para el fichaje de reemplazo exactamente
-// como registerAttendance() lo hace para un tipo 'entry' (mismo
+// como registrarEntradaJornada() lo hace para un tipo 'entry' (mismo
 // margen de tolerancia, misma alerta de Tardanza) - una salida/
 // retirada nunca queda "late" acá tampoco, igual que en el fichaje
 // normal.
@@ -3598,7 +3765,6 @@ async function anularYRegenerarPropioFichaje(id) {
     logAccion('CORRECCION_PROPIA_FICHAJE', `${currentUser.apellido} ${currentUser.nombre} anuló su fichaje de ${TIPO_FICHAJE_LABEL[record.type] || record.type} (${record.time}) y el sistema generó uno nuevo automático (${time})`, geo.coords || null);
     showToast('✅ Fichaje anterior anulado. Se generó tu nuevo fichaje automático.', 'success');
     renderMiUltimoFichaje();
-    updateAttendanceButtonsState();
 }
 
 async function detectFace() {
@@ -3629,6 +3795,7 @@ async function detectFace() {
     status.innerHTML = '<i class="bi bi-geo-alt"></i> Verificando tu ubicación...';
     const geo = await verifyGeofence();
     renderFichajeContextBadges(); // refleja al toque el punto/kiosco/modo prueba recién traídos de Supabase
+    ultimoGeoFichaje = geo.ok ? { geo, at: Date.now() } : null;
     if (!geo.ok) {
         showGeofenceBlockModal(geo);
         status.className = 'face-recognition-status error';
@@ -3716,13 +3883,277 @@ async function detectFace() {
             status.innerHTML = `<i class="bi bi-x-circle"></i> ❌ El rostro no coincide con el registrado (${confidence}%)<br><small>Intentá de nuevo con mejor iluminación</small>`;
             showToast('❌ Reconocimiento fallido', 'error');
         }
-        updateAttendanceButtonsState();
     } catch (error) {
         console.error(error);
         progress.style.display = 'none';
         status.className = 'face-recognition-status error';
         status.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Error en el reconocimiento';
         showToast('Error en el reconocimiento', 'error');
+    }
+}
+
+// ============================================================
+// FICHAJE RÁPIDO CON CÁMARA (sin usuario/contraseña)
+// Desde el login, "Fichar con cámara" abre la misma pantalla de
+// cámara del docente pero SIN sesión: el docente solo se para frente
+// a la cámara, el sistema lo busca entre TODOS los docentes (1:N) y,
+// si lo encuentra, sigue exactamente el pipeline de siempre -
+// detectFace(): geocerca + prueba de vida + comparación 1:1 contra
+// ese docente + modal de Ingreso/Salida. La búsqueda 1:N solo elige
+// al candidato; la validación real sigue siendo la de detectFace(),
+// así que no se relaja ningún control.
+// La materia se elige sola según el horario del momento (ver
+// elegirMateriaPorHorario()). Al terminar (o cancelar), la pantalla
+// queda lista para el próximo docente, sin mostrar datos personales
+// (.quick-mode en style.css oculta "Mis Datos" y los botones manuales).
+// ============================================================
+let quickFichajeActivo = false;
+let quickFichajeBusy = false;
+let quickFaceStreak = 0;
+let quickCooldownUntil = 0;
+// Margen mínimo de distancia entre el mejor candidato y el segundo:
+// si dos docentes se parecen demasiado a la cara en vivo, no se
+// adivina - se pide ingresar con usuario y contraseña.
+const QUICK_AMBIGUITY_MARGIN = 0.06;
+// Frames seguidos con cara detectada (cada 500ms, ver startLiveOverlay())
+// antes de arrancar solo, y pausa después de cada ciclo para no volver
+// a disparar con el mismo docente que todavía no se alejó.
+const QUICK_AUTOSTART_FRAMES = 3;
+const QUICK_COOLDOWN_MS = 6000;
+
+function enterQuickFichaje() {
+    if (!dataLoaded) { showToast(t('fichaje.quickDataLoading'), 'warning'); return; }
+    quickFichajeActivo = true;
+    quickFichajeBusy = false;
+    quickFaceStreak = 0;
+    quickCooldownUntil = 0;
+    currentUser = null;
+    recognizedTeacher = null;
+    isFaceVerified = false;
+    materiaFichajeSeleccionada = null;
+    lastLivenessResult = null;
+
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('dashboardScreen').classList.remove('hidden');
+    document.getElementById('statsScreen').classList.add('hidden');
+    document.getElementById('adminDashboard').classList.add('hidden');
+    const td = document.getElementById('teacherDashboard');
+    td.classList.remove('hidden');
+    td.classList.add('quick-mode');
+    renderQuickFichajeHeader();
+    setQuickAltaVisible(false);
+    renderEstadoModoPrueba();
+    document.getElementById('alertsBellBtn')?.classList.add('hidden');
+    document.getElementById('materiaFichajeInfo').innerHTML = '';
+    document.getElementById('miUltimoFichajeBox').innerHTML = '';
+    setQuickWaitingStatus();
+    renderFichajeContextBadges();
+    startTeacherCamera();
+    logAccion('FICHAJE_RAPIDO_INICIO', 'Se abrió el fichaje rápido con cámara', null);
+}
+
+function setQuickWaitingStatus() {
+    const status = document.getElementById('faceRecognitionStatus');
+    if (!status) return;
+    status.className = 'face-recognition-status waiting';
+    status.innerHTML = `<i class="bi bi-person-bounding-box"></i> ${t('fichaje.quickWaiting')}`;
+}
+
+// Título/badge del header en modo rápido. No usan data-i18n (el header
+// es compartido con el panel admin/docente), así que se vuelven a
+// pintar al cambiar de idioma - ver onLocaleChangeRerender() abajo.
+function renderQuickFichajeHeader() {
+    if (!quickFichajeActivo) return;
+    renderUserMenu();
+    const status = document.getElementById('faceRecognitionStatus');
+    if (status && status.classList.contains('waiting') && !currentUser) setQuickWaitingStatus();
+}
+if (typeof onLocaleChangeRerender === 'function') onLocaleChangeRerender(renderQuickFichajeHeader);
+
+// ===== Dar de alta desde el fichaje rápido =====
+// Si la cámara no reconoce a nadie, se ofrece "Dar de alta". Solo un
+// usuario de administración con permiso agregar_docente (Secretaría,
+// Rector o Programador) puede continuar: se sale del modo rápido, se
+// inicia sesión como ese admin y se abre directo el formulario
+// "Registrar Nuevo Docente" (pestaña Docentes) con su cámara.
+function setQuickAltaVisible(visible) {
+    const wrap = document.getElementById('quickAltaWrap');
+    if (wrap) wrap.classList.toggle('hidden', !visible);
+}
+
+function openQuickAltaModal() {
+    document.getElementById('quickAltaUser').value = '';
+    document.getElementById('quickAltaPass').value = '';
+    document.getElementById('quickAltaError').classList.add('hidden');
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('quickAltaModal'));
+    modal.show();
+    setTimeout(() => document.getElementById('quickAltaUser').focus(), 300);
+}
+
+async function submitQuickAlta() {
+    const errorEl = document.getElementById('quickAltaError');
+    const btn = document.getElementById('quickAltaSubmitBtn');
+    const rawUser = document.getElementById('quickAltaUser').value.trim();
+    const pass = document.getElementById('quickAltaPass').value.trim();
+    if (!window.crypto || !window.crypto.subtle) {
+        showToast('Este navegador/conexión no permite validar credenciales de forma segura (hace falta HTTPS)', 'error');
+        return;
+    }
+    btn.disabled = true;
+    let admin = null;
+    try { admin = await autenticarAdmin(rawUser, pass); } finally { btn.disabled = false; }
+
+    if (!admin || !tienePermiso(admin.rol, 'agregar_docente')) {
+        errorEl.textContent = t('fichaje.quickAltaError');
+        errorEl.classList.remove('hidden');
+        logAccion('LOGIN_FALLIDO', `Intento fallido de "Dar de alta" desde fichaje rápido - usuario: ${rawUser.toUpperCase()}`, null);
+        return;
+    }
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('quickAltaModal')).hide();
+    quickFichajeActivo = false;
+    quickFichajeBusy = false;
+    stopLiveOverlay();
+    document.getElementById('teacherDashboard').classList.remove('quick-mode');
+    currentUser = admin;
+    logAccion('LOGIN', `Login ${admin.rol} (Dar de alta desde fichaje rápido)`);
+    showDashboard();
+    // Directo al formulario de alta: pestaña Docentes (showDashboard()
+    // ya arranca la cámara de registro vía loadAdminDashboard()).
+    const tabBtn = document.querySelector('[data-bs-target="#tabDocentes"]');
+    if (tabBtn) bootstrap.Tab.getOrCreateInstance(tabBtn).show();
+    setTimeout(() => {
+        const title = document.getElementById('regFormTitle');
+        if (title) title.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 250);
+    showToast(t('fichaje.quickAltaReady'), 'info');
+}
+
+// Limpia al docente del ciclo que terminó y deja la pantalla lista
+// para el siguiente. Se llama al cerrar el modal (finalizar/cancelar/
+// timeout) o cuando el pipeline cortó antes de abrirlo.
+function endQuickFichajeCycle() {
+    if (!quickFichajeActivo) return;
+    currentUser = null;
+    recognizedTeacher = null;
+    isFaceVerified = false;
+    materiaFichajeSeleccionada = null;
+    quickFichajeBusy = false;
+    quickFaceStreak = 0;
+    quickCooldownUntil = Date.now() + QUICK_COOLDOWN_MS;
+    setTimeout(() => {
+        if (quickFichajeActivo && !quickFichajeBusy && !faceModalPending) setQuickWaitingStatus();
+    }, QUICK_COOLDOWN_MS);
+}
+
+// Elige con qué materia ficha el docente AHORA según su horario de
+// hoy: la que está en curso, o si no hay ninguna, la más cercana en
+// el tiempo (la próxima a empezar o la que acaba de terminar). Sin
+// materias asignadas devuelve null y se usa su horario_laboral, igual
+// que en el fichaje con login.
+function elegirMateriaPorHorario(teacher, now) {
+    const materias = getMateriasDeDocente(teacher.id);
+    if (materias.length === 0) return null;
+    if (materias.length === 1) return materias[0].id;
+    now = now || new Date();
+    const hoy = getDiaSemanaArgentina(now);
+    const ahora = getMinutosDesdeMedianocheArgentina(now);
+    const aMin = (hhmm) => { const [h, m] = String(hhmm).split(':').map(Number); return h * 60 + m; };
+    let mejor = null;
+    materias.forEach(m => materiaHorarios(m).filter(h => h.dia === hoy).forEach(h => {
+        const ini = aMin(h.inicio), fin = aMin(h.fin);
+        const lejania = ahora < ini ? ini - ahora : ahora > fin ? ahora - fin : 0;
+        if (!mejor || lejania < mejor.lejania) mejor = { id: m.id, lejania };
+    }));
+    return mejor ? mejor.id : materias[0].id;
+}
+
+// Búsqueda 1:N: compara la cara en vivo contra todos los docentes con
+// datos biométricos. Devuelve { teacher, confidence } si hay un único
+// candidato claro, o { error } si no reconoce a nadie o es ambiguo.
+async function identificarDocenteEntreTodos(video) {
+    const samples = [];
+    for (let i = 0; i < CONFIG.IDENTIFY_SAMPLES; i++) {
+        const d = await getDescriptorFromVideoElement(video);
+        if (d) samples.push(d);
+        if (i < CONFIG.IDENTIFY_SAMPLES - 1) await sleep(CONFIG.IDENTIFY_SAMPLE_INTERVAL_MS);
+    }
+    if (samples.length === 0) return { error: 'noface' };
+    const live = averageDescriptors(samples);
+    const ranking = getTeachers()
+        .filter(tc => Array.isArray(tc.faceDescriptor) && tc.faceDescriptor.length > 0)
+        .map(tc => ({ teacher: tc, distance: euclideanDistance(live, tc.faceDescriptor) }))
+        .sort((a, b) => a.distance - b.distance);
+    if (ranking.length === 0) return { error: 'nomatch' };
+    const best = ranking[0];
+    const confidence = computeFaceConfidence(best.distance);
+    console.log(`Fichaje rápido: mejor ${best.teacher.dni} dist ${best.distance.toFixed(3)} (${confidence}%)` +
+        (ranking[1] ? `, segundo dist ${ranking[1].distance.toFixed(3)}` : ''));
+    if (best.distance > CONFIG.FACE_MATCH_THRESHOLD || confidence < FACE_CONFIDENCE_MIN_MATCH) return { error: 'nomatch' };
+    if (ranking[1] && ranking[1].distance - best.distance < QUICK_AMBIGUITY_MARGIN) return { error: 'ambiguous' };
+    return { teacher: best.teacher, confidence };
+}
+
+async function detectFaceQuick() {
+    if (!quickFichajeActivo || quickFichajeBusy || faceModalPending) return;
+    const video = document.getElementById('teacherVideo');
+    const status = document.getElementById('faceRecognitionStatus');
+    if (!video.srcObject) { showToast('La cámara no está disponible', 'error'); return; }
+    if (!modelsLoaded) { showToast('El módulo de reconocimiento facial todavía está cargando, esperá unos segundos', 'warning'); return; }
+
+    quickFichajeBusy = true;
+    status.className = 'face-recognition-status processing';
+    status.innerHTML = `<i class="bi bi-hourglass-split"></i> ${t('fichaje.quickSearching')}`;
+    let result;
+    try {
+        result = await identificarDocenteEntreTodos(video);
+    } catch (e) {
+        console.error(e);
+        result = { error: 'nomatch' };
+    }
+
+    if (!result.teacher) {
+        const msg = result.error === 'noface' ? t('fichaje.quickNoFace')
+            : result.error === 'ambiguous' ? t('fichaje.quickAmbiguous')
+            : t('fichaje.quickNotRecognized');
+        status.className = 'face-recognition-status error';
+        status.innerHTML = `<i class="bi bi-x-circle"></i> ${msg}`;
+        // Solo "no coincide con nadie" ofrece dar de alta: si fue
+        // ambiguo, la persona SÍ está cargada (se parece a 2+ docentes).
+        if (result.error === 'nomatch') setQuickAltaVisible(true);
+        else if (result.error === 'ambiguous') setQuickAltaVisible(false);
+        if (result.error !== 'noface') logAccion('FICHAJE_RAPIDO_NO_RECONOCIDO', `Fichaje rápido sin coincidencia (${result.error})`, null);
+        endQuickFichajeCycle();
+        return;
+    }
+
+    // Candidato encontrado: a partir de acá es el fichaje de siempre,
+    // como si ese docente hubiera iniciado sesión.
+    const teacher = result.teacher;
+    setQuickAltaVisible(false);
+    currentUser = { role: 'teacher', rol: ROLES.DOCENTE, ...teacher };
+    materiaFichajeSeleccionada = elegirMateriaPorHorario(teacher);
+    logAccion('FICHAJE_RAPIDO_CANDIDATO', `Fichaje rápido: reconocido ${teacher.apellido} ${teacher.nombre} (DNI ${teacher.dni}, ${result.confidence}%) - sigue geocerca + prueba de vida`, null);
+    await detectFace();
+
+    // Si detectFace() no abrió el modal (fuera de geocerca, prueba de
+    // vida fallida, no coincidió 1:1...), se libera para el siguiente
+    // intento dejando visible el motivo que ya mostró detectFace().
+    if (!faceModalPending && !isFaceVerified) endQuickFichajeCycle();
+    else quickFichajeBusy = false;
+}
+
+// Arranque automático: si hay una cara frente a la cámara durante
+// QUICK_AUTOSTART_FRAMES chequeos seguidos, se identifica sola (el
+// botón "Identificarme" sigue estando por si se prefiere tocarlo).
+function quickFichajeOnFrame(hayCara) {
+    const altaAbierta = document.getElementById('quickAltaModal')?.classList.contains('show');
+    if (!quickFichajeActivo || quickFichajeBusy || faceModalPending || currentUser || altaAbierta) { quickFaceStreak = 0; return; }
+    if (Date.now() < quickCooldownUntil) { quickFaceStreak = 0; return; }
+    quickFaceStreak = hayCara ? quickFaceStreak + 1 : 0;
+    if (quickFaceStreak >= QUICK_AUTOSTART_FRAMES) {
+        quickFaceStreak = 0;
+        detectFaceQuick();
     }
 }
 
@@ -3749,19 +4180,271 @@ function freezeTeacherVideo(freeze) {
         stopLiveOverlay();
         video.pause();
     } else {
-        if (currentUser && currentUser.role === 'teacher') startLiveOverlay();
+        if ((currentUser && currentUser.role === 'teacher') || quickFichajeActivo) startLiveOverlay();
         video.play().catch(() => {});
     }
 }
 
 function setFaceNavLocksDisabled(disabled) {
     const header = document.getElementById('dashboardLogoutBtn');
+    const menu = document.getElementById('userMenuBtn');
     const camera = document.getElementById('teacherLogoutBtn');
     if (header) header.disabled = disabled;
+    if (menu) menu.disabled = disabled;
     if (camera) camera.disabled = disabled;
 }
 
+// ============================================================
+// FICHAJE AUTOMÁTICO SEGÚN EL HORARIO DEL DOCENTE
+// Al identificarse, el sistema decide solo qué corresponde según sus
+// días y horarios registrados (materias), con una tolerancia (la de
+// "Tolerancia de fichaje" de Configuración, 15 min por defecto):
+//  - Entrada (lo ÚNICO obligatorio): desde TOL min antes del inicio.
+//    Hasta inicio+TOL = Presente; después = Tardanza + alerta. La
+//    entrada cubre todo el horario: no hace falta registrar salida.
+//  - Retiro anticipado (opcional): con la entrada hecha y la clase
+//    todavía en curso, pregunta y, si confirma, la clase queda como
+//    MEDIA FALTA (+ alerta de Salida Anticipada); las que todavía no
+//    empezaron quedan como falta.
+//  - Fuera de horario / día sin clases: lo dice y NO registra nada.
+// Las clases seguidas (hueco <= TOL) forman una "jornada": una sola
+// identificación deja la entrada de todas las que todavía no
+// terminaron (cada una con su materiaId, como las lee
+// getScheduleEntriesForDate()). Si se retira antes, las que todavía
+// no empezaron se anulan para no quedar como presentes.
+// ============================================================
+let faceDecision = null;
+let ultimoGeoFichaje = null;
+
+function toleranciaFichajeMin() {
+    return Number(getCriteria().lateLimit) || 15;
+}
+
+const minutosDeHora = (hhmm) => { const [h, m] = String(hhmm || '0:0').split(':').map(Number); return h * 60 + (m || 0); };
+const horaDeMinutos = (min) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+
+function jornadasDeHoy(teacher, now) {
+    const tol = toleranciaFichajeMin();
+    const dia = getDiaSemanaArgentina(now);
+    const fecha = getFechaHoyArgentina(now);
+    const registros = getAttendance().filter(a => a.teacherId === teacher.id && getFechaRealFichaje(a) === fecha &&
+        (a.categoria || 'regular') === 'regular' && !a.anulado);
+    const mismaMateria = (a, b) => (a.materiaId || null) === (b.materiaId || null);
+    const bloques = getHorarioEfectivo(teacher)
+        .filter(h => h.dia === dia && h.inicio && h.fin)
+        .map(h => ({ ...h, ini: minutosDeHora(h.inicio), end: minutosDeHora(h.fin) }))
+        .sort((a, b) => a.ini - b.ini);
+    bloques.forEach(b => {
+        b.entrada = registros.find(a => a.type === 'entry' && mismaMateria(a, b) && fichajeValidoParaClase(a.time, b.inicio)) || null;
+        b.salida = b.entrada ? (registros.find(a => (a.type === 'exit' || a.type === 'early_exit') && mismaMateria(a, b) && (a.time || '') >= (b.entrada.time || '')) || null) : null;
+    });
+    const jornadas = [];
+    bloques.forEach(b => {
+        const ultima = jornadas[jornadas.length - 1];
+        if (ultima && b.ini <= ultima.end + tol) { ultima.bloques.push(b); ultima.end = Math.max(ultima.end, b.end); }
+        else jornadas.push({ bloques: [b], ini: b.ini, end: b.end });
+    });
+    return jornadas;
+}
+
+function decidirFichaje(teacher, now) {
+    now = now || new Date();
+    const tol = toleranciaFichajeMin();
+    const ahora = getMinutosDesdeMedianocheArgentina(now);
+    const jornadas = jornadasDeHoy(teacher, now);
+    if (jornadas.length === 0) return { tipo: 'sin_clases_hoy', dia: getDiaSemanaArgentina(now), jornadas, ahora, tol };
+    const enVentana = jornadas.find(j => ahora >= j.ini - tol && ahora <= j.end);
+    if (enVentana) {
+        const conEntrada = enVentana.bloques.filter(b => b.entrada);
+        if (conEntrada.length === 0) {
+            const bloque = enVentana.bloques.find(b => ahora <= b.end);
+            return { tipo: 'entrada', jornada: enVentana, bloque, tardeMin: Math.max(0, ahora - bloque.ini), jornadas, ahora, tol };
+        }
+        // Ya entró: la salida no es obligatoria. Solo se ofrece el retiro
+        // anticipado si la jornada sigue en curso y no se retiró ya.
+        const yaSeRetiro = conEntrada.some(b => b.salida && b.salida.type === 'early_exit');
+        const entrada = conEntrada[0].entrada;
+        if (!yaSeRetiro && ahora < enVentana.end - tol) {
+            return { tipo: 'salida', anticipada: true, jornada: enVentana, entrada, jornadas, ahora, tol };
+        }
+        return { tipo: 'completo', jornada: enVentana, entrada, yaSeRetiro, jornadas, ahora, tol };
+    }
+    const proxima = jornadas.find(j => j.ini - tol > ahora) || null;
+    return { tipo: 'fuera_de_horario', proxima, jornadas, ahora, tol };
+}
+
+async function geoParaFichajeAutomatico() {
+    if (ultimoGeoFichaje && Date.now() - ultimoGeoFichaje.at < 2 * 60 * 1000) return ultimoGeoFichaje.geo;
+    return await verifyGeofence();
+}
+
+function registrarEntradaJornada(teacher, dec, geo) {
+    const now = new Date();
+    const fecha = getFechaHoyArgentina(now);
+    const hora = getHoraHHMMSSArgentina(now);
+    const liveness = consumeLivenessFields();
+    const attendance = getAttendance();
+    const aRegistrar = dec.jornada.bloques.filter(b => !b.entrada && b.end >= dec.ahora);
+    const esTarde = dec.tardeMin > dec.tol;
+    aRegistrar.forEach((b, i) => {
+        const tardeEste = b === dec.bloque && esTarde;
+        const id = `${Date.now()}${i}`;
+        attendance.push({
+            id, teacherId: teacher.id, teacherName: `${teacher.apellido} ${teacher.nombre}`,
+            date: fecha, time: hora, type: 'entry', status: tardeEste ? 'late' : 'present',
+            timestamp: now.toISOString(), horaFichajeReal: now.toISOString(),
+            categoria: 'regular', materiaId: b.materiaId || null, fichajeAutomatico: true,
+            ...pendingGeofenceFields(geo), ...geoFichajeFields(geo), ...liveness,
+        });
+        if (i === 0 && geo && geo.coords && navigator.onLine) completarDireccionEIp(id, geo.coords.lat, geo.coords.lng, 'attendance');
+    });
+    saveAttendance(attendance);
+    clearTodaysFaltaAlert(teacher.id, fecha);
+    if (esTarde) {
+        createAlert(teacher, 'Tardanza', `Llegó ${dec.tardeMin} min tarde (${hora.slice(0, 5)}) a ${dec.bloque.materiaNombre || 'su clase'}. Hora prevista: ${dec.bloque.inicio}. Tolerancia: ${dec.tol} min.`);
+    }
+    logAccion('FICHAJE', `ENTRADA automática - ${teacher.apellido} ${teacher.nombre} - ${hora} - ${aRegistrar.map(b => `${b.materiaNombre || 'clase'} ${b.inicio}-${b.fin}`).join(', ')}${esTarde ? ` (${dec.tardeMin} min tarde)` : ''}`, geo && geo.coords ? geo.coords : null);
+    return { hora: hora.slice(0, 5), bloques: aRegistrar, esTarde };
+}
+
+function registrarSalidaJornada(teacher, dec, geo) {
+    const now = new Date();
+    const fecha = getFechaHoyArgentina(now);
+    const hora = getHoraHHMMSSArgentina(now);
+    const type = 'early_exit'; // la salida normal ya no se registra: solo el retiro anticipado
+    const attendance = getAttendance();
+    const abiertos = dec.jornada.bloques.filter(b => b.entrada && !b.salida);
+    const anulados = [];
+    abiertos.forEach((b, i) => {
+        if (dec.anticipada && b.ini > dec.ahora) {
+            // Clase de la jornada que todavía no empezó: se anula su
+            // entrada adelantada, así no queda como presente.
+            const rec = attendance.find(a => a.id === b.entrada.id);
+            if (rec) { rec.anulado = true; rec.anuladoEn = now.toISOString(); rec.motivoAnulacion = 'retiro_anticipado'; anulados.push(b); }
+            return;
+        }
+        attendance.push({
+            id: `${Date.now()}${i}`, teacherId: teacher.id, teacherName: `${teacher.apellido} ${teacher.nombre}`,
+            date: fecha, time: hora, type, status: 'present',
+            timestamp: now.toISOString(), horaFichajeReal: now.toISOString(),
+            categoria: 'regular', materiaId: b.materiaId || null, fichajeAutomatico: true,
+            salidaAnticipada: dec.anticipada,
+            ...pendingGeofenceFields(geo), ...geoFichajeFields(geo),
+        });
+    });
+    saveAttendance(attendance);
+    if (dec.anticipada) {
+        createAlert(teacher, 'Salida Anticipada', `Salida anticipada - ${teacher.apellido} ${teacher.nombre} - ${hora.slice(0, 5)} - Horario que correspondía: hasta las ${horaDeMinutos(dec.jornada.end)}`);
+    }
+    logAccion('FICHAJE', `${dec.anticipada ? 'SALIDA ANTES DE TIEMPO' : 'SALIDA'} automática - ${teacher.apellido} ${teacher.nombre} - ${hora}`, geo && geo.coords ? geo.coords : null);
+    return { hora: hora.slice(0, 5), anulados };
+}
+
+async function ejecutarFichajeAutomatico(tipo) {
+    const teacher = recognizedTeacher;
+    if (!teacher || !faceDecision) return;
+    faceDecision.estado = 'registrando';
+    renderFaceAttendanceModalBody();
+    clearFaceModalTimeout();
+    const geo = await geoParaFichajeAutomatico();
+    if (!geo.ok) {
+        faceDecision.estado = 'listo';
+        showGeofenceBlockModal(geo);
+        renderFaceAttendanceModalBody();
+        resetFaceModalTimeout();
+        return;
+    }
+    // Se recalcula con la hora real de este instante (no la del momento
+    // en que se abrió el modal) antes de guardar.
+    const dec = decidirFichaje(teacher);
+    if (dec.tipo !== tipo) { faceDecision = { dec, estado: 'listo' }; renderFaceAttendanceModalBody(); resetFaceModalTimeout(); return; }
+    faceDecision.dec = dec;
+    faceDecision.resultado = tipo === 'entrada' ? registrarEntradaJornada(teacher, dec, geo) : registrarSalidaJornada(teacher, dec, geo);
+    faceDecision.pendingGeofence = !!(geo && geo.pendingGeofence);
+    faceDecision.estado = 'hecho';
+    faceModalPending = false;
+    renderMiUltimoFichaje();
+    if (document.getElementById('adminDashboard').classList.contains('hidden') === false) updateStats();
+    renderFaceAttendanceModalBody();
+    clearFaceModalTimeout();
+    faceModalTimeoutHandle = setTimeout(finishFaceAttendance, quickFichajeActivo ? 6000 : 30000);
+}
+
+function listaClasesDeHoyHtml(dec) {
+    const items = dec.jornadas.flatMap(j => j.bloques).map(b =>
+        `<li><strong>${b.inicio}–${b.fin}</strong> ${b.materiaNombre || ''}${b.entrada ? ` <span class="text-success">✓ ${t('fichaje.autoRegistered')}</span>` : ''}</li>`).join('');
+    return items ? `<ul class="fichaje-auto-clases">${items}</ul>` : '';
+}
+
+// Parte "cátedra regular" del modal según la decisión automática.
+function htmlFichajeAutomatico(teacher) {
+    if (!faceDecision) {
+        faceDecision = { dec: decidirFichaje(teacher), estado: 'listo' };
+        const tipo = faceDecision.dec.tipo;
+        const auto = tipo === 'entrada';
+        if (auto) setTimeout(() => ejecutarFichajeAutomatico(tipo), 0);
+        if (!auto && tipo !== 'salida') faceModalPending = false; // nada para registrar
+        if (!auto && tipo !== 'salida' && quickFichajeActivo) {
+            clearFaceModalTimeout();
+            faceModalTimeoutHandle = setTimeout(finishFaceAttendance, 8000);
+        }
+    }
+    const { dec, estado, resultado } = faceDecision;
+    const tol = dec.tol;
+    if (estado === 'registrando') {
+        return `<div class="fichaje-auto"><div class="spinner-border text-primary mb-2"></div><p class="mb-0">${t('fichaje.autoRegistering')}</p></div>`;
+    }
+    if (estado === 'hecho' && dec.tipo === 'entrada') {
+        const materias = resultado.bloques.map(b => `${b.materiaNombre || ''} (${b.inicio}–${b.fin})`).join(', ');
+        const pending = faceDecision.pendingGeofence ? `<div class="alert alert-warning py-2 px-3 small mt-2"><i class="bi bi-wifi-off"></i> Fichaje offline guardado — se validará tu ubicación cuando vuelva la conexión.</div>` : '';
+        return resultado.esTarde
+            ? `<div class="fichaje-auto is-tarde"><div class="fichaje-auto-icon"><i class="bi bi-clock-history"></i></div>
+                <h5>${t('fichaje.autoLateTitle', { min: dec.tardeMin })}</h5>
+                <p class="mb-1">${t('fichaje.autoEntryAt', { hora: resultado.hora })} · ${materias}</p>
+                <p class="small text-muted mb-0">${t('fichaje.autoLateHint', { inicio: dec.bloque.inicio, tol })}</p>${pending}</div>`
+            : `<div class="fichaje-auto is-ok"><div class="fichaje-auto-icon"><i class="bi bi-check-circle-fill"></i></div>
+                <h5>${t('fichaje.autoOnTimeTitle')}</h5>
+                <p class="mb-0">${t('fichaje.autoEntryAt', { hora: resultado.hora })} · ${materias}</p>${pending}</div>`;
+    }
+    if (estado === 'hecho' && dec.tipo === 'salida') {
+        return `<div class="fichaje-auto ${dec.anticipada ? 'is-tarde' : 'is-ok'}"><div class="fichaje-auto-icon"><i class="bi bi-box-arrow-left"></i></div>
+            <h5>${dec.anticipada ? t('fichaje.autoEarlyDone') : t('fichaje.autoExitDone')}</h5>
+            <p class="mb-0">${t('fichaje.autoExitAt', { hora: resultado.hora })}</p></div>`;
+    }
+    switch (dec.tipo) {
+        case 'salida':
+            return `<div class="fichaje-auto is-tarde"><div class="fichaje-auto-icon"><i class="bi bi-door-open"></i></div>
+                <h5>${t('fichaje.autoAlreadyIn', { hora: (dec.entrada.time || '').slice(0, 5) })}</h5>
+                <p class="mb-1">${t('fichaje.autoNoExitNeeded')}</p>
+                <p class="mb-3 small text-muted">${t('fichaje.autoEarlyHint', { fin: horaDeMinutos(dec.jornada.end) })}</p>
+                <div class="d-flex flex-column gap-2">
+                    <button class="btn btn-exit btn-lg" onclick="ejecutarFichajeAutomatico('salida')"><i class="bi bi-box-arrow-left"></i> ${t('fichaje.autoEarlyConfirm')}</button>
+                    <button class="btn btn-secondary" onclick="cancelFaceAttendanceModal()">${t('fichaje.autoEarlyCancel')}</button>
+                </div></div>`;
+        case 'fuera_de_horario':
+            return `<div class="fichaje-auto is-info"><div class="fichaje-auto-icon"><i class="bi bi-alarm"></i></div>
+                <h5>${t('fichaje.autoNotYourTime')}</h5>
+                ${dec.proxima
+                    ? `<p class="mb-1">${t('fichaje.autoNextClass', { hora: dec.proxima.bloques[0].inicio, materia: dec.proxima.bloques[0].materiaNombre || '' })}</p>
+                       <p class="small text-muted">${t('fichaje.autoFrom', { hora: horaDeMinutos(dec.proxima.ini - tol), tol })}</p>`
+                    : `<p class="mb-1">${t('fichaje.autoDayOver')}</p>`}
+                <p class="small text-muted mb-1">${t('fichaje.autoTodayClasses')}</p>${listaClasesDeHoyHtml(dec)}
+                <p class="small text-muted mb-0">${t('fichaje.autoNothingSaved')}</p></div>`;
+        case 'sin_clases_hoy':
+            return `<div class="fichaje-auto is-info"><div class="fichaje-auto-icon"><i class="bi bi-calendar-x"></i></div>
+                <h5>${t('fichaje.autoNoClassesToday', { dia: dec.dia })}</h5>
+                <p class="small text-muted mb-0">${t('fichaje.autoNothingSaved')}</p></div>`;
+        case 'completo':
+            return `<div class="fichaje-auto is-ok"><div class="fichaje-auto-icon"><i class="bi bi-check2-all"></i></div>
+                <h5>${dec.yaSeRetiro ? t('fichaje.autoAlreadyLeft') : t('fichaje.autoAlreadyIn', { hora: (dec.entrada.time || '').slice(0, 5) })}</h5>
+                <p class="small text-muted mb-1">${dec.yaSeRetiro ? '' : t('fichaje.autoNoExitNeeded')}</p>${listaClasesDeHoyHtml(dec)}</div>`;
+        default:
+            return '';
+    }
+}
+
 function openFaceAttendanceModal() {
+    faceDecision = null;
     faceModalPending = true;
     freezeTeacherVideo(true);
     setFaceNavLocksDisabled(true);
@@ -3784,34 +4467,15 @@ function renderFaceAttendanceModalBody() {
     const body = document.getElementById('faceAttendanceModalBody');
     if (!teacher || !body) return;
 
-    const yaEntroRegular = hasEntryToday(teacher.id);
-    const yaSalioRegular = hasExitToday(teacher.id);
-    const regularCompleta = yaEntroRegular && yaSalioRegular;
-
     const eventosHoy = getEventosDeHoyParaDocente(teacher.id);
     const eventosPendientes = eventosHoy.filter(ev =>
         !(hasEntryToday(teacher.id, 'evento', ev.id) && hasExitToday(teacher.id, 'evento', ev.id))
     );
 
-    if (regularCompleta && eventosPendientes.length === 0) {
-        body.innerHTML = `
-            <h4>${t('fichaje.hello', { name: teacher.nombre })}</h4>
-            <p class="text-muted">${eventosHoy.length > 0 ? t('fichaje.alreadyDoneTodayFull') : t('fichaje.alreadyDoneToday')}</p>
-            <button class="btn btn-secondary mt-2" onclick="cancelFaceAttendanceModal()">${t('fichaje.close')}</button>
-        `;
-        return;
-    }
-
-    let html = `<h4 class="mb-1">${t('fichaje.hello', { name: teacher.nombre })} 👋</h4><p class="text-muted mb-3">${t('fichaje.whatToRegister')}</p>`;
-
-    if (!regularCompleta) {
-        const exitInfo = getExitWindowInfo(teacher);
-        const exitType = exitInfo.isExitTime ? 'exit' : 'early_exit';
-        html += `<div class="d-flex flex-column gap-2 mb-2">
-            ${!yaEntroRegular ? `<button class="btn btn-entry btn-lg" onclick="confirmFaceAttendance('entry')"><i class="bi bi-box-arrow-in-right"></i> ${t('fichaje.registerEntry')}</button>` : ''}
-            ${yaEntroRegular && !yaSalioRegular ? `<button class="btn btn-exit btn-lg" onclick="confirmFaceAttendance('${exitType}')"><i class="bi bi-box-arrow-left"></i> ${t('fichaje.registerExit')}</button>` : ''}
-        </div>`;
-    }
+    // Cátedra regular: decisión automática según días/horarios (ver
+    // decidirFichaje()) - sin botones de Entrada/Salida a elegir.
+    let html = `<h4 class="mb-2">${t('fichaje.hello', { name: teacher.nombre })} 👋</h4>`;
+    html += htmlFichajeAutomatico(teacher);
 
     if (eventosPendientes.length > 0) {
         html += `<p class="mb-1 small text-muted text-start"><strong><i class="bi bi-calendar-event"></i> ${t('fichaje.specialEventsToday')}</strong></p>`;
@@ -3831,7 +4495,9 @@ function renderFaceAttendanceModalBody() {
         }).join('');
     }
 
-    html += `<div class="mt-3"><button class="btn btn-link btn-sm text-muted" onclick="cancelFaceAttendanceModal()">${t('fichaje.notMeCancel')}</button></div>`;
+    html += faceDecision && faceDecision.estado === 'hecho'
+        ? `<div class="mt-3"><button class="btn btn-success" onclick="finishFaceAttendance()"><i class="bi bi-check2"></i> ${t('fichaje.finish')}</button></div>`
+        : (faceDecision && faceDecision.estado === 'registrando' ? '' : `<div class="mt-3"><button class="btn btn-link btn-sm text-muted" onclick="cancelFaceAttendanceModal()">${faceDecision && ['fuera_de_horario', 'sin_clases_hoy', 'completo'].includes(faceDecision.dec.tipo) ? t('fichaje.close') : t('fichaje.notMeCancel')}</button></div>`);
     body.innerHTML = html;
 }
 if (typeof onLocaleChangeRerender === 'function') onLocaleChangeRerender(renderFaceAttendanceModalBody);
@@ -3839,10 +4505,10 @@ if (typeof onLocaleChangeRerender === 'function') onLocaleChangeRerender(renderF
 // Registra la asistencia a UN Evento Especial puntual (independiente
 // de la cátedra regular): usa categoria:'evento' + eventoId, así que
 // hasEntryToday/hasExitToday lo tratan como una franja separada del
-// día regular. No pasa por registerAttendance() porque esa función
+// día regular. No pasa por registrarEntradaJornada() porque esa función
 // está atada a la ventana de salida de la cátedra (isExitTime), que
 // no aplica a un evento con su propio horario.
-// Igual que getExitWindowInfo(teacher), pero contra el horario del
+// Ventana de salida contra el horario del
 // EVENTO (hora_salida) en vez del horario habitual del docente. Se
 // reutiliza la misma tolerancia (CONFIG.EXIT_TOLERANCE_MINUTES) para
 // que "salida a tiempo" vs "salida anticipada" se calcule con el
@@ -3883,7 +4549,7 @@ function registerFaceEventoAttendance(type, teacher, eventoInfo, geo) {
         }
     }
 
-    // Misma lógica que registerAttendance() con la cátedra regular:
+    // Misma regla que en la cátedra regular:
     // no confiar en qué botón quedó visible en la UI, recalcular acá
     // con la hora real. Si pide "exit" pero todavía no es la hora de
     // salida del evento, se rechaza; si es "early_exit", se genera
@@ -3972,7 +4638,9 @@ async function confirmFaceAttendance(type, categoria, eventoId) {
         return;
     }
 
-    const ok = categoria === 'evento' ? registerFaceEventoAttendance(type, teacher, eventoInfo, geo) : registerAttendance(type, geo);
+    // Solo Eventos Especiales pasan por acá: la cátedra regular se ficha
+    // sola (ver ejecutarFichajeAutomatico()).
+    const ok = registerFaceEventoAttendance(type, teacher, eventoInfo, geo);
     if (!ok) {
         // Estado cambió entre que se abrió el modal y se tocó el
         // botón (p.ej. otra pestaña ya registró algo): se
@@ -3997,6 +4665,13 @@ async function confirmFaceAttendance(type, categoria, eventoId) {
         ${pendingNote}
         <button class="btn btn-success" onclick="finishFaceAttendance()"><i class="bi bi-check2"></i> Finalizar</button>
     `;
+    if (quickFichajeActivo) {
+        // Fichaje rápido: se cierra solo para dejar la cámara libre al
+        // próximo docente (reusa el mismo handle, así "Finalizar" lo cancela).
+        clearFaceModalTimeout();
+        faceModalTimeoutHandle = setTimeout(finishFaceAttendance, 4000);
+        return;
+    }
     resetFaceModalTimeout();
 }
 
@@ -4004,6 +4679,7 @@ async function confirmFaceAttendance(type, categoria, eventoId) {
 function cancelFaceAttendanceModal() {
     clearFaceModalTimeout();
     faceModalPending = false;
+    faceDecision = null;
     if (faceModalInstance) faceModalInstance.hide();
     isFaceVerified = false;
     recognizedTeacher = null;
@@ -4015,13 +4691,14 @@ function cancelFaceAttendanceModal() {
         status.className = 'face-recognition-status waiting';
         status.innerHTML = '<i class="bi bi-info-circle"></i> Esperando identificación...';
     }
-    updateAttendanceButtonsState();
+    if (quickFichajeActivo) { endQuickFichajeCycle(); setQuickWaitingStatus(); }
 }
 
 // Cierra el modal después de un registro exitoso (botón "Finalizar").
 function finishFaceAttendance() {
     clearFaceModalTimeout();
     faceModalPending = false;
+    faceDecision = null;
     if (faceModalInstance) faceModalInstance.hide();
     isFaceVerified = false;
     recognizedTeacher = null;
@@ -4032,7 +4709,7 @@ function finishFaceAttendance() {
         status.className = 'face-recognition-status waiting';
         status.innerHTML = '<i class="bi bi-info-circle"></i> Esperando identificación...';
     }
-    updateAttendanceButtonsState();
+    if (quickFichajeActivo) { endQuickFichajeCycle(); setQuickWaitingStatus(); }
 }
 
 function resetFaceModalTimeout() {
@@ -4084,120 +4761,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
-
-// Devuelve true si el registro se guardó, false si se rechazó (por
-// ejemplo, entrada duplicada o fuera de horario) — el modal de
-// fichaje obligatorio usa este valor para saber si puede pasar a la
-// pantalla de "registrado" o si tiene que quedarse mostrando botones.
-function registerAttendance(type, geo) {
-    if (!isFaceVerified || !recognizedTeacher) { showToast('⚠️ Identifícate primero con "Identificarme"', 'warning'); return false; }
-
-    // Entrada única diaria: se recalcula acá (no solo en la UI) para
-    // que tampoco se pueda saltear llamando a esta función directo
-    // desde la consola. No se puede salir de algo a lo que no
-    // entró, ni volver a marcar una segunda entrada el mismo día.
-    const yaEntroHoy = hasEntryToday(recognizedTeacher.id);
-    if (type === 'entry' && yaEntroHoy) {
-        showToast('⚠️ Ya registraste tu entrada de hoy.', 'warning');
-        updateAttendanceButtonsState();
-        return false;
-    }
-    if ((type === 'exit' || type === 'early_exit') && !yaEntroHoy) {
-        showToast('⚠️ Todavía no registraste tu entrada de hoy.', 'warning');
-        updateAttendanceButtonsState();
-        return false;
-    }
-
-    const now = new Date();
-    const date = getFechaHoyArgentina(now);
-    const time = getHoraHHMMSSArgentina(now);
-    const status = document.getElementById('faceRecognitionStatus');
-    let attStatus = 'present';
-    const criteria = getCriteria();
-    const lateLimit = criteria.lateLimit || 15;
-
-    if (type === 'entry') {
-        const todayDay = getDiaSemanaArgentina(now);
-        const earliestStart = getEarliestScheduleTime(recognizedTeacher, todayDay, materiaFichajeSeleccionada);
-        if (earliestStart) {
-            const [startH, startM] = earliestStart.split(':').map(Number);
-            const scheduledMinutes = startH * 60 + startM;
-            const nowMinutes = getMinutosDesdeMedianocheArgentina(now);
-            if (nowMinutes > scheduledMinutes + lateLimit) {
-                attStatus = 'late';
-                createAlert(recognizedTeacher, 'Tardanza', `Llegó tarde (${time}). Hora prevista: ${earliestStart}. Más de ${lateLimit} minutos de retraso.`);
-            }
-        }
-        // Si ya se había generado una alerta de Falta hoy (porque pasó el
-        // margen de tolerancia antes de que el docente marcara entrada),
-        // la retiramos: llegó, aunque sea tarde, así que ya no es una falta.
-        clearTodaysFaltaAlert(recognizedTeacher.id, date);
-    }
-
-    // No confiar en qué botón haya quedado visible en la UI: se
-    // vuelve a calcular la ventana de salida con la hora real en
-    // este mismo momento. Así, aunque alguien reactive el botón
-    // "Salida" manipulando el DOM o llame a esta función desde la
-    // consola, el registro se rechaza si en verdad no es la hora.
-    const teacherFullName = `${recognizedTeacher.apellido} ${recognizedTeacher.nombre}`;
-    const todayDay = getDiaSemanaArgentina(now);
-    const exitInfo = getExitWindowInfo(recognizedTeacher, materiaFichajeSeleccionada);
-
-    if (type === 'exit' && !exitInfo.isExitTime) {
-        showToast('⚠️ Todavía no es tu horario de salida. Usá "Salir antes de tiempo".', 'warning');
-        updateAttendanceButtonsState();
-        return false;
-    }
-
-    if (type === 'early_exit') {
-        const scheduledEnd = exitInfo.scheduledEnd || getLatestScheduleEndTime(recognizedTeacher, todayDay, materiaFichajeSeleccionada);
-        const horarioTexto = scheduledEnd ? `${todayDay} hasta las ${scheduledEnd}` : 'sin horario cargado para hoy';
-        createAlert(recognizedTeacher, 'Salida Anticipada', `Salida anticipada - ${teacherFullName} - ${time} - Horario que correspondía: ${horarioTexto}`);
-    }
-
-    const typeMap = { 'entry': 'ENTRADA', 'exit': 'SALIDA', 'early_exit': 'SALIDA ANTES DE TIEMPO' };
-    const attendance = getAttendance();
-    const attendanceId = Date.now().toString();
-    attendance.push({
-        id: attendanceId,
-        teacherId: recognizedTeacher.id,
-        teacherName: `${recognizedTeacher.apellido} ${recognizedTeacher.nombre}`,
-        date, time, type, status: attStatus, timestamp: now.toISOString(),
-        horaFichajeReal: now.toISOString(),
-        categoria: 'regular',
-        materiaId: materiaFichajeSeleccionada || null,
-        ...pendingGeofenceFields(geo),
-        ...geoFichajeFields(geo),
-        ...consumeLivenessFields(),
-    });
-    saveAttendance(attendance);
-    logAccion('FICHAJE', `${typeMap[type]} - ${teacherFullName} - ${time}`, geo && geo.coords ? geo.coords : null);
-    // Dirección/IP en segundo plano: si hay conexión ahora mismo (no
-    // pasó por el bypass offline), no hace falta esperar a reconectar.
-    if (geo && geo.coords && navigator.onLine) completarDireccionEIp(attendanceId, geo.coords.lat, geo.coords.lng, 'attendance');
-    renderMiUltimoFichaje();
-
-    const needsAttention = attStatus === 'late' || type === 'early_exit';
-    const warningNote = attStatus === 'late' ? ' ⚠️ Tardanza'
-        : type === 'early_exit' ? ' ⚠️ Queda pendiente de justificación' : '';
-    status.className = `face-recognition-status ${needsAttention ? 'warning' : 'success'}`;
-    status.innerHTML = `<i class="bi bi-check-circle"></i> ✅ ${typeMap[type]} a las ${time}${warningNote}<br><small>Verificado facialmente</small>`;
-    showToast(`${needsAttention ? '⚠️' : '✅'} ${typeMap[type]} registrada${type === 'early_exit' ? ' — queda pendiente de justificación' : ''}`, needsAttention ? 'warning' : 'success');
-    if (geo && geo.pendingGeofence) {
-        showToast('🟡 Fichaje offline guardado — se validará tu ubicación cuando vuelva la conexión.', 'warning');
-    }
-
-    setTimeout(() => {
-        isFaceVerified = false;
-        recognizedTeacher = null;
-        status.className = 'face-recognition-status waiting';
-        status.innerHTML = '<i class="bi bi-info-circle"></i> Esperando identificación...';
-        updateAttendanceButtonsState();
-    }, 5000);
-
-    if (document.getElementById('adminDashboard').classList.contains('hidden') === false) updateStats();
-    return true;
-}
 
 // ============================================================
 // FICHAJE MANUAL (admin) — para cuando la cámara no está
@@ -4429,41 +4992,6 @@ function getEarliestScheduleTime(teacher, dayName, materiaId) {
     return times.sort()[0];
 }
 
-// Hora de fin (HH:MM) más tardía que tiene el docente agendada
-// para un día de la semana dado. Es la hora de salida "oficial"
-// contra la que se valida el botón de Salida.
-function getLatestScheduleEndTime(teacher, dayName, materiaId) {
-    let horario = getHorarioEfectivo(teacher);
-    if (materiaId) horario = horario.filter(h => h.materiaId === materiaId);
-    const times = horario.filter(h => h.dia === dayName).map(h => h.fin);
-    if (times.length === 0) return null;
-    return times.sort().slice(-1)[0];
-}
-
-// Determina si, en este preciso momento, corresponde el botón de
-// "Salida" normal (ya llegó/pasó la hora de salida, con los
-// EXIT_TOLERANCE_MINUTES de margen) o si todavía es una salida
-// antes de tiempo. Se recalcula siempre con la hora actual real
-// (Date), nunca con un valor guardado en variables, así una vez
-// ocultado el botón "Salida" no hay forma de reactivarlo antes de
-// horario manipulando el estado de la UI: registerAttendance()
-// vuelve a correr este mismo cálculo antes de guardar el registro.
-// Si el docente no tiene horario cargado para hoy, no hay forma de
-// validar que sea su hora de salida, así que se trata siempre
-// como salida antes de tiempo (queda pendiente de autorización).
-function getExitWindowInfo(teacher, materiaId) {
-    const now = new Date();
-    const todayDay = getDiaSemanaArgentina(now);
-    const scheduledEnd = getLatestScheduleEndTime(teacher, todayDay, materiaId);
-    if (!scheduledEnd) return { isExitTime: false, scheduledEnd: null };
-    const [endH, endM] = scheduledEnd.split(':').map(Number);
-    const scheduledMinutes = endH * 60 + endM;
-    const nowMinutes = getMinutosDesdeMedianocheArgentina(now);
-    const tolerance = CONFIG.EXIT_TOLERANCE_MINUTES;
-    const isExitTime = nowMinutes >= (scheduledMinutes - tolerance);
-    return { isExitTime, scheduledEnd };
-}
-
 // ============================================================
 // LICENCIAS / PERMISOS
 // ============================================================
@@ -4565,6 +5093,26 @@ let editingEventoId = null;
 // Se parsea con split('T') a propósito, nunca con new Date(...): al no
 // tener offset, new Date() lo reinterpreta como hora local o UTC según
 // el navegador y corre la fecha/hora mostrada.
+// Estado del evento (evento_especial.tipo_cumplimiento):
+//  CON_PERJUICIO  = Obligatorio, reemplaza sus clases de ese día
+//  SIN_PERJUICIO  = Obligatorio, además da sus clases
+//  NO_OBLIGATORIO = No obligatorio: si no va, no es falta
+function eventoEsObligatorio(ev) {
+    return (ev.tipo_cumplimiento || ev.tipoCumplimiento || 'CON_PERJUICIO') !== 'NO_OBLIGATORIO';
+}
+
+// Etiquetas cortas del estado para listas/badges.
+function etiquetasEstadoEvento(tipo) {
+    if (tipo === 'NO_OBLIGATORIO') return `<span class="evento-tag is-optativo">${t('eventos.stateOptional')}</span>`;
+    return `<span class="evento-tag is-perjuicio">${t('eventos.stateMandatory')}</span>` +
+        ` <span class="evento-tag">${tipo === 'SIN_PERJUICIO' ? t('eventos.tagAlsoClasses') : t('eventos.tagReplacesClasses')}</span>`;
+}
+
+function toggleEventoObligatorio() {
+    const obligatorio = document.getElementById('eventoObligatorioSi').checked;
+    document.getElementById('eventoReemplazaWrap').classList.toggle('hidden', !obligatorio);
+}
+
 function normalizeEventoEspecial(ev) {
     const [fechaInicio, horaInicio] = (ev.fecha_inicio || '').split('T');
     const [, horaFin] = (ev.fecha_fin || '').split('T');
@@ -4723,10 +5271,58 @@ function getEventosDeHoyParaDocente(teacherId) {
     return [...new Map(eventosDeHoy.map(e => [e.id, e])).values()];
 }
 
+// Lista de eventos en filas: fecha destacada, título con etiquetas,
+// horario/lugar/docentes y acciones. Próximos (incluye hoy) ordenados
+// del más cercano al más lejano; pasados después, del más reciente al
+// más viejo y atenuados.
+function renderListaEventos(conteoPorEvento) {
+    const hoy = getFechaHoyArgentina();
+    const meses = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+    const puedeBorrar = tienePermiso(currentUser.rol, 'borrar');
+    const fila = (ev) => {
+        const [, mm, dd] = String(ev.fecha || '').split('-');
+        const esHoy = ev.fecha === hoy;
+        const esPasado = ev.fecha < hoy;
+        const dia = ev.fecha ? FULL_DAYS[new Date(ev.fecha + 'T00:00:00Z').getUTCDay()] : '';
+        const cant = conteoPorEvento[ev.id] || 0;
+        const perjuicio = etiquetasEstadoEvento(ev.tipo_cumplimiento || 'CON_PERJUICIO');
+        const geo = ev.tiene_geocerca ? `<span class="evento-tag"><i class="bi bi-geo-alt"></i> ${t('eventos.withGeofence')}</span>` : '';
+        const lugar = ev.direccion_evento || ev.descripcion || '';
+        return `
+            <div class="evento-row ${esPasado ? 'is-pasado' : ''} ${esHoy ? 'is-hoy' : ''}">
+                <div class="evento-fecha">
+                    ${esHoy ? `<span class="evento-hoy">${t('eventos.today')}</span>` : ''}
+                    <span class="evento-dia">${Number(dd) || '?'}</span>
+                    <span class="evento-mes">${meses[Number(mm) - 1] || ''}</span>
+                </div>
+                <div class="evento-info">
+                    <div class="evento-titulo">${ev.titulo} ${perjuicio} ${geo}</div>
+                    <div class="evento-meta">
+                        <span><i class="bi bi-clock"></i> ${dia} ${ev.hora_entrada}–${ev.hora_salida}</span>
+                        ${lugar ? `<span><i class="bi bi-geo"></i> ${lugar}</span>` : ''}
+                        <span><i class="bi bi-people"></i> ${cant > 0 ? t('eventos.teachersCount', { n: cant }) : t('eventos.noTeachers')}</span>
+                    </div>
+                </div>
+                <div class="evento-acciones">
+                    <button class="btn btn-sm evento-btn" title="Ver" aria-label="Ver" onclick="viewEvento(${ev.id})"><i class="bi bi-eye"></i></button>
+                    <button class="btn btn-sm evento-btn" title="Editar" aria-label="Editar" onclick="editEvento(${ev.id})"><i class="bi bi-pencil"></i></button>
+                    ${puedeBorrar ? `<button class="btn btn-sm evento-btn evento-btn-danger" title="Eliminar" aria-label="Eliminar" onclick="deleteEvento(${ev.id})"><i class="bi bi-trash"></i></button>` : ''}
+                </div>
+            </div>`;
+    };
+    const clave = (ev) => `${ev.fecha || ''} ${ev.hora_entrada || ''}`;
+    const proximos = currentEventos.filter(ev => ev.fecha >= hoy).sort((a, b) => clave(a).localeCompare(clave(b)));
+    const pasados = currentEventos.filter(ev => ev.fecha < hoy).sort((a, b) => clave(b).localeCompare(clave(a)));
+    return `
+        <div class="eventos-grupo-titulo">${t('eventos.upcoming')} <span>${proximos.length}</span></div>
+        ${proximos.length ? proximos.map(fila).join('') : `<p class="text-muted small mb-3">${t('eventos.noUpcoming')}</p>`}
+        ${pasados.length ? `<div class="eventos-grupo-titulo mt-3">${t('eventos.past')} <span>${pasados.length}</span></div>${pasados.map(fila).join('')}` : ''}`;
+}
+
 async function loadEventosEspeciales() {
-    const tbody = document.getElementById('eventosTableBody');
+    const tbody = document.getElementById('eventosLista');
     if (!tbody) return;
-    if (!sb) { tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Sin conexión a Supabase</td></tr>'; return; }
+    if (!sb) { tbody.innerHTML = '<p class="text-muted">Sin conexión a Supabase</p>'; return; }
     try {
         // Antes esto pedía evento_docente(count) como embed de PostgREST,
         // que depende de que su caché de esquema tenga detectada la FK
@@ -4741,7 +5337,7 @@ async function loadEventosEspeciales() {
         currentEventos = (eventosData || []).map(normalizeEventoEspecial);
 
         if (currentEventos.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">${t('eventos.none')}</td></tr>`;
+            tbody.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="bi bi-calendar-plus"></i></div><div class="empty-state-title">${t('eventos.none')}</div></div>`;
             return;
         }
 
@@ -4764,26 +5360,10 @@ async function loadEventosEspeciales() {
             console.error('No se pudo cargar evento_docente (se muestra la tabla de eventos igual, sin conteo):', docentesError);
         }
 
-        tbody.innerHTML = currentEventos.map(ev => {
-            const cantDocentes = conteoPorEvento[ev.id] || 0;
-            const docentesCell = cantDocentes > 0 ? cantDocentes : '<span class="text-muted">Sin docentes asignados</span>';
-            return `
-                <tr>
-                    <td data-label="Título">${ev.titulo}</td>
-                    <td data-label="Descripción">${ev.descripcion || '-'}</td>
-                    <td data-label="Fecha inicio → Fin">${ev.fecha} ${ev.hora_entrada} &rarr; ${ev.hora_salida}</td>
-                    <td data-label="Escuela">${ev.escuela_id}</td>
-                    <td data-label="Docentes">${docentesCell}</td>
-                    <td data-label="Acciones">
-                        <button class="btn btn-sm btn-info" title="Ver" onclick="viewEvento(${ev.id})"><i class="bi bi-eye"></i></button>
-                        <button class="btn btn-sm btn-primary" title="Editar" onclick="editEvento(${ev.id})"><i class="bi bi-pencil"></i></button>
-                        ${tienePermiso(currentUser.rol, 'borrar') ? `<button class="btn btn-sm btn-danger" title="Eliminar" onclick="deleteEvento(${ev.id})"><i class="bi bi-trash"></i></button>` : ''}
-                    </td>
-                </tr>`;
-        }).join('');
+        tbody.innerHTML = renderListaEventos(conteoPorEvento);
     } catch (error) {
         console.error('Error cargando eventos especiales:', error);
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">No se pudieron cargar los eventos</td></tr>';
+        tbody.innerHTML = '<p class="text-danger">No se pudieron cargar los eventos</p>';
         showToast('No se pudieron cargar los eventos especiales (' + describeSupabaseError(error) + ')', 'error');
     }
 }
@@ -4799,6 +5379,8 @@ function openEventoModal() {
     document.getElementById('eventoHoraSalida').value = '';
     document.getElementById('eventoLugar').value = '';
     document.getElementById('eventoTipoCumplimientoCon').checked = true;
+    document.getElementById('eventoObligatorioSi').checked = true;
+    toggleEventoObligatorio();
     document.getElementById('eventoTieneGeocerca').checked = false;
     document.getElementById('eventoTieneGeocerca').disabled = !tienePermiso(currentUser.rol, 'editar_geo');
     document.getElementById('eventoGeocercaLat').value = '';
@@ -4826,6 +5408,10 @@ async function editEvento(idEvento) {
     const esSinPerjuicio = ev.tipo_cumplimiento === 'SIN_PERJUICIO';
     document.getElementById('eventoTipoCumplimientoSin').checked = esSinPerjuicio;
     document.getElementById('eventoTipoCumplimientoCon').checked = !esSinPerjuicio;
+    const esObligatorio = eventoEsObligatorio(ev);
+    document.getElementById('eventoObligatorioSi').checked = esObligatorio;
+    document.getElementById('eventoObligatorioNo').checked = !esObligatorio;
+    toggleEventoObligatorio();
     document.getElementById('eventoTieneGeocerca').checked = !!ev.tiene_geocerca;
     document.getElementById('eventoTieneGeocerca').disabled = !tienePermiso(currentUser.rol, 'editar_geo');
     document.getElementById('eventoGeocercaLat').value = ev.geocerca_lat ?? '';
@@ -4861,19 +5447,22 @@ async function viewEvento(idEvento) {
     const geocercaInfo = ev.tiene_geocerca
         ? `Sí — radio ${ev.geocerca_radio}mts (<a href="https://www.google.com/maps?q=${ev.geocerca_lat},${ev.geocerca_lng}" target="_blank" rel="noopener">ver punto</a>)`
         : 'No';
-    const tipoCumplimientoTxt = ev.tipo_cumplimiento === 'SIN_PERJUICIO'
-        ? 'SIN perjuicio (va al evento Y debe dar clases igual)'
-        : 'CON perjuicio (solo va al evento, no da clases ese día)';
+    const tipoCumplimientoTxt = !eventoEsObligatorio(ev)
+        ? t('eventos.stateOptionalFull')
+        : (ev.tipo_cumplimiento === 'SIN_PERJUICIO' ? t('eventos.stateAlsoFull') : t('eventos.stateReplacesFull'));
+    const dia = ev.fecha ? FULL_DAYS[new Date(ev.fecha + 'T00:00:00Z').getUTCDay()] : '';
+    const fechaTxt = ev.fecha ? `${dia} ${ev.fecha.split('-').reverse().join('/')}` : '-';
+    const filaDet = (icono, label, valor) => `<div class="evento-detalle-fila"><i class="bi ${icono}"></i><div><div class="evento-detalle-label">${label}</div><div class="evento-detalle-valor">${valor}</div></div></div>`;
     document.getElementById('eventoViewBody').innerHTML = `
-        <p><strong>Fecha:</strong> ${ev.fecha}</p>
-        <p><strong>Horario:</strong> ${(ev.hora_entrada || '').slice(0, 5)} - ${(ev.hora_salida || '').slice(0, 5)}</p>
-        <p><strong>Cumplimiento:</strong> ${tipoCumplimientoTxt}</p>
-        <p><strong>Escuela:</strong> ${ev.escuela_id}</p>
-        <p><strong>Lugar / Dirección:</strong> ${ev.direccion_evento || '-'}</p>
-        <p><strong>Geocerca:</strong> ${geocercaInfo}</p>
-        <p><strong>Descripción:</strong> ${ev.descripcion || '-'}</p>
-        <p class="mb-1"><strong>Docentes convocados:</strong></p>
-        <div id="eventoViewDocentes"><span class="text-muted">Cargando...</span></div>
+        <div class="evento-detalle">
+            ${filaDet('bi-calendar3', 'Fecha', fechaTxt)}
+            ${filaDet('bi-clock', 'Horario', `${(ev.hora_entrada || '').slice(0, 5)} – ${(ev.hora_salida || '').slice(0, 5)}`)}
+            ${filaDet('bi-clipboard-check', t('eventos.stateQuestion'), tipoCumplimientoTxt)}
+            ${filaDet('bi-geo-alt', 'Lugar / Dirección', ev.direccion_evento || '-')}
+            ${filaDet('bi-bullseye', 'Geocerca', geocercaInfo)}
+            ${ev.descripcion ? filaDet('bi-card-text', 'Descripción', ev.descripcion) : ''}
+            <div class="evento-detalle-fila"><i class="bi bi-people"></i><div class="flex-grow-1"><div class="evento-detalle-label">Docentes convocados</div><div id="eventoViewDocentes" class="evento-detalle-docentes"><span class="text-muted">Cargando...</span></div></div></div>
+        </div>
     `;
     new bootstrap.Modal(document.getElementById('eventoViewModal')).show();
 
@@ -4887,7 +5476,7 @@ async function viewEvento(idEvento) {
             return t ? `${t.apellido} ${t.nombre}` : `Docente #${id}`;
         });
         document.getElementById('eventoViewDocentes').innerHTML = names.length > 0
-            ? names.map(n => `<span class="horario-chip">${n}</span>`).join(' ')
+            ? names.map(n => `<span>${n}</span>`).join('')
             : '<span class="text-muted">Sin docentes convocados</span>';
     } catch (error) {
         console.error('No se pudieron cargar los docentes del evento:', error);
@@ -4951,6 +5540,16 @@ function updateEventoSelectAllCheckboxState() {
     selectAll.indeterminate = selected > 0 && selected < total;
 }
 
+// "No obligatorio" necesita que la base acepte NO_OBLIGATORIO en
+// tipo_cumplimiento (migrate_evento_no_obligatorio.sql). Si todavía no
+// se corrió, se explica en vez de mostrar el error crudo de Postgres.
+function avisoSiFaltaMigracionEstadoEvento(error, tipoCumplimiento) {
+    if (tipoCumplimiento === 'NO_OBLIGATORIO' && (error.code === '23514' || /tipo_cumplimiento/.test(error.message || ''))) {
+        showToast(t('eventos.needsMigration'), 'error');
+    }
+    return error;
+}
+
 async function saveEvento() {
     const titulo = document.getElementById('eventoTitulo').value.trim();
     const descripcion = document.getElementById('eventoDescripcion').value.trim();
@@ -4958,7 +5557,9 @@ async function saveEvento() {
     const horaEntrada = document.getElementById('eventoHoraEntrada').value;
     const horaSalida = document.getElementById('eventoHoraSalida').value;
     const direccionEvento = document.getElementById('eventoLugar').value.trim();
-    const tipoCumplimiento = document.getElementById('eventoTipoCumplimientoSin').checked ? 'SIN_PERJUICIO' : 'CON_PERJUICIO';
+    const tipoCumplimiento = document.getElementById('eventoObligatorioNo').checked
+        ? 'NO_OBLIGATORIO'
+        : (document.getElementById('eventoTipoCumplimientoSin').checked ? 'SIN_PERJUICIO' : 'CON_PERJUICIO');
     const tieneGeocerca = document.getElementById('eventoTieneGeocerca').checked;
 
     if (tieneGeocerca && !tienePermiso(currentUser.rol, 'editar_geo')) {
@@ -5031,12 +5632,12 @@ async function saveEvento() {
         let idEvento = editingEventoId;
         if (idEvento) {
             const { error } = await sb.from('evento_especial').update(payload).eq('id', idEvento);
-            if (error) throw error;
+            if (error) throw avisoSiFaltaMigracionEstadoEvento(error, tipoCumplimiento);
             const { error: delError } = await sb.from('evento_docente').delete().eq('evento_id', idEvento);
             if (delError) throw delError;
         } else {
             const { data, error } = await sb.from('evento_especial').insert(payload).select('id').single();
-            if (error) throw error;
+            if (error) throw avisoSiFaltaMigracionEstadoEvento(error, tipoCumplimiento);
             idEvento = data.id;
         }
 
@@ -5116,7 +5717,7 @@ async function deleteEvento(idEvento) {
 // (tablas `carreras`/`materias`, ver add_tabla_materias.sql).
 //
 // Capa APARTE del horario_laboral de cada docente: el horario que usa
-// checkFaltas/getExitWindowInfo/registerAttendance para tardanzas,
+// checkFaltas/decidirFichaje/registrarEntradaJornada para tardanzas,
 // faltas y fichaje no cambia ni se toca acá. Esto es solo para armar y
 // visualizar qué materia dicta cada docente en qué carrera/año/
 // cuatrimestre. Un docente puede tener 0, 1 o varias materias.
@@ -5190,25 +5791,83 @@ async function promptNuevaCarrera() {
     }
 }
 
+// true recién cuando currentMaterias refleja las materias reales (de
+// Supabase o, sin conexión, de la última copia local). Mientras sea
+// false, getHorarioEfectivo() NO cae al horario_laboral viejo del
+// docente: antes, si el panel o checkFaltas() corrían antes de que
+// terminaran de bajar las materias, se usaba ese horario viejo (datos
+// de prueba, ej. sábados) y aparecían clases/faltas que no existen.
+let materiasCargadas = false;
+const MATERIAS_CACHE_KEY = 'sb_cache_materias';
+
 async function loadMaterias() {
-    if (!sb) return;
+    if (!sb) { cargarMateriasDesdeCache(); return; }
     try {
         const { data, error } = await sb.from('materias').select('*').order('nombre');
         if (error) throw error;
         currentMaterias = data || [];
         const idsAsignados = [...new Set(currentMaterias.map(m => m.profesor_id).filter(Boolean))];
         materiaProfesorPorDocenteId = await getTeachersByDocenteIds(idsAsignados);
+        materiasCargadas = true;
+        try {
+            const profesorTeacherId = {};
+            Object.keys(materiaProfesorPorDocenteId).forEach(k => { profesorTeacherId[k] = materiaProfesorPorDocenteId[k].id; });
+            localStorage.setItem(MATERIAS_CACHE_KEY, JSON.stringify({ materias: currentMaterias, profesorTeacherId }));
+        } catch (e) { /* sin espacio/almacenamiento bloqueado: se sigue sin copia local */ }
     } catch (error) {
         console.error('No se pudieron cargar las materias:', error);
+        cargarMateriasDesdeCache();
     }
+}
+
+// Sin conexión: última copia de materias + a qué docente está asignada
+// cada una, para que horarios, tardanzas y faltas sigan funcionando.
+function cargarMateriasDesdeCache() {
+    try {
+        const cache = JSON.parse(localStorage.getItem(MATERIAS_CACHE_KEY) || 'null');
+        if (!cache || !Array.isArray(cache.materias)) return;
+        currentMaterias = cache.materias;
+        const teachers = getTeachers();
+        materiaProfesorPorDocenteId = {};
+        Object.keys(cache.profesorTeacherId || {}).forEach(k => {
+            const teacher = teachers.find(tc => tc.id === cache.profesorTeacherId[k]);
+            if (teacher) materiaProfesorPorDocenteId[k] = teacher;
+        });
+        materiasCargadas = true;
+    } catch (e) { /* copia local corrupta: se ignora */ }
 }
 
 // Dispara la carga de carreras/materias y pinta la grilla; se llama al
 // entrar a la pestaña "Materias" (ver onclick en index.html).
+let grillaMateriasInicializada = false;
 async function loadMateriasTab() {
+    // Se pinta YA con lo que está en memoria (carreras/materias se cargan
+    // al iniciar la app) y recién después se refresca desde Supabase: así
+    // la pestaña no queda vacía mientras bajan los datos.
+    const pintar = () => {
+        populateCarrerasSelects();
+        const sel = document.getElementById('grillaMateriasCarrera');
+        // Primera vez: arranca con la primera carrera, 1° año y el
+        // cuatrimestre en curso, en vez de una grilla vacía "Elegí una carrera".
+        if (!grillaMateriasInicializada && currentCarreras.length > 0) {
+            grillaMateriasInicializada = true;
+            if (sel && !sel.value) sel.value = String(currentCarreras[0].id);
+            grillaAnioSeleccionado = 1;
+            grillaCuatSeleccionado = cuatrimestreActual();
+        }
+        marcarPeriodoGrillaActivo();
+        renderGrillaMaterias();
+    };
+    pintar();
     await loadCarreras();
     await loadMaterias();
-    renderGrillaMaterias();
+    pintar();
+}
+
+function marcarPeriodoGrillaActivo() {
+    document.querySelectorAll('.grilla-anio-cuat-btn').forEach(b => {
+        b.classList.toggle('active', Number(b.dataset.anio) === grillaAnioSeleccionado && Number(b.dataset.cuat) === grillaCuatSeleccionado);
+    });
 }
 
 function diasCorto(dias) {
@@ -5245,14 +5904,21 @@ function formatoHorariosCorto(m) {
 function seleccionarAnioCuatGrilla(anio, cuat, btnEl) {
     grillaAnioSeleccionado = anio;
     grillaCuatSeleccionado = cuat;
-    document.querySelectorAll('.grilla-anio-cuat-btn').forEach(b => b.classList.remove('active'));
-    if (btnEl) btnEl.classList.add('active');
+    marcarPeriodoGrillaActivo();
     renderGrillaMaterias();
 }
 
 function renderGrillaMaterias() {
     const tbody = document.getElementById('grillaMateriasTableBody');
     if (!tbody) return;
+    const titulo = document.getElementById('grillaTituloPeriodo');
+    if (titulo) {
+        const carrera = currentCarreras.find(c => String(c.id) === document.getElementById('grillaMateriasCarrera')?.value);
+        titulo.textContent = carrera
+            ? t('materias.periodTitle', { anio: grillaAnioSeleccionado, cuat: grillaCuatSeleccionado })
+            : '';
+    }
+    renderPlanillaEditor();
     const carreraId = document.getElementById('grillaMateriasCarrera')?.value;
     if (!carreraId) {
         tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">${t('materias.chooseCareer')}</td></tr>`;
@@ -5282,6 +5948,214 @@ function renderGrillaMaterias() {
             </tr>`;
     }).join('');
 }
+
+// ===== Planilla semanal editable (FullCalendar) =====
+// Misma carrera/año/cuatrimestre que la tabla de abajo, dibujada como
+// la planilla de horarios: Lunes a Viernes, franja del instituto en
+// bloques de 40 min. Se usa una semana de referencia fija (el horario
+// es semanal, no de una fecha). Arrastrar = mover, estirar = cambiar
+// duración, seleccionar un hueco = agregar clase, clic = editar. Todo
+// cambio pasa por validarHorariosMateria() antes de guardarse; si no
+// cumple, el bloque vuelve a su lugar y se explica por qué.
+let planillaCalendar = null;
+const PLANILLA_LUNES_REF = '2026-01-05'; // un lunes cualquiera: solo importa el día de la semana
+const PLANILLA_DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+function planillaFechaDeDia(dia) {
+    const idx = PLANILLA_DIAS.findIndex(d => normalizarBusqueda(d) === normalizarBusqueda(dia));
+    if (idx < 0) return null;
+    const d = new Date(PLANILLA_LUNES_REF + 'T00:00:00');
+    d.setDate(d.getDate() + idx);
+    return aFechaLocalISO(d);
+}
+
+const hhmmDe = (date) => `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+
+function materiasDePlanilla() {
+    const carreraId = document.getElementById('grillaMateriasCarrera')?.value;
+    if (!carreraId) return [];
+    return currentMaterias.filter(m => String(m.carrera_id) === String(carreraId) && m.anio === grillaAnioSeleccionado &&
+        (esMateriaAnual(m) || m.cuatrimestre === grillaCuatSeleccionado));
+}
+
+function eventosPlanilla(info, success) {
+    const eventos = [];
+    materiasDePlanilla().forEach(m => {
+        const prof = m.profesor_id ? materiaProfesorPorDocenteId[m.profesor_id] : null;
+        materiaHorarios(m).forEach((h, idx) => {
+            const fecha = planillaFechaDeDia(h.dia);
+            if (!fecha) return;
+            eventos.push({
+                id: `${m.id}-${idx}`,
+                title: m.nombre,
+                start: `${fecha}T${h.inicio}`,
+                end: `${fecha}T${h.fin}`,
+                classNames: [prof ? 'planilla-con-docente' : 'planilla-sin-docente', esMateriaAnual(m) ? 'planilla-anual' : ''],
+                extendedProps: { materiaId: m.id, idx, profesor: prof ? `${prof.apellido} ${prof.nombre}` : t('calendar.noTeacher'), anual: esMateriaAnual(m) },
+            });
+        });
+    });
+    success(eventos);
+}
+
+async function guardarHorariosMateriaDesdePlanilla(materia, horariosNuevos) {
+    const { error } = await sb.from('materias').update({ horarios: horariosNuevos, dias: horariosNuevos.map(h => h.dia) }).eq('id', materia.id);
+    if (error) throw error;
+    logAccion('EDITAR_MATERIA', `Cambió el horario de "${materia.nombre}" desde la planilla: ${horariosNuevos.map(h => `${h.dia} ${h.inicio}-${h.fin}`).join(', ')}`);
+    await loadMaterias();
+    renderGrillaMaterias();
+    renderMateriasDocenteChecklist(editingTeacherId);
+}
+
+// Mover o estirar un bloque existente.
+async function onCambioBloquePlanilla(info) {
+    const { materiaId, idx } = info.event.extendedProps;
+    const materia = currentMaterias.find(m => m.id === materiaId);
+    if (!materia || !tienePermiso(currentUser.rol, 'editar_docente')) { info.revert(); return; }
+    const horarios = materiaHorarios(materia).map(h => ({ ...h }));
+    const inicio = hhmmDe(info.event.start), fin = hhmmDe(info.event.end);
+    horarios[idx] = { dia: FULL_DAYS[info.event.start.getDay()], inicio, fin, turno: getTurnoPorHora(inicio) };
+    const problema = validarHorariosMateria(materia, horarios, materia.id);
+    if (problema) { info.revert(); showToast('⚠️ ' + problema, 'error'); return; }
+    if (!confirmarFueraDeFranja([horarios[idx]])) { info.revert(); return; }
+    try {
+        await guardarHorariosMateriaDesdePlanilla(materia, horarios);
+        showToast(`✅ ${materia.nombre}: ${horarios[idx].dia} ${inicio}–${fin}`, 'success');
+    } catch (e) {
+        info.revert();
+        console.error(e);
+        showToast('No se pudo guardar el cambio (' + describeSupabaseError(e) + ')', 'error');
+    }
+}
+
+// Selección de un hueco vacío: agregar ese bloque a una materia del
+// curso que todavía no tiene clase ese día, o crear una materia nueva
+// con el día/horario ya completados.
+let planillaSeleccion = null;
+function onSeleccionPlanilla(info) {
+    planillaCalendar.unselect();
+    if (!tienePermiso(currentUser.rol, 'agregar_docente')) { showToast(mensajeSinPermiso('agregar_docente'), 'error'); return; }
+    const dia = FULL_DAYS[info.start.getDay()];
+    planillaSeleccion = { dia, inicio: hhmmDe(info.start), fin: hhmmDe(info.end) };
+    const candidatas = materiasDePlanilla().filter(m => !materiaHorarios(m).some(h => normalizarBusqueda(h.dia) === normalizarBusqueda(dia)));
+    document.getElementById('planillaAgregarTitulo').textContent = `${dia} ${planillaSeleccion.inicio}–${planillaSeleccion.fin}`;
+    const sel = document.getElementById('planillaAgregarMateria');
+    sel.innerHTML = candidatas.length
+        ? candidatas.map(m => `<option value="${m.id}">${m.nombre}${esMateriaAnual(m) ? ' (anual)' : ''}</option>`).join('')
+        : `<option value="">${t('materias.plannerNoCandidates')}</option>`;
+    document.getElementById('planillaAgregarExistenteBtn').disabled = candidatas.length === 0;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('planillaAgregarModal')).show();
+}
+
+async function planillaAgregarAExistente() {
+    const materia = currentMaterias.find(m => String(m.id) === document.getElementById('planillaAgregarMateria').value);
+    if (!materia || !planillaSeleccion) return;
+    const { dia, inicio, fin } = planillaSeleccion;
+    const horarios = [...materiaHorarios(materia).map(h => ({ ...h })), { dia, inicio, fin, turno: getTurnoPorHora(inicio) }];
+    const problema = validarHorariosMateria(materia, horarios, materia.id);
+    if (problema) { showToast('⚠️ ' + problema, 'error'); return; }
+    if (!confirmarFueraDeFranja([horarios[horarios.length - 1]])) return;
+    try {
+        await guardarHorariosMateriaDesdePlanilla(materia, horarios);
+        bootstrap.Modal.getInstance(document.getElementById('planillaAgregarModal'))?.hide();
+        showToast(`✅ ${materia.nombre}: se agregó ${dia} ${inicio}–${fin}`, 'success');
+    } catch (e) {
+        console.error(e);
+        showToast('No se pudo guardar (' + describeSupabaseError(e) + ')', 'error');
+    }
+}
+
+function planillaCrearMateriaNueva() {
+    if (!planillaSeleccion) return;
+    const { dia, inicio, fin } = planillaSeleccion;
+    const modalEl = document.getElementById('planillaAgregarModal');
+    modalEl.addEventListener('hidden.bs.modal', () => {
+        openMateriaModal(null);
+        document.getElementById('materiaCarrera').value = document.getElementById('grillaMateriasCarrera').value;
+        document.getElementById('materiaAnio').value = grillaAnioSeleccionado;
+        document.getElementById('materiaCuatrimestre').value = grillaCuatSeleccionado;
+        document.getElementById('materiaTipo').value = 'CUATRIMESTRAL';
+        const diaSinTilde = diaMateriaSinTilde(dia);
+        const chk = document.getElementById('materiaDia' + diaSinTilde);
+        if (chk) chk.checked = true;
+        toggleMateriaHorarioDia(diaSinTilde, true, inicio, fin);
+    }, { once: true });
+    bootstrap.Modal.getInstance(modalEl)?.hide();
+}
+
+function renderAvisoChoquesMaterias() {
+    const el = document.getElementById('grillaMateriasConflictos');
+    if (!el) return;
+    const problemas = auditarChoquesMaterias();
+    el.innerHTML = problemas.length === 0 ? '' : `
+        <div class="alert alert-warning py-2 px-3 small mb-3">
+            <strong><i class="bi bi-exclamation-triangle-fill"></i> ${t('materias.conflictsTitle', { n: problemas.length })}</strong>
+            <ul class="mb-0 mt-1 ps-3">${problemas.map(p => `<li>${p}</li>`).join('')}</ul>
+        </div>`;
+}
+
+async function renderPlanillaEditor() {
+    const cont = document.getElementById('grillaMateriasCalendar');
+    if (!cont) return;
+    renderAvisoChoquesMaterias();
+    if (!document.getElementById('grillaMateriasCarrera')?.value) {
+        if (planillaCalendar) { planillaCalendar.destroy(); planillaCalendar = null; }
+        cont.innerHTML = '';
+        return;
+    }
+    if (!(await asegurarFullCalendar())) return;
+    const rango = rangoGrillaHorarios(materiasDePlanilla());
+    if (planillaCalendar) {
+        planillaCalendar.setOption('slotMinTime', rango.slotMinTime);
+        planillaCalendar.setOption('slotMaxTime', rango.slotMaxTime);
+        planillaCalendar.setOption('hiddenDays', rango.hiddenDays);
+        planillaCalendar.refetchEvents();
+        planillaCalendar.updateSize();
+        return;
+    }
+    const puedeEditar = tienePermiso(currentUser.rol, 'editar_docente');
+    planillaCalendar = new FullCalendar.Calendar(cont, {
+        locale: 'es',
+        firstDay: 1,
+        initialView: 'timeGridWeek',
+        initialDate: PLANILLA_LUNES_REF,
+        headerToolbar: false,
+        hiddenDays: rango.hiddenDays,
+        dayHeaderFormat: { weekday: window.matchMedia('(max-width: 767px)').matches ? 'short' : 'long' },
+        slotMinTime: rango.slotMinTime,
+        slotMaxTime: rango.slotMaxTime,
+        slotDuration: '00:40:00',
+        snapDuration: '00:40:00',
+        slotLabelInterval: '00:40:00',
+        slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+        eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+        allDaySlot: false,
+        expandRows: true,
+        height: 'auto',
+        nowIndicator: false,
+        editable: puedeEditar,
+        selectable: puedeEditar,
+        selectMirror: true,
+        eventOverlap: false,
+        selectOverlap: false,
+        slotEventOverlap: false,
+        events: eventosPlanilla,
+        eventContent: (arg) => ({
+            html: `<div class="planilla-evento"><div class="planilla-evento-hora">${arg.timeText}</div><div class="planilla-evento-nombre">${arg.event.title}${arg.event.extendedProps.anual ? ' <span class="planilla-anual-tag">ANUAL</span>' : ''}</div><div class="planilla-evento-prof">${arg.event.extendedProps.profesor}</div></div>`,
+        }),
+        eventDrop: onCambioBloquePlanilla,
+        eventResize: onCambioBloquePlanilla,
+        select: onSeleccionPlanilla,
+        eventClick: (arg) => openMateriaModal(arg.event.extendedProps.materiaId),
+    });
+    planillaCalendar.render();
+}
+
+// La pestaña Materias arranca oculta: al mostrarse, FullCalendar se re-mide.
+document.addEventListener('DOMContentLoaded', () => {
+    const tabBtn = document.querySelector('[data-bs-target="#tabMaterias"]');
+    if (tabBtn) tabBtn.addEventListener('shown.bs.tab', () => { if (planillaCalendar) planillaCalendar.updateSize(); else renderPlanillaEditor(); });
+});
 
 function populateMateriaProfesorSelect(selectedTeacherId) {
     const sel = document.getElementById('materiaProfesor');
@@ -5395,13 +6269,141 @@ function buscarChoqueHorarioProfesor(profesorId, horariosNuevos, materiaIdExclui
     for (const otra of otras) {
         for (const hExistente of materiaHorarios(otra)) {
             for (const hNuevo of horariosNuevos) {
-                if (hExistente.dia === hNuevo.dia && hExistente.inicio < hNuevo.fin && hExistente.fin > hNuevo.inicio) {
+                if (horariosSeSuperponen(hExistente, hNuevo)) {
                     return { materia: otra, horario: hExistente };
                 }
             }
         }
     }
     return null;
+}
+
+// Dos materias del MISMO curso (misma carrera y año) no pueden
+// superponerse en horario: los alumnos no pueden estar en dos aulas a
+// la vez. Solo chocan si comparten cuatrimestre - una ANUAL comparte
+// los dos; una cuatrimestral de 1° no choca con una de 2°.
+function materiasCompartenCuatrimestre(a, b) {
+    if (a.tipo === 'ANUAL' || b.tipo === 'ANUAL') return true;
+    return Number(a.cuatrimestre) === Number(b.cuatrimestre);
+}
+
+function horariosSeSuperponen(h1, h2) {
+    return normalizarBusqueda(h1.dia) === normalizarBusqueda(h2.dia) && h1.inicio < h2.fin && h1.fin > h2.inicio;
+}
+
+function buscarChoqueHorarioCurso(materiaNueva, horariosNuevos, materiaIdExcluir) {
+    const otras = currentMaterias.filter(m => m.id !== materiaIdExcluir &&
+        String(m.carrera_id) === String(materiaNueva.carrera_id) && Number(m.anio) === Number(materiaNueva.anio) &&
+        materiasCompartenCuatrimestre(m, materiaNueva));
+    for (const otra of otras) {
+        for (const hExistente of materiaHorarios(otra)) {
+            for (const hNuevo of horariosNuevos) {
+                if (horariosSeSuperponen(hExistente, hNuevo)) return { materia: otra, horario: hExistente };
+            }
+        }
+    }
+    return null;
+}
+
+// Franja horaria HABITUAL del instituto (turno noche). No es un límite
+// duro: al cargar una materia se puede salir de ella (se pide
+// confirmación), y la grilla (planilla y calendario) se estira sola
+// para mostrar cualquier clase cargada fuera de la franja.
+const FRANJA_INSTITUTO = { inicio: '18:00', fin: '22:40', bloqueMin: 40 };
+
+function estaFueraDeFranja(h) {
+    return h.inicio < FRANJA_INSTITUTO.inicio || h.fin > FRANJA_INSTITUTO.fin;
+}
+
+// Rango visible de la grilla semanal: la franja del instituto, ampliada
+// si hay clases cargadas antes/después, y Sábado/Domingo solo si hay
+// alguna clase esos días.
+// ajustado = true: la grilla arranca en la primera clase y termina en
+// la última de las materias recibidas (sin filas vacías); si no hay
+// ninguna, cae a la franja del instituto.
+function rangoGrillaHorarios(materias, ajustado) {
+    let ini = FRANJA_INSTITUTO.inicio, fin = FRANJA_INSTITUTO.fin;
+    const lista = materias || currentMaterias;
+    if (ajustado) {
+        const bloques = lista.flatMap(m => materiaHorarios(m)).filter(h => h.inicio && h.fin);
+        if (bloques.length > 0) {
+            ini = bloques.reduce((a, h) => (h.inicio < a ? h.inicio : a), '99:99');
+            fin = bloques.reduce((a, h) => (h.fin > a ? h.fin : a), '00:00');
+        }
+    }
+    let sab = false, dom = false;
+    lista.forEach(m => materiaHorarios(m).forEach(h => {
+        if (h.inicio && h.inicio < ini) ini = h.inicio;
+        if (h.fin && h.fin > fin) fin = h.fin;
+        const d = normalizarBusqueda(h.dia);
+        if (d === 'sabado') sab = true;
+        if (d === 'domingo') dom = true;
+    }));
+    const hidden = [];
+    if (!dom) hidden.push(0);
+    if (!sab) hidden.push(6);
+    // Fuera de la franja se redondea a la hora en punto (12:17 -> 12:00),
+    // para que las filas de la grilla no arranquen en un minuto raro.
+    if (!ajustado && ini < FRANJA_INSTITUTO.inicio) ini = ini.slice(0, 2) + ':00';
+    if (!ajustado && fin > FRANJA_INSTITUTO.fin && fin.slice(3) !== '00') fin = String(Math.min(24, Number(fin.slice(0, 2)) + 1)).padStart(2, '0') + ':00';
+    return { slotMinTime: ini + ':00', slotMaxTime: fin + ':00', hiddenDays: hidden };
+}
+
+// Reglas de un horario de materia, en un solo lugar (formulario de
+// Materia y planilla editable usan esta misma función): sin
+// superponerse con otra materia del mismo curso y sin que el profesor
+// asignado quede en dos clases a la vez. Devuelve el texto del
+// problema, o null si está todo bien. (Salir de la franja habitual no
+// es un error: lo confirma quien carga, ver confirmarFueraDeFranja().)
+function validarHorariosMateria(materia, horarios, materiaIdExcluir) {
+    const dias = new Set();
+    for (const h of horarios) {
+        if (!h.inicio || !h.fin || h.fin <= h.inicio) return `En ${h.dia}, la hora de fin debe ser posterior a la de inicio.`;
+        const d = normalizarBusqueda(h.dia);
+        if (dias.has(d)) return `La materia ya tiene clase el ${h.dia}: un solo bloque por día.`;
+        dias.add(d);
+    }
+    const choqueCurso = buscarChoqueHorarioCurso(materia, horarios, materiaIdExcluir);
+    if (choqueCurso) {
+        return `Se superpone con "${choqueCurso.materia.nombre}" (${choqueCurso.materia.anio}° año) el ${choqueCurso.horario.dia} de ${choqueCurso.horario.inicio} a ${choqueCurso.horario.fin}. Un mismo curso no puede tener dos materias a la vez.`;
+    }
+    if (materia.profesor_id) {
+        const choqueProf = buscarChoqueHorarioProfesor(materia.profesor_id, horarios, materiaIdExcluir);
+        if (choqueProf) {
+            return `El profesor ya tiene "${choqueProf.materia.nombre}" (${choqueProf.materia.anio}° año) el ${choqueProf.horario.dia} de ${choqueProf.horario.inicio} a ${choqueProf.horario.fin}.`;
+        }
+    }
+    return null;
+}
+
+// Pide confirmación si algún bloque cae fuera de la franja habitual.
+function confirmarFueraDeFranja(horarios) {
+    const fuera = horarios.filter(estaFueraDeFranja);
+    if (fuera.length === 0) return true;
+    return confirm(`${fuera.map(h => `${h.dia} ${h.inicio}–${h.fin}`).join(', ')} queda fuera del horario habitual del instituto (${FRANJA_INSTITUTO.inicio} a ${FRANJA_INSTITUTO.fin}). ¿Guardar igual?`);
+}
+
+// Revisión de TODO lo cargado: choques de profesor y de curso. Se
+// muestra como aviso arriba de la planilla para que lo que ya estaba
+// mal cargado no quede escondido.
+function auditarChoquesMaterias() {
+    const problemas = [];
+    const ms = currentMaterias;
+    for (let i = 0; i < ms.length; i++) {
+        for (let j = i + 1; j < ms.length; j++) {
+            const a = ms[i], b = ms[j];
+            const h = materiaHorarios(a).find(x => materiaHorarios(b).some(y => horariosSeSuperponen(x, y)));
+            if (!h) continue;
+            if (a.profesor_id && a.profesor_id === b.profesor_id) {
+                const prof = materiaProfesorPorDocenteId[a.profesor_id];
+                problemas.push(`Profesor ${prof ? prof.apellido + ' ' + prof.nombre : ''}: "${a.nombre}" (${a.anio}°) y "${b.nombre}" (${b.anio}°) a la vez el ${h.dia}.`);
+            }
+            if (String(a.carrera_id) === String(b.carrera_id) && Number(a.anio) === Number(b.anio) && materiasCompartenCuatrimestre(a, b)) {
+                problemas.push(`${a.anio}° año: "${a.nombre}" y "${b.nombre}" se superponen el ${h.dia}.`);
+            }
+        }
+    }
+    return problemas;
 }
 
 async function saveMateria() {
@@ -5444,13 +6446,9 @@ async function saveMateria() {
         if (teacher) profesorId = await syncTeacherToDocenteTable(teacher);
     }
 
-    if (profesorId) {
-        const choque = buscarChoqueHorarioProfesor(profesorId, horarios, editingMateriaId);
-        if (choque) {
-            showToast(`⚠️ El docente ya tiene "${choque.materia.nombre}" el ${choque.horario.dia} de ${choque.horario.inicio} a ${choque.horario.fin}`, 'error');
-            return;
-        }
-    }
+    const problema = validarHorariosMateria({ carrera_id: carreraId, anio, cuatrimestre, tipo, profesor_id: profesorId }, horarios, editingMateriaId);
+    if (problema) { showToast('⚠️ ' + problema, 'error'); return; }
+    if (!confirmarFueraDeFranja(horarios)) return;
 
     // dias se sigue guardando (por compatibilidad con quien todavía lea
     // esa columna vieja), pero para mostrar la materia ya no se usa -
@@ -5603,6 +6601,7 @@ function renderMateriasDocenteChips() {
     const carrerasPorId = {};
     currentCarreras.forEach(c => { carrerasPorId[c.id] = c.nombre; });
     const seleccionadas = currentMaterias.filter(m => materiasSeleccionadasDocenteIds.has(m.id));
+    renderCalendarioDocente();
     if (seleccionadas.length === 0) {
         cont.innerHTML = '<span class="text-muted small">Todavía no tiene ninguna materia asignada.</span>';
         return;
@@ -5647,7 +6646,7 @@ function poblarSelectAnioAsignar() {
     }
     const anios = [...new Set(currentMaterias.filter(m => String(m.carrera_id) === String(materiaAsignarCarreraFiltro)).map(m => m.anio))].sort((a, b) => a - b);
     sel.disabled = false;
-    sel.innerHTML = '<option value="">Seleccioná...</option>' +
+    sel.innerHTML = `<option value="">${t('teachers.allYears')}</option>` +
         anios.map(a => `<option value="${a}" ${String(a) === String(materiaAsignarAnioFiltro) ? 'selected' : ''}>${a}° Año</option>`).join('');
 }
 
@@ -5659,32 +6658,114 @@ function onCambioAnioAsignar(anio) {
 function renderMateriasDocenteFiltrado() {
     const cont = document.getElementById('materiasDocenteChecklist');
     if (!cont) return;
-    if (!materiaAsignarCarreraFiltro || !materiaAsignarAnioFiltro) {
-        cont.innerHTML = '<span class="text-muted small">Elegí carrera y año para ver sus materias.</span>';
+    // Alcanza con la carrera: se listan todas sus materias agrupadas por
+    // año, cada una con su horario, y el año queda como filtro opcional.
+    if (!materiaAsignarCarreraFiltro) {
+        cont.innerHTML = `<span class="text-muted small">${t('teachers.selectCareerHint')}</span>`;
         return;
     }
-    const filtradas = currentMaterias.filter(m => String(m.carrera_id) === String(materiaAsignarCarreraFiltro) && m.anio === Number(materiaAsignarAnioFiltro));
+    const filtradas = currentMaterias
+        .filter(m => String(m.carrera_id) === String(materiaAsignarCarreraFiltro) &&
+            (!materiaAsignarAnioFiltro || m.anio === Number(materiaAsignarAnioFiltro)))
+        .sort((a, b) => (a.anio - b.anio) || a.nombre.localeCompare(b.nombre));
     if (filtradas.length === 0) {
         cont.innerHTML = '<span class="text-muted small">No hay materias cargadas para ese año de esa carrera.</span>';
         return;
     }
-    cont.innerHTML = filtradas.map(m => {
-        const seleccionada = materiasSeleccionadasDocenteIds.has(m.id);
-        const profesorActual = m.profesor_id ? materiaProfesorPorDocenteId[m.profesor_id] : null;
-        const asignadoAOtro = !!(profesorActual && profesorActual.id !== materiasSeleccionDocenteIdActual && !seleccionada);
-        const etiquetaOtro = asignadoAOtro ? ` <small class="text-muted">(hoy: ${profesorActual.apellido})</small>` : '';
-        return `
-            <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="materiaChk_${m.id}" onchange="toggleMateriaSeleccionadaDocente(${m.id}, this.checked)" ${seleccionada ? 'checked' : ''}>
-                <label class="form-check-label" for="materiaChk_${m.id}">${m.nombre} (${formatoHorariosCorto(m)})${etiquetaOtro}</label>
-            </div>`;
-    }).join('');
+    const porAnio = {};
+    filtradas.forEach(m => { (porAnio[m.anio] = porAnio[m.anio] || []).push(m); });
+    cont.innerHTML = Object.keys(porAnio).sort((a, b) => a - b).map(anio => `
+        <div class="materias-asignar-anio">${anio}° ${t('teachers.yearWord')}</div>
+        ${porAnio[anio].slice().sort((a, b) => Number(materiaAsignadaAOtroDocente(a)) - Number(materiaAsignadaAOtroDocente(b))).map(m => {
+            const seleccionada = materiasSeleccionadasDocenteIds.has(m.id);
+            const profesorActual = m.profesor_id ? materiaProfesorPorDocenteId[m.profesor_id] : null;
+            // Asignada a otro docente: sin casilla, en gris y al final del año.
+            const asignadoAOtro = materiaAsignadaAOtroDocente(m);
+            const etiquetaOtro = asignadoAOtro ? `<span class="materia-asignar-otro"><i class="bi bi-lock-fill"></i> ${t('teachers.assignedToOther', { name: `${profesorActual.apellido} ${profesorActual.nombre}` })}</span>` : '';
+            const horarios = materiaHorarios(m).map(h => `<span class="materia-horario-chip">${diasCorto([h.dia])} ${h.inicio}–${h.fin}</span>`).join('');
+            return `
+            <label class="materia-asignar-item ${seleccionada ? 'is-selected' : ''} ${asignadoAOtro ? 'is-ocupada' : ''}" ${asignadoAOtro ? '' : `for="materiaChk_${m.id}"`}>
+                ${asignadoAOtro
+                    ? '<span class="materia-asignar-lock"><i class="bi bi-lock"></i></span>'
+                    : `<input class="form-check-input" type="checkbox" id="materiaChk_${m.id}" onchange="toggleMateriaSeleccionadaDocente(${m.id}, this.checked)" ${seleccionada ? 'checked' : ''}>`}
+                <span class="materia-asignar-info">
+                    <span class="materia-asignar-nombre">${m.nombre} ${etiquetaOtro}</span>
+                    <span class="materia-asignar-horarios">${horarios || `<span class="text-muted small">${t('teachers.noScheduleLoaded')}</span>`}</span>
+                </span>
+            </label>`;
+        }).join('')}`).join('');
+}
+
+// ¿La materia ya tiene OTRO profesor (distinto del docente que se está
+// dando de alta/editando)? Esas se muestran en el formulario solo como
+// referencia, sin casilla: una materia tiene un único profesor y no se
+// le puede quitar a otro docente desde acá (se reasigna en Materias).
+function materiaAsignadaAOtroDocente(m) {
+    const profesorActual = m.profesor_id ? materiaProfesorPorDocenteId[m.profesor_id] : null;
+    return !!profesorActual && profesorActual.id !== materiasSeleccionDocenteIdActual;
 }
 
 function toggleMateriaSeleccionadaDocente(materiaId, checked) {
+    const materia = currentMaterias.find(m => m.id === materiaId);
+    if (checked && materia && materiaAsignadaAOtroDocente(materia)) {
+        const chk = document.getElementById(`materiaChk_${materiaId}`);
+        if (chk) chk.checked = false;
+        return;
+    }
     if (checked) materiasSeleccionadasDocenteIds.add(materiaId);
     else materiasSeleccionadasDocenteIds.delete(materiaId);
     renderMateriasDocenteChips();
+    const chk = document.getElementById(`materiaChk_${materiaId}`);
+    if (chk) chk.closest('.materia-asignar-item')?.classList.toggle('is-selected', checked);
+    document.getElementById('materiaAsignarCarrera')?.classList.remove('is-invalid');
+}
+
+// Calendario semanal del docente según las materias tildadas: una
+// columna por día (Lun-Vie siempre, Sáb/Dom solo si hay clases) con
+// los bloques de cada materia. Es exactamente el horario contra el que
+// se controla la asistencia (ver getHorarioEfectivo()), así el admin
+// lo ve antes de guardar. Marca en rojo los bloques que se superponen.
+const DIAS_CALENDARIO = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+function renderCalendarioDocente() {
+    const cont = document.getElementById('materiasDocenteCalendario');
+    if (!cont) return;
+    const seleccionadas = currentMaterias.filter(m => materiasSeleccionadasDocenteIds.has(m.id));
+    if (seleccionadas.length === 0) { cont.innerHTML = ''; return; }
+    const aMin = (hhmm) => { const [h, mi] = String(hhmm || '0:0').split(':').map(Number); return h * 60 + mi; };
+    const bloquesPorDia = {};
+    DIAS_CALENDARIO.forEach(d => { bloquesPorDia[d] = []; });
+    seleccionadas.forEach(m => materiaHorarios(m).forEach(h => {
+        const dia = DIAS_CALENDARIO.find(d => normalizarBusqueda(d) === normalizarBusqueda(h.dia));
+        if (dia) bloquesPorDia[dia].push({ nombre: m.nombre, inicio: h.inicio, fin: h.fin, ini: aMin(h.inicio), end: aMin(h.fin) });
+    }));
+    let minutosSemana = 0;
+    let haySuperposicion = false;
+    Object.values(bloquesPorDia).forEach(bloques => {
+        bloques.sort((a, b) => a.ini - b.ini);
+        bloques.forEach((b, i) => {
+            minutosSemana += Math.max(0, b.end - b.ini);
+            const sig = bloques[i + 1];
+            if (sig && sig.ini < b.end) { b.choca = true; sig.choca = true; haySuperposicion = true; }
+        });
+    });
+    const dias = DIAS_CALENDARIO.filter((d, i) => i < 5 || bloquesPorDia[d].length > 0);
+    const horas = Math.floor(minutosSemana / 60), mins = minutosSemana % 60;
+    cont.innerHTML = `
+        <div class="calendario-docente">
+            ${dias.map(d => `
+            <div class="calendario-dia ${bloquesPorDia[d].length ? '' : 'is-libre'}">
+                <div class="calendario-dia-nombre">${d}</div>
+                ${bloquesPorDia[d].length ? bloquesPorDia[d].map(b => `
+                    <div class="calendario-bloque ${b.choca ? 'is-conflicto' : ''}">
+                        <span class="calendario-bloque-hora">${b.inicio}–${b.fin}</span>
+                        <span class="calendario-bloque-materia">${b.nombre}</span>
+                    </div>`).join('') : `<div class="calendario-libre">${t('teachers.noClasses')}</div>`}
+            </div>`).join('')}
+        </div>
+        <div class="calendario-resumen">
+            <i class="bi bi-clock"></i> ${t('teachers.weeklyTotal', { h: horas, m: String(mins).padStart(2, '0') })}
+            ${haySuperposicion ? `<span class="calendario-aviso"><i class="bi bi-exclamation-triangle-fill"></i> ${t('teachers.scheduleOverlap')}</span>` : ''}
+        </div>`;
 }
 
 // Se llama al final de saveTeacher(): resuelve el docente real (ver
@@ -5696,7 +6777,15 @@ async function guardarMateriasAsignadasDocente(teacher) {
     const docenteId = await syncTeacherToDocenteTable(teacher);
     if (!docenteId) return;
     const tildadas = materiasSeleccionadasDocenteIds;
+    // Nunca se le quita una materia a otro docente desde este formulario
+    // (la UI ya no deja tildarlas; esto cubre selecciones viejas o datos
+    // que cambiaron mientras el formulario estaba abierto).
+    const ocupadas = currentMaterias.filter(m => tildadas.has(m.id) && m.profesor_id && m.profesor_id !== docenteId && materiaProfesorPorDocenteId[m.profesor_id]);
+    if (ocupadas.length > 0) {
+        showToast(`⚠️ No se asignó ${ocupadas.map(m => `"${m.nombre}"`).join(', ')}: ya tiene otro profesor. Reasignala desde la pestaña Materias.`, 'warning');
+    }
     const cambios = currentMaterias.filter(m => {
+        if (ocupadas.includes(m)) return false;
         const eraDeEste = m.profesor_id === docenteId;
         const ahoraTildada = tildadas.has(m.id);
         return (ahoraTildada && !eraDeEste) || (!ahoraTildada && eraDeEste);
@@ -5834,6 +6923,7 @@ function checkFaltasEvento() {
         const eventos = eventoConvocatoriasPorDocente[Number(teacher.id)] || [];
         eventos.forEach(ev => {
             if (ev.fecha > todayStr) return; // evento futuro, todavía no corresponde
+            if (!eventoEsObligatorio(ev)) return; // No obligatorio: no ir no es falta
             if (getLicenciaForDate(teacher.id, ev.fecha)) return;
 
             const horaEntrada = (ev.hora_entrada || '').slice(0, 5);
@@ -5885,8 +6975,8 @@ function getDayStatus(teacherId, dateStr, hasScheduleToday, earliestStart, atten
     return 'scheduled';
 }
 
-const SCHEDULE_STATUS_ICON = { present: '✓', late: '⏰', falta: '✗', licencia: '🏥', scheduled: '○' };
-const SCHEDULE_STATUS_LABEL = { present: 'Presente', late: 'Tardanza', falta: 'Ausente', licencia: 'Licencia', scheduled: 'Pendiente' };
+const SCHEDULE_STATUS_ICON = { present: '✓', late: '⏰', media_falta: '◐', falta: '✗', licencia: '🏥', scheduled: '○' };
+const SCHEDULE_STATUS_LABEL = { present: 'Presente', late: 'Tardanza', media_falta: 'Media falta', falta: 'Ausente', licencia: 'Licencia', scheduled: 'Pendiente' };
 
 // Cruza horario efectivo (getHorarioEfectivo, ya trae materiaId/
 // materiaNombre cuando el docente tiene materias asignadas) +
@@ -5930,7 +7020,20 @@ function getScheduleEntriesForDate(dateStr) {
                 entryRecord = attendance.find(a => a.teacherId === teacher.id && a.type === 'entry' && getFechaRealFichaje(a) === dateStr &&
                     (a.categoria || 'regular') === 'regular' && !a.anulado && (h.materiaId != null ? a.materiaId === h.materiaId : true) &&
                     fichajeValidoParaClase(a.time, h.inicio)) || null;
-                if (entryRecord) {
+                // Retiro anticipado durante esta clase (salida antes de su
+                // fin, posterior a la entrada): la clase queda como media
+                // falta. La salida normal no es obligatoria (ver
+                // decidirFichaje()), así que sin retiro la entrada cubre todo.
+                const earlyExitRecord = entryRecord ? (attendance.find(a => a.teacherId === teacher.id && a.type === 'early_exit' &&
+                    getFechaRealFichaje(a) === dateStr && (a.categoria || 'regular') === 'regular' && !a.anulado &&
+                    (h.materiaId != null && a.materiaId != null ? a.materiaId === h.materiaId : true) &&
+                    (a.time || '') >= (entryRecord.time || '') && (a.time || '').slice(0, 5) < h.fin) || null) : null;
+                if (entryRecord && earlyExitRecord) {
+                    status = 'media_falta';
+                    const [sh, sm] = h.inicio.split(':').map(Number);
+                    const [eh, em] = (entryRecord.time || '00:00').split(':').map(Number);
+                    tardanzaMin = (eh * 60 + em) - (sh * 60 + sm);
+                } else if (entryRecord) {
                     status = entryRecord.status === 'late' ? 'late' : 'present';
                     const [sh, sm] = h.inicio.split(':').map(Number);
                     const [eh, em] = (entryRecord.time || '00:00').split(':').map(Number);
@@ -6021,7 +7124,9 @@ function getEventoEntriesParaHoy() {
                 tardanzaMin: elapsedMin,
                 esEvento: true,
                 tipoCumplimiento: ev.tipo_cumplimiento || 'CON_PERJUICIO',
-                semaforo: calcularSemaforoPuntualidad(elapsedMin, criteria, !!entryRecord),
+                semaforo: (!eventoEsObligatorio(ev) && !entryRecord)
+                    ? { code: 'esperado', ...SEMAFORO_PUNTUALIDAD.esperado }
+                    : calcularSemaforoPuntualidad(elapsedMin, criteria, !!entryRecord),
             });
         });
     });
@@ -6096,6 +7201,7 @@ function getDocentesEsperadosHoy() {
                 elapsedMin = nowMinutes - (sh * 60 + sm);
                 if (elapsedMin < 0) elapsedMin = null;
             }
+            if (e.status === 'media_falta') return { ...e, semaforo: { code: 'media_falta', ...SEMAFORO_PUNTUALIDAD.media_falta } };
             return { ...e, semaforo: calcularSemaforoPuntualidad(elapsedMin, criteria, !!e.entryRecord) };
         });
 
@@ -6135,7 +7241,7 @@ function renderFilaEsperadoHoy(e) {
     // materia normal de un vistazo (ver getEventoEntriesParaHoy()).
     const claseFila = e.esEvento ? 'semaforo-row semaforo-row-evento' : 'semaforo-row';
     const badgeCumplimiento = e.esEvento
-        ? `<span class="badge-cumplimiento ${e.tipoCumplimiento === 'SIN_PERJUICIO' ? 'badge-sin-perjuicio' : 'badge-con-perjuicio'}">${e.tipoCumplimiento === 'SIN_PERJUICIO' ? t('esperadosHoy.sinPerjuicio') : t('esperadosHoy.conPerjuicio')}</span>`
+        ? ` ${etiquetasEstadoEvento(e.tipoCumplimiento)}`
         : '';
     const etiquetaMateria = e.esEvento ? `<i class="bi bi-calendar-event"></i> ${t('esperadosHoy.event')}: ${e.materiaNombre}` : e.materiaNombre;
     // Choque de horario real en los datos (ver resolverChoquesHorario()):
@@ -6179,7 +7285,7 @@ function renderDocentesEsperadosHoy() {
     if (debugEl) debugEl.textContent = `Hoy es: ${getDiaSemanaArgentina()} ${getFechaHoyArgentina()} - ${getHoraHHMMArgentina()} ARG`;
     const entries = getDocentesEsperadosHoy();
     if (entries.length === 0) {
-        container.innerHTML = `<p class="text-muted mb-0">${t('esperadosHoy.noTeachers')}</p>`;
+        container.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="bi bi-cup-hot"></i></div><div class="empty-state-title">${t('esperadosHoy.noTeachers')}</div><div class="empty-state-text">${t('esperadosHoy.noTeachersHint', { dia: getDiaSemanaArgentina() })}</div></div>`;
         return;
     }
     const secciones = TURNO_ORDEN
@@ -6302,7 +7408,7 @@ function buildGridCellItemHtml(e) {
     let estadoHtml;
     if (e.status === 'licencia') {
         estadoHtml = `<span class="grid-item-status">🏥 Licencia</span>`;
-    } else if (e.status === 'present' || e.status === 'late') {
+    } else if (e.status === 'present' || e.status === 'late' || e.status === 'media_falta') {
         const hora = e.entryRecord && e.entryRecord.time ? e.entryRecord.time.slice(0, 5) : '';
         const minTxt = e.tardanzaMin > 0 ? ` (${e.tardanzaMin}m)` : (e.tardanzaMin < 0 ? ` (${Math.abs(e.tardanzaMin)}m antes)` : '');
         estadoHtml = `<span class="grid-item-status">${SCHEDULE_STATUS_ICON[e.status]} ${hora}${minTxt}</span>`;
@@ -6631,92 +7737,534 @@ function showTeacherCalendar(teacherId) {
 // Gómez [✓ Presente]"), coloreado según su estado real (ver
 // getScheduleEntriesForDate()); las licencias quedan incluidas como
 // un estado más (no se resta el día, se marca aparte).
-function showAnnualCalendar() {
-    // "Hoy" en Argentina (ver ARGENTINA_TZ) como año/mes/día de
-    // calendario puro, no la hora del dispositivo.
-    const [todayYear, todayMonth, todayDayNum] = getFechaHoyArgentina().split('-').map(Number);
-    const todayStr = `${todayYear}-${String(todayMonth).padStart(2, '0')}-${String(todayDayNum).padStart(2, '0')}`;
+// Calendario del Establecimiento con FullCalendar (libs/, MIT): SOLO
+// horarios, semana tipo, filtros Carrera/Año/Cuatrimestre/Materia/
+// Docente. Ver eventosCalendarioEstablecimiento().
+let establecimientoCalendar = null;
 
-    // Mapa fecha -> entradas (materia+docente+estado) de ese día, desde
-    // hoy hasta el 31/12 de SCHEDULE_CALENDAR_YEAR.
-    const byDate = {};
-    const startTime = todayYear === SCHEDULE_CALENDAR_YEAR
-        ? Date.UTC(todayYear, todayMonth - 1, todayDayNum)
-        : Date.UTC(SCHEDULE_CALENDAR_YEAR, 0, 1);
-    const endTime = Date.UTC(SCHEDULE_CALENDAR_YEAR, 11, 31);
-    for (let t = startTime; t <= endTime; t += 86400000) {
-        const dateStr = new Date(t).toISOString().split('T')[0];
-        const entries = getScheduleEntriesForDate(dateStr);
-        if (entries.length > 0) byDate[dateStr] = entries;
+function aFechaLocalISO(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Filtros en cascada: Carrera -> Año -> Cuatrimestre -> Materia (cada
+// uno solo ofrece lo que existe dentro del anterior) + Docente aparte.
+// Cuatrimestre: una materia ANUAL entra en los dos.
+let calFiltrosInicializados = false;
+
+function materiasSegunFiltrosCalendario(hasta) {
+    const carrera = document.getElementById('calFiltroCarrera').value;
+    const anio = document.getElementById('calFiltroAnio').value;
+    const cuatri = document.getElementById('calFiltroCuatri').value;
+    return currentMaterias.filter(m =>
+        (!carrera || String(m.carrera_id) === carrera) &&
+        (hasta === 'anio' || !anio || String(m.anio) === anio) &&
+        (hasta === 'anio' || hasta === 'cuatri' || !cuatri || m.tipo === 'ANUAL' || String(m.cuatrimestre) === cuatri));
+}
+
+function llenarSelect(sel, opcionTodos, opciones, valorActual) {
+    sel.innerHTML = `<option value="">${opcionTodos}</option>` + opciones.map(o => `<option value="${o.value}">${o.text}</option>`).join('');
+    sel.value = opciones.some(o => String(o.value) === String(valorActual)) ? valorActual : '';
+}
+
+function poblarFiltrosCalendario() {
+    const selCarrera = document.getElementById('calFiltroCarrera');
+    const selAnio = document.getElementById('calFiltroAnio');
+    const selCuatri = document.getElementById('calFiltroCuatri');
+    const selMateria = document.getElementById('calFiltroMateria');
+    const selDocente = document.getElementById('calFiltroDocente');
+
+    // Primera vez: arranca mostrando un curso concreto (primera carrera,
+    // primer año), como la planilla de horarios, en vez de todo junto.
+    let carreraInicial = selCarrera.value, anioInicial = selAnio.value;
+    if (!calFiltrosInicializados && currentCarreras.length > 0) {
+        carreraInicial = String(currentCarreras[0].id);
+        const anios0 = currentMaterias.filter(m => String(m.carrera_id) === carreraInicial).map(m => m.anio).sort((a, b) => a - b);
+        anioInicial = anios0.length ? String(anios0[0]) : '';
+        calFiltrosInicializados = true;
     }
-    annualCalendarByDate = byDate;
 
-    const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-    const startMonth = todayYear === SCHEDULE_CALENDAR_YEAR ? (todayMonth - 1) : 0;
-    let html = '';
-    for (let m = startMonth; m < 12; m++) {
-        html += `<div class="annual-month"><div class="annual-month-title">${monthNames[m]} ${SCHEDULE_CALENDAR_YEAR}</div><div class="annual-month-grid">`;
-        ['D','L','M','X','J','V','S'].forEach(l => html += `<div class="annual-month-dow">${l}</div>`);
-        const firstDow = new Date(Date.UTC(SCHEDULE_CALENDAR_YEAR, m, 1)).getUTCDay();
-        const daysInMonth = new Date(Date.UTC(SCHEDULE_CALENDAR_YEAR, m + 1, 0)).getUTCDate();
-        for (let i = 0; i < firstDow; i++) html += `<div class="annual-day-cell empty"></div>`;
-        for (let day = 1; day <= daysInMonth; day++) {
-            const dateStr = new Date(Date.UTC(SCHEDULE_CALENDAR_YEAR, m, day)).toISOString().split('T')[0];
-            if (dateStr < todayStr) { html += `<div class="annual-day-cell empty"></div>`; continue; }
-            const entries = byDate[dateStr] || [];
-            const chips = entries.map(e => {
-                const label = `${e.materiaNombre} - ${e.teacherApellido}`;
-                const title = `${e.materiaNombre} - ${e.teacherName} (${SCHEDULE_STATUS_LABEL[e.status]})`;
-                return `<span class="annual-teacher-chip status-${e.status}" title="${title}">${SCHEDULE_STATUS_ICON[e.status]} ${label}</span>`;
-            }).join('');
-            const cellCls = entries.length > 0 ? 'annual-day-cell has-entries' : 'annual-day-cell';
-            const cellClick = entries.length > 0 ? ` onclick="showDayDetail('${dateStr}')"` : '';
-            html += `<div class="${cellCls}"${cellClick}><div class="annual-day-num">${day}</div>${chips}</div>`;
+    llenarSelect(selCarrera, t('calendar.allCareers'), currentCarreras.map(c => ({ value: c.id, text: c.nombre })), carreraInicial);
+    const anios = [...new Set(materiasSegunFiltrosCalendario('anio').map(m => m.anio))].sort((a, b) => a - b);
+    llenarSelect(selAnio, t('calendar.allYears'), anios.map(a => ({ value: a, text: `${a}° ${t('teachers.yearWord')}` })), anioInicial);
+    const conAnio = materiasSegunFiltrosCalendario('cuatri');
+    const cuatris = [...new Set(conAnio.filter(m => m.tipo !== 'ANUAL').map(m => m.cuatrimestre))].filter(Boolean).sort((a, b) => a - b);
+    llenarSelect(selCuatri, t('calendar.allTerms'), cuatris.map(c => ({ value: c, text: `${c}° ${t('calendar.termWord')}` })), selCuatri.value);
+    const materias = materiasSegunFiltrosCalendario().slice().sort((a, b) => (a.anio - b.anio) || a.nombre.localeCompare(b.nombre));
+    llenarSelect(selMateria, t('calendar.allSubjects'), materias.map(m => ({ value: m.id, text: selAnio.value ? m.nombre : `${m.nombre} (${m.anio}°)` })), selMateria.value);
+    const docentes = getTeachers().slice().sort((a, b) => `${a.apellido} ${a.nombre}`.localeCompare(`${b.apellido} ${b.nombre}`));
+    llenarSelect(selDocente, t('calendar.allTeachers'), docentes.map(tc => ({ value: tc.id, text: `${tc.apellido} ${tc.nombre}` })), selDocente.value);
+}
+
+// Ampliar: el modal pasa a pantalla completa y la grilla a filas altas;
+// Reducir: vuelve a la vista compacta.
+function toggleAmpliarCalendario(forzar) {
+    const dialog = document.querySelector('#annualCalendarModal .modal-dialog');
+    const cal = document.getElementById('establecimientoCalendar');
+    const ampliado = typeof forzar === 'boolean' ? forzar : !dialog.classList.contains('modal-fullscreen');
+    dialog.classList.toggle('modal-fullscreen', ampliado);
+    dialog.classList.toggle('modal-xl', !ampliado);
+    cal.classList.toggle('is-ampliado', ampliado);
+    const btn = document.getElementById('calAmpliarBtn');
+    if (btn) btn.innerHTML = ampliado
+        ? `<i class="bi bi-fullscreen-exit"></i> ${t('calendar.shrink')}`
+        : `<i class="bi bi-arrows-fullscreen"></i> ${t('calendar.expand')}`;
+    if (establecimientoCalendar) setTimeout(() => establecimientoCalendar.updateSize(), 50);
+}
+
+// Vuelve todos los filtros a "Todos" (carrera, año, cuatrimestre,
+// materia y docente) y muestra la grilla completa.
+function limpiarFiltrosCalendario() {
+    ['calFiltroCarrera', 'calFiltroAnio', 'calFiltroCuatri', 'calFiltroMateria', 'calFiltroDocente'].forEach(id => {
+        document.getElementById(id).value = '';
+    });
+    onCambioFiltroCalendario();
+}
+
+function onCambioFiltroCalendario() {
+    poblarFiltrosCalendario();
+    if (!establecimientoCalendar) return;
+    const rango = rangoGrillaHorarios(materiasVisiblesCalendario(), true);
+    establecimientoCalendar.setOption('slotMinTime', rango.slotMinTime);
+    establecimientoCalendar.setOption('slotMaxTime', rango.slotMaxTime);
+    establecimientoCalendar.setOption('hiddenDays', rango.hiddenDays);
+    establecimientoCalendar.refetchEvents();
+}
+
+// Solo horarios (sin presente/ausente: eso está en Grilla Completa,
+// Alertas, Reportes y Estadísticas): cada materia que pasa los filtros
+// en su bloque semanal, con su profesor o "Sin docente". Semana tipo
+// fija (misma referencia que la planilla de Materias), sin fechas.
+function materiasVisiblesCalendario() {
+    const docente = document.getElementById('calFiltroDocente').value;
+    const materiaSel = document.getElementById('calFiltroMateria').value;
+    return materiasSegunFiltrosCalendario().filter(m => {
+        if (materiaSel && String(m.id) !== materiaSel) return false;
+        if (!docente) return true;
+        const prof = m.profesor_id ? materiaProfesorPorDocenteId[m.profesor_id] : null;
+        return !!prof && prof.id === docente;
+    });
+}
+
+// ¿Hay clases de más de un año a la vista? Entonces: etiqueta "1°/2°"
+// en cada bloque, leyenda de colores por año y filas más altas
+// (clase is-multi) para que los nombres entren en columnas angostas.
+let calVariosAnios = false;
+function actualizarLeyendaAniosCalendario(materias) {
+    const anios = [...new Set(materias.map(m => Number(m.anio) || 1))].sort((a, b) => a - b);
+    calVariosAnios = anios.length > 1;
+    document.getElementById('establecimientoCalendar')?.classList.toggle('is-multi', calVariosAnios);
+    const cont = document.getElementById('calLeyendaAnios');
+    if (cont) cont.innerHTML = calVariosAnios
+        ? anios.map(a => `<div class="schedule-legend-item"><div class="schedule-legend-color cal-anio-dot-${Math.min(a, 5)}"></div><span>${a}° ${t('teachers.yearWord')}</span></div>`).join('')
+        : `<div class="schedule-legend-item"><div class="schedule-legend-color cal-dot-scheduled"></div><span>${t('calendar.withTeacher')}</span></div>`;
+}
+
+function eventosCalendarioEstablecimiento(info, success) {
+    actualizarLeyendaAniosCalendario(materiasVisiblesCalendario());
+    const eventos = [];
+    materiasVisiblesCalendario()
+        .forEach(m => {
+            const prof = m.profesor_id ? materiaProfesorPorDocenteId[m.profesor_id] : null;
+            materiaHorarios(m).forEach(h => {
+                const fecha = planillaFechaDeDia(h.dia);
+                if (!fecha) return;
+                eventos.push({
+                    title: m.nombre,
+                    start: `${fecha}T${h.inicio}`,
+                    end: `${fecha}T${h.fin}`,
+                    // Color por año (cal-anio-N): con varios años a la vista
+                    // se distingue de un vistazo a qué curso es cada clase.
+                    classNames: [prof ? 'planilla-con-docente' : 'planilla-sin-docente', `cal-anio-${Math.min(Number(m.anio) || 1, 5)}`],
+                    extendedProps: { materia: m, profesor: prof ? `${prof.apellido} ${prof.nombre}` : t('calendar.noTeacher'), anual: esMateriaAnual(m) },
+                });
+            });
+        });
+    // Sin clases para esta combinación: aviso en vez de una grilla vacía.
+    const aviso = document.getElementById('calSinResultados');
+    if (aviso) {
+        aviso.classList.toggle('hidden', eventos.length > 0);
+        aviso.innerHTML = eventos.length > 0 ? '' :
+            `<i class="bi bi-info-circle"></i> ${t('calendar.noResults')} <button type="button" class="btn btn-link btn-sm p-0 align-baseline" onclick="limpiarFiltrosCalendario()">${t('calendar.clearFilters')}</button>`;
+    }
+    const hayFiltro = ['calFiltroCarrera', 'calFiltroAnio', 'calFiltroCuatri', 'calFiltroMateria', 'calFiltroDocente'].some(id => document.getElementById(id).value);
+    document.getElementById('calLimpiarFiltrosBtn')?.toggleAttribute('disabled', !hayFiltro);
+    success(eventos);
+}
+
+// Cuatrimestre en curso según la fecha (1° hasta julio, 2° desde agosto),
+// para que el calendario abra mostrando lo que se está dictando.
+function cuatrimestreActual() {
+    const mes = Number(getFechaHoyArgentina().split('-')[1]);
+    return mes <= 7 ? 1 : 2;
+}
+
+async function showAnnualCalendar() {
+    if (!(await asegurarFullCalendar())) {
+        showToast('No se pudo cargar el calendario. Recargá la página con Ctrl+Shift+R.', 'error');
+        return;
+    }
+    if (currentCarreras.length === 0) await loadCarreras();
+    if (currentMaterias.length === 0) await loadMaterias();
+    const primeraVez = !calFiltrosInicializados;
+    poblarFiltrosCalendario();
+    if (primeraVez) {
+        const selCuatri = document.getElementById('calFiltroCuatri');
+        if ([...selCuatri.options].some(o => o.value === String(cuatrimestreActual()))) selCuatri.value = String(cuatrimestreActual());
+        poblarFiltrosCalendario();
+    }
+    const modalEl = document.getElementById('annualCalendarModal');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    // FullCalendar necesita el contenedor visible para medirse: se crea
+    // (o se re-mide) recién cuando el modal terminó de abrirse.
+    modalEl.addEventListener('shown.bs.modal', () => {
+        const rango = rangoGrillaHorarios(materiasVisiblesCalendario(), true);
+        if (!establecimientoCalendar) {
+            establecimientoCalendar = new FullCalendar.Calendar(document.getElementById('establecimientoCalendar'), {
+                locale: 'es',
+                firstDay: 1,
+                initialView: 'timeGridWeek',
+                initialDate: PLANILLA_LUNES_REF,
+                headerToolbar: false,
+                dayHeaderFormat: { weekday: 'long' },
+                hiddenDays: rango.hiddenDays,
+                slotMinTime: rango.slotMinTime,
+                slotMaxTime: rango.slotMaxTime,
+                slotDuration: '00:40:00',
+                slotLabelInterval: '00:40:00',
+                slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+                eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+                allDaySlot: false,
+                // Clases simultáneas (p. ej. 1° y 2° año a la misma hora)
+                // lado a lado, nunca una encima de la otra.
+                slotEventOverlap: false,
+                nowIndicator: false,
+                expandRows: true,
+                height: 'auto',
+                events: eventosCalendarioEstablecimiento,
+                eventContent: (arg) => {
+                    const m = arg.event.extendedProps.materia;
+                    const tagAnio = calVariosAnios ? `<span class="cal-anio-tag">${m.anio}°</span> ` : '';
+                    return {
+                        // Con varios años (columnas angostas) solo la hora de inicio:
+                        // el fin se ve por el alto del bloque y en el tooltip.
+                        html: `<div class="planilla-evento"><div class="planilla-evento-hora">${tagAnio}${calVariosAnios ? hhmmDe(arg.event.start) : arg.timeText}</div><div class="planilla-evento-nombre">${arg.event.title}${arg.event.extendedProps.anual ? ' <span class="planilla-anual-tag">ANUAL</span>' : ''}</div><div class="planilla-evento-prof">${arg.event.extendedProps.profesor}</div></div>`,
+                    };
+                },
+                eventDidMount: (arg) => {
+                    const m = arg.event.extendedProps.materia;
+                    arg.el.title = `${hhmmDe(arg.event.start)}–${hhmmDe(arg.event.end)} ${m.nombre} (${m.anio}° año)\n${arg.event.extendedProps.profesor}`;
+                },
+            });
+            establecimientoCalendar.render();
+        } else {
+            establecimientoCalendar.updateSize();
+            onCambioFiltroCalendario();
         }
-        html += `</div></div>`;
+    }, { once: true });
+    modal.show();
+}
+
+// ============================================================
+// ASISTENCIAS: una fila por clase programada (horario de la materia)
+// en el rango de fechas, con su fichaje real. Usa
+// getScheduleEntriesForDate() - el mismo cruce horario + fichajes +
+// licencias que Inicio, Grilla Completa y Reportes -, así que los
+// estados coinciden en todo el sistema. Solo hasta hoy: lo futuro
+// todavía no tiene asistencia.
+// ============================================================
+const ASIS_MAX_DIAS = 92;
+const ASIS_ESTADO_CLASE = { present: 'asis-presente', late: 'asis-tarde', media_falta: 'asis-media', falta: 'asis-falta', licencia: 'asis-licencia', scheduled: 'asis-pendiente' };
+let asistenciasInicializado = false;
+let asistenciasFilas = [];
+
+function fechaMasDias(fechaStr, dias) {
+    const d = new Date(fechaStr + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + dias);
+    return d.toISOString().split('T')[0];
+}
+
+function setRangoAsistencias(diasAtras) {
+    const hoy = getFechaHoyArgentina();
+    document.getElementById('asisDesde').value = fechaMasDias(hoy, -diasAtras);
+    document.getElementById('asisHasta').value = hoy;
+    renderAsistencias();
+}
+
+function poblarFiltrosAsistencias() {
+    const selCarrera = document.getElementById('asisCarrera');
+    const selAnio = document.getElementById('asisAnio');
+    const selMateria = document.getElementById('asisMateria');
+    const selDocente = document.getElementById('asisDocente');
+    const selEstado = document.getElementById('asisEstado');
+    llenarSelect(selCarrera, t('calendar.allCareers'), currentCarreras.map(c => ({ value: c.id, text: c.nombre })), selCarrera.value);
+    const deCarrera = currentMaterias.filter(m => !selCarrera.value || String(m.carrera_id) === selCarrera.value);
+    const anios = [...new Set(deCarrera.map(m => m.anio))].sort((a, b) => a - b);
+    llenarSelect(selAnio, t('calendar.allYears'), anios.map(a => ({ value: a, text: `${a}° ${t('teachers.yearWord')}` })), selAnio.value);
+    const materias = deCarrera.filter(m => !selAnio.value || String(m.anio) === selAnio.value)
+        .sort((a, b) => (a.anio - b.anio) || a.nombre.localeCompare(b.nombre));
+    llenarSelect(selMateria, t('calendar.allSubjects'), materias.map(m => ({ value: m.id, text: selAnio.value ? m.nombre : `${m.nombre} (${m.anio}°)` })), selMateria.value);
+    const docentes = getTeachers().slice().sort((a, b) => `${a.apellido} ${a.nombre}`.localeCompare(`${b.apellido} ${b.nombre}`));
+    llenarSelect(selDocente, t('calendar.allTeachers'), docentes.map(tc => ({ value: tc.id, text: `${tc.apellido} ${tc.nombre}` })), selDocente.value);
+    llenarSelect(selEstado, t('asistencias.allStatus'), ['present', 'late', 'media_falta', 'falta', 'licencia', 'scheduled'].map(k => ({ value: k, text: SCHEDULE_STATUS_LABEL[k] })), selEstado.value);
+}
+
+function onCambioFiltroAsistencias() {
+    poblarFiltrosAsistencias();
+    renderAsistencias();
+}
+
+function limpiarFiltrosAsistencias() {
+    ['asisCarrera', 'asisAnio', 'asisMateria', 'asisDocente', 'asisEstado'].forEach(id => { document.getElementById(id).value = ''; });
+    poblarFiltrosAsistencias();
+    setRangoAsistencias(6);
+}
+
+async function loadAsistenciasTab() {
+    if (currentCarreras.length === 0) await loadCarreras();
+    if (currentMaterias.length === 0) await loadMaterias();
+    poblarFiltrosAsistencias();
+    if (!asistenciasInicializado) {
+        asistenciasInicializado = true;
+        setRangoAsistencias(6);
+        return;
     }
-    document.getElementById('annualCalendarBody').innerHTML = html || '<p class="text-muted">No hay docentes con horario asignado.</p>';
-    new bootstrap.Modal(document.getElementById('annualCalendarModal')).show();
+    renderAsistencias();
 }
 
-// Al hacer clic en un día del calendario del establecimiento, muestra
-// en grande el detalle de cada bloque (horario, materia, curso,
-// docente y estado con hora real) — los chips del calendario son
-// chicos para que entren todos los meses en pantalla, así que este
-// detalle es donde se leen cómodos.
-function showDayDetail(dateStr) {
-    const entries = annualCalendarByDate[dateStr] || [];
-    const dateObj = new Date(dateStr + 'T00:00:00Z');
-    let formatted = dateObj.toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
-    formatted = formatted.charAt(0).toUpperCase() + formatted.slice(1);
-    document.getElementById('dayDetailModalTitle').textContent = formatted;
-
-    document.getElementById('dayDetailBody').innerHTML = entries.length > 0
-        ? entries.map(e => {
-            const cursoTxt = e.carreraNombre ? ` ${e.carreraNombre} ${e.anio}°` : '';
-            let estadoTxt;
-            if (e.status === 'licencia') estadoTxt = `Licencia${e.licenciaMotivo ? ': ' + e.licenciaMotivo : ''}`;
-            else if (e.status === 'present' || e.status === 'late') {
-                const hora = e.entryRecord && e.entryRecord.time ? e.entryRecord.time.slice(0, 5) : '-';
-                const minTxt = e.tardanzaMin > 0 ? ` (${e.tardanzaMin}m tarde)` : '';
-                estadoTxt = `✓ ${hora}${minTxt}`;
-            }
-            else if (e.status === 'falta') estadoTxt = '✗ Ausente';
-            else estadoTxt = '○ Pendiente';
-            return `
-            <div class="day-detail-teacher status-${e.status}" onclick="openTeacherDetailFromDay('${e.teacherId}')">
-                <span class="day-detail-name">${e.inicio}-${e.fin} ${e.materiaNombre}${cursoTxt} - Prof. ${e.teacherName}</span>
-                <span class="day-detail-status">${estadoTxt}</span>
-            </div>
-        `;
-        }).join('')
-        : '<p class="text-muted">No hay clases programadas este día.</p>';
-    new bootstrap.Modal(document.getElementById('dayDetailModal')).show();
+// Salida real de ese docente ese día para ese bloque: la primera
+// salida (normal o anticipada) posterior a su entrada, de la misma
+// materia si el fichaje la tiene.
+function buscarSalidaDeClase(entry, dateStr) {
+    const desde = entry.entryRecord ? entry.entryRecord.time : entry.inicio;
+    return getAttendance()
+        .filter(a => a.teacherId === entry.teacherId && (a.type === 'exit' || a.type === 'early_exit') &&
+            getFechaRealFichaje(a) === dateStr && (a.categoria || 'regular') === 'regular' && !a.anulado &&
+            (!entry.materiaId || !a.materiaId || a.materiaId === entry.materiaId) && (a.time || '') >= desde)
+        .sort((a, b) => (a.time || '').localeCompare(b.time || ''))[0] || null;
 }
 
-function openTeacherDetailFromDay(teacherId) {
-    bootstrap.Modal.getInstance(document.getElementById('dayDetailModal'))?.hide();
-    showTeacherDetail(teacherId);
+function calcularFilasAsistencias() {
+    const hoy = getFechaHoyArgentina();
+    let desde = document.getElementById('asisDesde').value || hoy;
+    let hasta = document.getElementById('asisHasta').value || hoy;
+    if (hasta > hoy) hasta = hoy;
+    if (desde > hasta) desde = hasta;
+    let recortado = false;
+    if (fechaMasDias(desde, ASIS_MAX_DIAS) < hasta) { desde = fechaMasDias(hasta, -ASIS_MAX_DIAS); recortado = true; }
+    const carrera = document.getElementById('asisCarrera').value;
+    const anio = document.getElementById('asisAnio').value;
+    const materia = document.getElementById('asisMateria').value;
+    const docente = document.getElementById('asisDocente').value;
+    const estado = document.getElementById('asisEstado').value;
+    const filas = [];
+    for (let f = hasta; f >= desde; f = fechaMasDias(f, -1)) {
+        getScheduleEntriesForDate(f).forEach(e => {
+            if (carrera && String(e.carreraId) !== carrera) return;
+            if (anio && String(e.anio) !== anio) return;
+            if (materia && String(e.materiaId) !== materia) return;
+            if (docente && e.teacherId !== docente) return;
+            if (estado && e.status !== estado) return;
+            const salida = e.entryRecord ? buscarSalidaDeClase(e, f) : null;
+            filas.push({ fecha: f, entry: e, salida });
+        });
+    }
+    return { filas, desde, hasta, recortado };
+}
+
+function formatoFechaCorta(fechaStr) {
+    const d = new Date(fechaStr + 'T00:00:00Z');
+    const txt = d.toLocaleDateString('es-AR', { weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'UTC' });
+    return txt.charAt(0).toUpperCase() + txt.slice(1);
+}
+
+function renderAsistencias() {
+    const tbody = document.getElementById('asisTablaBody');
+    if (!tbody) return;
+    const { filas, recortado } = calcularFilasAsistencias();
+    asistenciasFilas = filas;
+
+    const cuenta = { present: 0, late: 0, media_falta: 0, falta: 0, licencia: 0, scheduled: 0 };
+    filas.forEach(r => { cuenta[r.entry.status] = (cuenta[r.entry.status] || 0) + 1; });
+
+    // Cupo anual de faltas de cada docente que aparece en la lista (una
+    // sola vez por docente y año, no por fila).
+    const criteria = getCriteria();
+    const teachersPorId = {};
+    getTeachers().forEach(tc => { teachersPorId[String(tc.id)] = tc; });
+    const cupoCache = {};
+    const cupo = (teacherId, anio) => {
+        const k = `${teacherId}|${anio}`;
+        if (!cupoCache[k]) {
+            const fechas = faltasDelAnio(teacherId, anio);
+            cupoCache[k] = { fechas, cantidad: fechas.length, nivel: nivelCupoFaltas(fechas.length, criteria) };
+        }
+        return cupoCache[k];
+    };
+    const docentesPorNivel = { aviso: new Set(), limite: new Set(), descuento: new Set() };
+    filas.forEach(({ fecha, entry: e }) => {
+        const c = cupo(e.teacherId, fecha.slice(0, 4));
+        if (docentesPorNivel[c.nivel]) docentesPorNivel[c.nivel].add(e.teacherId);
+    });
+    const cercaDelLimite = docentesPorNivel.aviso.size + docentesPorNivel.limite.size;
+
+    document.getElementById('asisResumen').innerHTML = `
+        <span class="asis-chip"><strong>${filas.length}</strong> ${t('asistencias.classes')}</span>
+        ${['present', 'late', 'media_falta', 'falta', 'licencia', 'scheduled'].map(k => `<span class="asis-chip ${ASIS_ESTADO_CLASE[k]}"><strong>${cuenta[k]}</strong> ${SCHEDULE_STATUS_LABEL[k]}</span>`).join('')}
+        ${cercaDelLimite ? `<span class="asis-chip asis-cupo-aviso"><i class="bi bi-exclamation-triangle"></i> <strong>${cercaDelLimite}</strong> ${t('asistencias.chipNear')}</span>` : ''}
+        ${docentesPorNivel.descuento.size ? `<span class="asis-chip asis-cupo-descuento"><i class="bi bi-cash-coin"></i> <strong>${docentesPorNivel.descuento.size}</strong> ${t('asistencias.chipOver', { n: criteria.faltasPermitidasAnio })}</span>` : ''}
+        ${recortado ? `<span class="asis-aviso">${t('asistencias.rangeLimited', { n: ASIS_MAX_DIAS })}</span>` : ''}`;
+
+    if (filas.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted py-4">${t('asistencias.empty')}</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = filas.map(({ fecha, entry: e, salida }) => {
+        const anio = fecha.slice(0, 4);
+        const c = cupo(e.teacherId, anio);
+        // Esta ausencia en particular, ¿es posterior al cupo? (su orden
+        // dentro de las faltas del año supera las permitidas)
+        const ordenFalta = e.status === 'falta' ? c.fechas.indexOf(fecha) + 1 : 0;
+        const seDescuenta = ordenFalta > criteria.faltasPermitidasAnio;
+        const faltasTxt = `<span class="asis-cupo asis-cupo-${c.nivel}" title="${t('asistencias.absencesTitle', { n: c.cantidad, max: criteria.faltasPermitidasAnio, anio })}">${c.cantidad}/${criteria.faltasPermitidasAnio}</span>`;
+        const teacher = teachersPorId[String(e.teacherId)];
+        const aviso = teacher && c.nivel !== 'ok' ? botonesAvisoFaltas(teacher, c.cantidad, anio, criteria) : '—';
+        const curso = e.carreraNombre ? `<small class="text-muted d-block">${e.anio}° ${t('teachers.yearWord')}</small>` : '';
+        const entrada = e.entryRecord ? `${(e.entryRecord.time || '').slice(0, 5)}${e.tardanzaMin > 0 ? ` <small class="asis-tarde-txt">+${e.tardanzaMin}m</small>` : ''}` : '—';
+        const salidaTxt = salida ? `${(salida.time || '').slice(0, 5)}${salida.type === 'early_exit' ? ` <small class="asis-tarde-txt">${t('asistencias.early')}</small>` : ''}` : '—';
+        const estadoTxt = e.status === 'licencia' && e.licenciaMotivo ? `${SCHEDULE_STATUS_LABEL[e.status]}: ${e.licenciaMotivo}` : SCHEDULE_STATUS_LABEL[e.status];
+        return `<tr class="${seDescuenta ? 'asis-fila-descuento' : ''}">
+            <td>${formatoFechaCorta(fecha)}</td>
+            <td class="asis-mono">${e.inicio}–${e.fin}</td>
+            <td>${e.materiaNombre}${curso}</td>
+            <td>${e.teacherName}</td>
+            <td class="asis-mono">${entrada}</td>
+            <td class="asis-mono">${salidaTxt}</td>
+            <td><span class="asis-badge ${ASIS_ESTADO_CLASE[e.status]}">${estadoTxt}</span>${seDescuenta ? ` <span class="asis-badge asis-descuento"><i class="bi bi-cash-coin"></i> ${t('asistencias.discount')}</span>` : ''}</td>
+            <td class="asis-mono">${faltasTxt}</td>
+            <td class="asis-aviso-col">${aviso}</td>
+        </tr>`;
+    }).join('');
+}
+if (typeof onLocaleChangeRerender === 'function') onLocaleChangeRerender(() => { if (asistenciasInicializado) { poblarFiltrosAsistencias(); renderAsistencias(); } });
+
+// ===== Cupo anual de faltas =====
+// Un docente puede faltar hasta criteria.faltasPermitidasAnio días por año
+// calendario sin contar licencias; desde la siguiente, los días faltados se
+// descuentan del sueldo. Se cuentan las alertas "Falta" (una por día de
+// clases sin ninguna entrada) y "Falta Evento" (evento obligatorio sin
+// fichar) de ese año. No cuentan las justificadas por una licencia.
+function faltasDelAnio(teacherId, anio) {
+    const prefijo = String(anio);
+    return getAlerts()
+        .filter(a => a.teacherId === teacherId && (a.type === 'Falta' || a.type === 'Falta Evento')
+            && (a.faltaDate || '').startsWith(prefijo) && a.justification !== 'licencia')
+        .map(a => a.faltaDate)
+        .sort();
+}
+
+// Nivel del docente respecto del cupo: 'ok', 'aviso' (desde avisoFaltasDesde),
+// 'limite' (llegó justo al cupo) o 'descuento' (lo superó).
+function nivelCupoFaltas(cantidad, criteria) {
+    if (cantidad > criteria.faltasPermitidasAnio) return 'descuento';
+    if (cantidad === criteria.faltasPermitidasAnio && cantidad > 0) return 'limite';
+    if (cantidad >= criteria.avisoFaltasDesde) return 'aviso';
+    return 'ok';
+}
+
+function mensajeAvisoFaltas(teacher, cantidad, anio, criteria) {
+    const permitidas = criteria.faltasPermitidasAnio;
+    let detalle;
+    if (cantidad > permitidas) detalle = `Superaste el límite: las faltas a partir de la ${permitidas + 1}.ª se descuentan del sueldo.`;
+    else if (cantidad === permitidas) detalle = 'Llegaste al límite: a partir de la próxima falta, los días faltados se descuentan del sueldo.';
+    else detalle = `Te ${permitidas - cantidad === 1 ? 'queda 1 falta' : `quedan ${permitidas - cantidad} faltas`} antes de que empiecen a descontarse del sueldo.`;
+    return `Hola ${teacher.nombre}, te escribimos de Secretaría. Registrás ${cantidad} ${cantidad === 1 ? 'falta' : 'faltas'} en ${anio} (de ${permitidas} permitidas por año, sin contar licencias). ${detalle} Si alguna corresponde a una licencia, acercá la documentación.`;
+}
+
+function telefonoValidoParaWhatsApp(telefono) {
+    return cleanPhone(telefono).length >= 10;
+}
+
+// Botones de aviso (WhatsApp y mail) de la columna "Aviso" de Asistencias.
+function botonesAvisoFaltas(teacher, cantidad, anio, criteria) {
+    const mensaje = mensajeAvisoFaltas(teacher, cantidad, anio, criteria);
+    const partes = [];
+    if (telefonoValidoParaWhatsApp(teacher.telefono)) {
+        partes.push(`<a class="asis-aviso-btn is-wa" href="${buildWhatsAppLink(teacher.telefono, mensaje)}" target="_blank" rel="noopener" title="${t('asistencias.sendWa')}" onclick="registrarAvisoFaltas('${teacher.id}', 'WhatsApp', ${cantidad})"><i class="bi bi-whatsapp"></i></a>`);
+    } else {
+        partes.push(`<span class="asis-aviso-falta" title="${t('asistencias.phoneIncomplete')}"><i class="bi bi-telephone-x"></i></span>`);
+    }
+    if (teacher.email) {
+        const asunto = `Aviso de faltas ${anio} - ${teacher.apellido} ${teacher.nombre}`;
+        partes.push(`<a class="asis-aviso-btn is-mail" href="mailto:${encodeURIComponent(teacher.email)}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(mensaje)}" title="${t('asistencias.sendMail')}" onclick="registrarAvisoFaltas('${teacher.id}', 'mail', ${cantidad})"><i class="bi bi-envelope"></i></a>`);
+    }
+    return partes.join(' ');
+}
+
+function registrarAvisoFaltas(teacherId, canal, cantidad) {
+    const teacher = getTeachers().find(x => String(x.id) === String(teacherId));
+    logAccion('AVISO_FALTAS', `Aviso de faltas por ${canal} a ${teacher ? `${teacher.apellido} ${teacher.nombre}` : teacherId} (${cantidad} faltas en el año)`);
+}
+
+function exportarAsistenciasExcel() {
+    if (typeof XLSX === 'undefined') { showToast('No se pudo cargar la librería de Excel', 'error'); return; }
+    const { filas, desde, hasta } = calcularFilasAsistencias();
+    if (filas.length === 0) { showToast(t('asistencias.empty'), 'warning'); return; }
+    const criteria = getCriteria();
+    const cupoCache = {};
+    const faltasDe = (teacherId, anio) => (cupoCache[`${teacherId}|${anio}`] = cupoCache[`${teacherId}|${anio}`] || faltasDelAnio(teacherId, anio));
+    const rows = filas.map(({ fecha, entry: e, salida }) => ({
+        ...filaExcelAsistencia(fecha, e, salida),
+        'Faltas del año': `${faltasDe(e.teacherId, fecha.slice(0, 4)).length}/${criteria.faltasPermitidasAnio}`,
+        'Se descuenta': e.status === 'falta' && faltasDe(e.teacherId, fecha.slice(0, 4)).indexOf(fecha) + 1 > criteria.faltasPermitidasAnio ? 'Sí' : '',
+    }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Asistencias');
+    XLSX.writeFile(wb, `asistencias_${desde}_${hasta}.xlsx`);
+    logAccion('EXPORTAR_ASISTENCIAS', `Exportó ${rows.length} fila(s) de asistencias (${desde} a ${hasta})`);
+}
+
+function filaExcelAsistencia(fecha, e, salida) {
+    return {
+        Fecha: fecha,
+        Día: e.dia,
+        Inicio: e.inicio,
+        Fin: e.fin,
+        Carrera: e.carreraNombre || '',
+        Año: e.anio ? `${e.anio}°` : '',
+        Materia: e.materiaNombre,
+        Docente: e.teacherName,
+        Entrada: e.entryRecord ? (e.entryRecord.time || '').slice(0, 5) : '',
+        'Min. tarde': e.tardanzaMin > 0 ? e.tardanzaMin : '',
+        Salida: salida ? (salida.time || '').slice(0, 5) : '',
+        'Salida anticipada': salida && salida.type === 'early_exit' ? 'Sí' : '',
+        Estado: SCHEDULE_STATUS_LABEL[e.status],
+        Observación: e.status === 'licencia' ? (e.licenciaMotivo || '') : '',
+    };
+}
+
+// Carga un <script> bajo demanda (resuelve al terminar de cargar).
+function cargarScript(src) {
+    return new Promise((resolve, reject) => {
+        const el = document.createElement('script');
+        el.src = src;
+        el.onload = resolve;
+        el.onerror = () => reject(new Error('No se pudo cargar ' + src));
+        document.head.appendChild(el);
+    });
+}
+
+// Normalmente FullCalendar ya viene cargado desde index.html. Si la
+// página quedó de una versión anterior (index.html viejo en caché, sin
+// esos <script>), se trae acá mismo en vez de fallar.
+async function asegurarFullCalendar() {
+    if (typeof FullCalendar !== 'undefined') return true;
+    try {
+        await cargarScript('libs/fullcalendar.global.min.js');
+        await cargarScript('libs/fullcalendar-es.global.min.js');
+    } catch (e) {
+        console.error(e);
+    }
+    return typeof FullCalendar !== 'undefined';
 }
 
 // ============================================================
