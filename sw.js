@@ -22,7 +22,7 @@
  * sincroniza sola al reconectar.
  */
 
-const CACHE_VERSION = "v47";
+const CACHE_VERSION = "v50";
 const CACHE_NAME = "asiscam-cache-" + CACHE_VERSION;
 
 // App shell: mismo origen que este service worker.
@@ -38,6 +38,10 @@ const APP_SHELL_URLS = [
   "./theme.js",
   "./script.js",
   "./liveness.js",
+  "./config.example.js",
+  "./roles.js",
+  "./auditoria.js",
+  "./src/utils/checkSuscripcion.js",
 ];
 
 // Pesos del reconocimiento facial (copiados en /models, ver CONFIG.FACE_MODELS_URL en script.js).
@@ -123,7 +127,11 @@ function isAppShellRequest(url) {
     url.pathname.endsWith("/i18n.js") ||
     url.pathname.endsWith("/theme.js") ||
     url.pathname.endsWith("/script.js") ||
-    url.pathname.endsWith("/liveness.js")
+    url.pathname.endsWith("/liveness.js") ||
+    url.pathname.endsWith("/config.example.js") ||
+    url.pathname.endsWith("/roles.js") ||
+    url.pathname.endsWith("/auditoria.js") ||
+    url.pathname.endsWith("/src/utils/checkSuscripcion.js")
   );
 }
 

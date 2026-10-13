@@ -3417,6 +3417,7 @@ function loadTeacherDashboard() {
     document.getElementById('recognitionProgress').style.display = 'none';
     renderFichajeContextBadges();
     renderMateriaFichajeInfo();
+    loadMisLicenciasDocente();
     // Si este DNI sigue bloqueado por prueba de vida (ver liveness.js),
     // que se vea desde que entra a la pantalla, no recién al primer
     // intento fallido de "Identificarme".
@@ -4999,22 +5000,28 @@ function getLicenciaForDate(teacherId, dateStr) {
     return getLicencias().find(l => l.teacherId === teacherId && dateStr >= l.from && dateStr <= l.to) || null;
 }
 
-function addLicencia() {
+async function addLicencia() {
     const teacherId = document.getElementById('licenciaTeacher').value;
     const from = document.getElementById('licenciaFrom').value;
     const to = document.getElementById('licenciaTo').value;
     const motivo = document.getElementById('licenciaMotivo').value.trim();
+    const certInput = document.getElementById('licenciaCertificado');
+    const certFile = certInput && certInput.files[0];
     if (!teacherId) { showToast('Selecciona un docente', 'warning'); return; }
     if (!from || !to) { showToast('Completa las fechas desde/hasta', 'warning'); return; }
     if (to < from) { showToast('La fecha "Hasta" no puede ser anterior a "Desde"', 'error'); return; }
     const teacher = getTeachers().find(t => t.id === teacherId);
     if (!teacher) { showToast('Docente no encontrado', 'error'); return; }
+    // El certificado es opcional, pero si se eligió uno se valida ANTES
+    // de registrar la licencia (formato/tamaño), para no dejarla a medias.
+    if (certFile && !validarArchivoCertificado(certFile)) return;
 
     const licencias = getLicencias();
-    licencias.push({
+    const licencia = {
         id: Date.now().toString(), teacherId, teacherName: `${teacher.apellido} ${teacher.nombre}`,
         from, to, motivo: motivo || 'Sin especificar', createdAt: new Date().toISOString()
-    });
+    };
+    licencias.push(licencia);
     saveLicenciasToStorage(licencias);
 
     // Justifica retroactivamente cualquier alerta de Falta que ya
@@ -5034,13 +5041,16 @@ function addLicencia() {
     document.getElementById('licenciaFrom').value = '';
     document.getElementById('licenciaTo').value = '';
     document.getElementById('licenciaMotivo').value = '';
+    if (certInput) certInput.value = '';
     loadLicenciasList();
     loadAlerts();
     updateAlertCount();
     showToast('✅ Licencia registrada', 'success');
+
+    if (certFile && await subirCertificadoLicencia(licencia, certFile)) loadLicenciasList();
 }
 
-function deleteLicencia(id) {
+async function deleteLicencia(id) {
     if (!tienePermiso(currentUser.rol, 'borrar')) {
         showToast(mensajeSinPermiso('borrar'), 'error');
         logAccion('PERMISO_DENEGADO', 'Intentó borrar una licencia sin permiso');
@@ -5051,6 +5061,7 @@ function deleteLicencia(id) {
     loadLicenciasList();
     logAccion('BORRAR_LICENCIA', `Eliminó la licencia ${id}`);
     showToast('Licencia eliminada', 'info');
+    await borrarCertificadosDeLicencia(id);
 }
 
 function loadLicenciasList() {
@@ -5058,18 +5069,288 @@ function loadLicenciasList() {
     if (!tbody) return;
     const licencias = getLicencias().slice().sort((a, b) => b.from.localeCompare(a.from));
     if (licencias.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">${t('licencias.none')}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">${t('licencias.none')}</td></tr>`;
         return;
     }
+    const puedeCert = puedeAdjuntarCertificadoLicencia();
     tbody.innerHTML = licencias.map(l => `
         <tr>
             <td data-label="Docente">${l.teacherName}</td>
             <td data-label="Desde">${l.from}</td>
             <td data-label="Hasta">${l.to}</td>
             <td data-label="Motivo">${l.motivo}</td>
+            <td data-label="Certificados">${puedeCert ? `<div id="licCert_${l.id}"><span class="text-muted small">Cargando...</span></div>` : '-'}</td>
             <td data-label="Acciones">${tienePermiso(currentUser.rol, 'borrar') ? `<button class="btn btn-sm btn-danger" title="Eliminar" onclick="deleteLicencia('${l.id}')"><i class="bi bi-trash"></i></button>` : ''}</td>
         </tr>
     `).join('');
+    if (puedeCert) renderCertificadosTablaLicencias(licencias);
+}
+
+// ============================================================
+// CERTIFICADOS DE LICENCIAS
+// Archivos JPG/PNG/PDF adjuntos a una licencia. El archivo va al
+// bucket privado "certificados-licencias" de Supabase Storage y la fila
+// a licencia_certificado (ver add_certificados_licencia.sql). Las
+// licencias siguen viviendo en app_data: la fila se vincula por el id
+// de la licencia y del docente. Lo pueden adjuntar Secretaría (ADMIN1)
+// y Rector (ADMIN2) desde la pestaña Licencias (al registrarla o
+// después, desde la tabla), y el Docente desde "Mis licencias y
+// certificados" en su panel, solo a sus propias licencias.
+// ============================================================
+const CERT_BUCKET = 'certificados-licencias';
+const CERT_MAX_BYTES = 5 * 1024 * 1024;
+const CERT_TIPOS = {
+    'image/jpeg': ['jpg', 'jpeg'],
+    'image/png': ['png'],
+    'application/pdf': ['pdf'],
+};
+const CERT_ACCEPT = '.jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf';
+// Filas de licencia_certificado ya mostradas, para abrir/borrar por id
+// sin volver a consultar.
+let certificadosCache = {};
+
+function puedeAdjuntarCertificadoLicencia() {
+    return !!currentUser && tienePermiso(currentUser.rol, 'adjuntar_certificado_licencia');
+}
+
+// Los nombres de archivo los elige el usuario: se escapan antes de
+// meterlos en innerHTML.
+function escapeHtmlCert(texto) {
+    return String(texto ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function extensionArchivo(nombre) {
+    const partes = String(nombre || '').split('.');
+    return partes.length > 1 ? partes.pop().toLowerCase() : '';
+}
+
+// Valida tipo (por MIME y por extensión, porque algunos navegadores
+// dejan el MIME vacío) y tamaño. Devuelve el MIME normalizado o null.
+function validarArchivoCertificado(file) {
+    if (!file) { showToast('Elegí un archivo', 'error'); return null; }
+    const ext = extensionArchivo(file.name);
+    const mime = Object.keys(CERT_TIPOS).find(m => CERT_TIPOS[m].includes(ext));
+    if (!mime || (file.type && file.type !== mime)) {
+        showToast('Formato no permitido: solo JPG, PNG o PDF', 'error');
+        return null;
+    }
+    if (file.size > CERT_MAX_BYTES) {
+        showToast('El archivo supera los 5 MB', 'error');
+        return null;
+    }
+    return mime;
+}
+
+// Sube el archivo a Storage y registra la fila en licencia_certificado.
+async function subirCertificadoLicencia(licencia, file) {
+    if (!puedeAdjuntarCertificadoLicencia()) {
+        showToast(mensajeSinPermiso('adjuntar_certificado_licencia'), 'error');
+        logAccion('PERMISO_DENEGADO', 'Intentó adjuntar un certificado de licencia sin permiso');
+        return false;
+    }
+    if (currentUser.rol === ROLES.DOCENTE && licencia.teacherId !== currentUser.id) {
+        showToast('Solo podés adjuntar certificados a tus propias licencias', 'error');
+        return false;
+    }
+    if (!sb) { showToast('Sin conexión a Supabase, no se puede subir el certificado', 'error'); return false; }
+    const mime = validarArchivoCertificado(file);
+    if (!mime) return false;
+
+    const ruta = `licencia_${licencia.id}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${extensionArchivo(file.name)}`;
+    const subidoPor = currentUser.rol === ROLES.DOCENTE
+        ? `${currentUser.apellido} ${currentUser.nombre}`
+        : (ROL_LABEL[currentUser.rol] || currentUser.rol);
+
+    try {
+        const { error: upError } = await sb.storage.from(CERT_BUCKET).upload(ruta, file, { contentType: mime, upsert: false });
+        if (upError) throw upError;
+        const { error } = await sb.from('licencia_certificado').insert({
+            licencia_id: licencia.id,
+            teacher_id: licencia.teacherId,
+            nombre_archivo: file.name,
+            ruta,
+            tipo_mime: mime,
+            tamano_bytes: file.size,
+            subido_por_rol: currentUser.rol,
+            subido_por: subidoPor,
+        });
+        if (error) {
+            // Sin fila no tiene sentido dejar el archivo huérfano.
+            await sb.storage.from(CERT_BUCKET).remove([ruta]);
+            throw error;
+        }
+        logAccion('ADJUNTAR_CERTIFICADO', `Adjuntó "${file.name}" a la licencia ${licencia.id} de ${licencia.teacherName}`);
+        showToast('✅ Certificado adjuntado', 'success');
+        return true;
+    } catch (error) {
+        console.error('Error subiendo certificado de licencia:', error);
+        showToast('No se pudo adjuntar el certificado (' + describeSupabaseError(error) + ')', 'error');
+        return false;
+    }
+}
+
+// Docente: solo borra lo que subió él mismo. Secretaría/Rector: todo.
+function puedeBorrarCertificado(cert) {
+    if (tienePermiso(currentUser.rol, 'borrar_certificado_licencia')) return true;
+    return currentUser.rol === ROLES.DOCENTE && cert.subido_por_rol === ROLES.DOCENTE && cert.teacher_id === currentUser.id;
+}
+
+function renderListaCertificados(certs, onDeleteFn) {
+    if (certs.length === 0) return '<div class="text-muted small">Sin certificados</div>';
+    return `<ul class="cert-lista">${certs.map(c => {
+        certificadosCache[c.id] = c;
+        const icono = c.tipo_mime === 'application/pdf' ? 'bi-file-earmark-pdf' : 'bi-file-earmark-image';
+        const fecha = c.created_at ? new Date(c.created_at).toLocaleDateString('es-AR') : '';
+        return `
+            <li class="cert-item">
+                <i class="bi ${icono}"></i>
+                <div class="cert-info">
+                    <button type="button" class="btn btn-link p-0 cert-nombre" onclick="abrirCertificado(${c.id})">${escapeHtmlCert(c.nombre_archivo)}</button>
+                    <small class="text-muted d-block">Subido por ${escapeHtmlCert(c.subido_por || c.subido_por_rol)} · ${fecha}</small>
+                </div>
+                ${puedeBorrarCertificado(c) ? `<button type="button" class="btn btn-sm btn-outline-danger" title="Eliminar certificado" aria-label="Eliminar certificado" onclick="${onDeleteFn}(${c.id})"><i class="bi bi-trash"></i></button>` : ''}
+            </li>`;
+    }).join('')}</ul>`;
+}
+
+// Botón "Adjuntar" que abre el selector de archivos y sube apenas se
+// elige uno (onUploadFn recibe el id de la licencia y el <input>).
+function botonAdjuntarCertificado(licenciaId, onUploadFn) {
+    return `
+        <label class="btn btn-sm btn-outline-primary mt-1 mb-0">
+            <i class="bi bi-paperclip"></i> Adjuntar
+            <input type="file" class="hidden" accept="${CERT_ACCEPT}" onchange="${onUploadFn}('${licenciaId}', this)">
+        </label>`;
+}
+
+async function getCertificadosLicencias(licenciaIds) {
+    if (licenciaIds.length === 0) return [];
+    const { data, error } = await sb.from('licencia_certificado').select('*')
+        .in('licencia_id', licenciaIds).order('created_at', { ascending: true });
+    if (error) throw error;
+    return data || [];
+}
+
+// Abre el archivo con una URL firmada de 5 minutos (el bucket es privado).
+async function abrirCertificado(idCert) {
+    const cert = certificadosCache[idCert];
+    if (!cert) return;
+    // Se abre la pestaña ya (sincrónico con el clic) para que el
+    // bloqueador de popups no la frene, y se le asigna la URL después.
+    const win = window.open('', '_blank');
+    try {
+        const { data, error } = await sb.storage.from(CERT_BUCKET).createSignedUrl(cert.ruta, 300);
+        if (error) throw error;
+        if (win) win.location.href = data.signedUrl;
+        else window.location.href = data.signedUrl;
+    } catch (error) {
+        if (win) win.close();
+        console.error('No se pudo abrir el certificado:', error);
+        showToast('No se pudo abrir el certificado (' + describeSupabaseError(error) + ')', 'error');
+    }
+}
+
+async function borrarCertificado(idCert) {
+    const cert = certificadosCache[idCert];
+    if (!cert) return false;
+    if (!puedeBorrarCertificado(cert)) {
+        showToast('No tenés permiso para eliminar este certificado', 'error');
+        logAccion('PERMISO_DENEGADO', 'Intentó borrar un certificado de licencia sin permiso');
+        return false;
+    }
+    if (!confirm(`¿Eliminar el certificado "${cert.nombre_archivo}"?`)) return false;
+    try {
+        const { error } = await sb.from('licencia_certificado').delete().eq('id', idCert);
+        if (error) throw error;
+        const { error: stError } = await sb.storage.from(CERT_BUCKET).remove([cert.ruta]);
+        if (stError) console.error('Se borró la fila pero no el archivo del certificado:', stError);
+        delete certificadosCache[idCert];
+        logAccion('BORRAR_CERTIFICADO', `Eliminó el certificado "${cert.nombre_archivo}" de la licencia ${cert.licencia_id}`);
+        showToast('Certificado eliminado', 'info');
+        return true;
+    } catch (error) {
+        console.error('Error eliminando certificado:', error);
+        showToast('No se pudo eliminar el certificado (' + describeSupabaseError(error) + ')', 'error');
+        return false;
+    }
+}
+
+// Al borrar una licencia, sus certificados también (fila + archivo).
+async function borrarCertificadosDeLicencia(licenciaId) {
+    if (!sb) return;
+    try {
+        const certs = await getCertificadosLicencias([licenciaId]);
+        if (certs.length === 0) return;
+        const { error } = await sb.from('licencia_certificado').delete().eq('licencia_id', licenciaId);
+        if (error) throw error;
+        await sb.storage.from(CERT_BUCKET).remove(certs.map(c => c.ruta));
+    } catch (error) {
+        console.error('No se pudieron borrar los certificados de la licencia ' + licenciaId + ':', error);
+    }
+}
+
+// ----- Admin (Secretaría / Rector): columna Certificados de la tabla -----
+async function renderCertificadosTablaLicencias(licencias) {
+    let certs = [];
+    let fallo = null;
+    if (!sb) fallo = 'sin conexión';
+    else {
+        try { certs = await getCertificadosLicencias(licencias.map(l => l.id)); }
+        catch (error) { fallo = describeSupabaseError(error); console.error('No se pudieron cargar los certificados de licencias:', error); }
+    }
+    licencias.forEach(l => {
+        const cell = document.getElementById(`licCert_${l.id}`);
+        if (!cell) return;
+        cell.innerHTML = fallo
+            ? `<span class="text-danger small">No disponible (${escapeHtmlCert(fallo)})</span>`
+            : renderListaCertificados(certs.filter(c => c.licencia_id === l.id), 'borrarCertificadoAdmin') + botonAdjuntarCertificado(l.id, 'subirCertificadoAdmin');
+    });
+}
+
+async function subirCertificadoAdmin(licenciaId, input) {
+    const licencia = getLicencias().find(l => l.id === licenciaId);
+    const file = input.files[0];
+    input.value = '';
+    if (licencia && file && await subirCertificadoLicencia(licencia, file)) loadLicenciasList();
+}
+
+async function borrarCertificadoAdmin(idCert) {
+    if (await borrarCertificado(idCert)) loadLicenciasList();
+}
+
+// ----- Docente: "Mis licencias y certificados" en su panel -----
+async function loadMisLicenciasDocente() {
+    const cont = document.getElementById('misLicenciasDocente');
+    if (!cont || !currentUser || currentUser.rol !== ROLES.DOCENTE) return;
+    const misLicencias = getLicencias().filter(l => l.teacherId === currentUser.id)
+        .sort((a, b) => b.from.localeCompare(a.from));
+    if (misLicencias.length === 0) { cont.innerHTML = '<p class="text-muted small mb-0">No tenés licencias registradas</p>'; return; }
+    if (!sb) { cont.innerHTML = '<p class="text-muted small mb-0">Sin conexión a Supabase</p>'; return; }
+    cont.innerHTML = '<p class="text-muted small mb-0">Cargando...</p>';
+    try {
+        const certs = await getCertificadosLicencias(misLicencias.map(l => l.id));
+        cont.innerHTML = misLicencias.map(l => `
+            <div class="cert-licencia">
+                <div class="fw-semibold">${escapeHtmlCert(l.motivo)}</div>
+                <small class="text-muted d-block mb-1">${l.from.split('-').reverse().join('/')} al ${l.to.split('-').reverse().join('/')}</small>
+                ${renderListaCertificados(certs.filter(c => c.licencia_id === l.id), 'borrarCertificadoDocente')}
+                ${botonAdjuntarCertificado(l.id, 'subirCertificadoDocente')}
+            </div>`).join('') + '<small class="text-muted">JPG, PNG o PDF · máx. 5 MB</small>';
+    } catch (error) {
+        console.error('No se pudieron cargar los certificados del docente:', error);
+        cont.innerHTML = `<p class="text-danger small mb-0">No se pudieron cargar tus certificados (${escapeHtmlCert(describeSupabaseError(error))})</p>`;
+    }
+}
+
+async function subirCertificadoDocente(licenciaId, input) {
+    const licencia = getLicencias().find(l => l.id === licenciaId);
+    const file = input.files[0];
+    input.value = '';
+    if (licencia && file && await subirCertificadoLicencia(licencia, file)) loadMisLicenciasDocente();
+}
+
+async function borrarCertificadoDocente(idCert) {
+    if (await borrarCertificado(idCert)) loadMisLicenciasDocente();
 }
 
 // ============================================================
@@ -5382,7 +5663,7 @@ function openEventoModal() {
     document.getElementById('eventoObligatorioSi').checked = true;
     toggleEventoObligatorio();
     document.getElementById('eventoTieneGeocerca').checked = false;
-    document.getElementById('eventoTieneGeocerca').disabled = !tienePermiso(currentUser.rol, 'editar_geo');
+    document.getElementById('eventoTieneGeocerca').disabled = !tienePermiso(currentUser.rol, 'editar_geo_evento');
     document.getElementById('eventoGeocercaLat').value = '';
     document.getElementById('eventoGeocercaLng').value = '';
     document.getElementById('eventoGeocercaRadio').value = 150;
@@ -5413,7 +5694,7 @@ async function editEvento(idEvento) {
     document.getElementById('eventoObligatorioNo').checked = !esObligatorio;
     toggleEventoObligatorio();
     document.getElementById('eventoTieneGeocerca').checked = !!ev.tiene_geocerca;
-    document.getElementById('eventoTieneGeocerca').disabled = !tienePermiso(currentUser.rol, 'editar_geo');
+    document.getElementById('eventoTieneGeocerca').disabled = !tienePermiso(currentUser.rol, 'editar_geo_evento');
     document.getElementById('eventoGeocercaLat').value = ev.geocerca_lat ?? '';
     document.getElementById('eventoGeocercaLng').value = ev.geocerca_lng ?? '';
     document.getElementById('eventoGeocercaRadio').value = ev.geocerca_radio || 150;
@@ -5562,8 +5843,8 @@ async function saveEvento() {
         : (document.getElementById('eventoTipoCumplimientoSin').checked ? 'SIN_PERJUICIO' : 'CON_PERJUICIO');
     const tieneGeocerca = document.getElementById('eventoTieneGeocerca').checked;
 
-    if (tieneGeocerca && !tienePermiso(currentUser.rol, 'editar_geo')) {
-        showToast(mensajeSinPermiso('editar_geo'), 'error');
+    if (tieneGeocerca && !tienePermiso(currentUser.rol, 'editar_geo_evento')) {
+        showToast(mensajeSinPermiso('editar_geo_evento'), 'error');
         logAccion('PERMISO_DENEGADO', 'Intentó crear geocerca de evento sin permiso');
         return;
     }

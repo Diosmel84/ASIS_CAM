@@ -22,49 +22,87 @@
    mantienen por compatibilidad con reglas existentes, pero ahora
    apuntan a negro/gris en vez de petróleo/verde oliva.
 ============================================================ */
+/* :root es la raíz del documento; acá se definen las variables globales de color y tamaño */
 :root {
     /* Paleta base: negro sobre blanco, un solo acento */
+    /* Negro principal para textos */
     --ink: #000000;
+    /* Negro suave para textos secundarios */
     --ink-soft: #1A1A1A;
+    /* Blanco de fondo */
     --white: #FFFFFF;
+    /* Gris muy claro para líneas finas */
     --gray-hairline: #F2F2F2;
+    /* Gris para bordes */
     --gray-border: #E5E5E0;
+    /* Gris casi blanco para fondos */
     --gray-50:  #FAFAFA;
+    /* Gris 100 */
     --gray-100: #F2F2F2;
+    /* Gris 200 */
     --gray-200: #E5E5E0;
+    /* Gris 400 */
     --gray-400: #B8B8B0;
+    /* Gris 500 */
     --gray-500: #9A9A94;
+    /* Gris 600 (texto apagado) */
     --gray-600: #6B6B66;
+    /* Gris 800 (casi negro) */
     --gray-800: #1A1A1A;
+    /* Azul de acento, reservado a la geocerca */
     --accent-blue: #0066FF;
 
     /* Compatibilidad: nombres viejos (--olive-*) usados en reglas
        existentes de este archivo, remapeados a la paleta nueva. */
+    /* Nombre viejo remapeado a negro */
     --olive-900: #000000;
+    /* Nombre viejo remapeado a negro */
     --olive-800: #000000;
+    /* Nombre viejo remapeado a negro */
     --olive-700: #000000;
+    /* Nombre viejo remapeado a negro suave */
     --olive-600: #1A1A1A;
+    /* Nombre viejo remapeado a gris oscuro */
     --olive-500: #333333;
+    /* Tinte gris claro */
     --olive-tint: #F2F2F2;
+    /* Color primario: negro */
     --primary-color: #000000;
+    /* Color secundario: negro suave */
     --secondary-color: #1A1A1A;
+    /* Color de éxito: negro (sin verde) */
     --success-color: #000000;
+    /* Color de peligro: negro suave (sin rojo) */
     --danger-color: #1A1A1A;
+    /* Color de advertencia: negro suave */
     --warning-color: #1A1A1A;
+    /* Gris para información */
     --info-muted: #6B6B66;
+    /* Gris para peligro atenuado */
     --danger-muted: #1A1A1A;
+    /* Gris para advertencia atenuada */
     --warning-muted: #6B6B66;
+    /* Fondo claro: usa gris 50 */
     --light-bg: var(--gray-50);
 
     /* Radios y sombras: estilo app nativa, tarjetas con sombra suave */
+    /* Radio de borde chico */
     --radius-sm: 10px;
+    /* Radio de borde mediano */
     --radius-md: 14px;
+    /* Radio de borde grande */
     --radius-lg: 16px;
+    /* Radio de borde extra grande */
     --radius-xl: 24px;
+    /* Radio para formas de píldora (bordes totalmente redondos) */
     --radius-pill: 999px;
+    /* Sombra suave */
     --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.06);
+    /* Sombra más suave */
     --shadow-softer: 0 2px 12px rgba(0, 0, 0, 0.06);
+    /* Sombra de tarjeta */
     --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.05);
+    /* Duración y curva estándar de las transiciones */
     --transition-base: 0.2s ease;
 
     /* Overrides de Bootstrap: así btn-primary, bg-danger, badge, etc.
@@ -73,20 +111,35 @@
        El único acento de color de toda la app es el azul de la
        geocerca (ver .geocerca-map-container y el circle de Leaflet
        en script.js, con color explícito #0066FF). */
+    /* Color primario de Bootstrap: negro */
     --bs-primary: #000000;
+    /* Primario de Bootstrap en formato RGB */
     --bs-primary-rgb: 0, 0, 0;
+    /* Secundario de Bootstrap: gris */
     --bs-secondary: #6B6B66;
+    /* Secundario en RGB */
     --bs-secondary-rgb: 107, 107, 102;
+    /* Éxito de Bootstrap: negro */
     --bs-success: #000000;
+    /* Éxito en RGB */
     --bs-success-rgb: 0, 0, 0;
+    /* Peligro de Bootstrap: negro suave */
     --bs-danger: #1A1A1A;
+    /* Peligro en RGB */
     --bs-danger-rgb: 26, 26, 26;
+    /* Advertencia de Bootstrap: gris */
     --bs-warning: #6B6B66;
+    /* Advertencia en RGB */
     --bs-warning-rgb: 107, 107, 102;
+    /* Info de Bootstrap: gris */
     --bs-info: #6B6B66;
+    /* Info en RGB */
     --bs-info-rgb: 107, 107, 102;
+    /* Color de los enlaces: negro */
     --bs-link-color: #000000;
+    /* Color de enlaces en RGB */
     --bs-link-color-rgb: 0, 0, 0;
+    /* Color de enlaces al pasar el mouse */
     --bs-link-hover-color: #000000;
 
     /* Colores de ESTADO DE ASISTENCIA (calendario anual del
@@ -95,22 +148,34 @@
        vistazo presente/tardanza/ausente/pendiente/licencia con muchos
        docentes a la vez en una misma pantalla. No se usan fuera de
        estos dos módulos. */
+    /* Verde de estado Presente */
     --status-present: #2E7D46;
+    /* Fondo pastel de Presente */
     --status-present-bg: #EAF6EE;
+    /* Ámbar de estado Tardanza */
     --status-late: #C9891A;
+    /* Fondo pastel de Tardanza */
     --status-late-bg: #FBF1DF;
+    /* Rojo de estado Falta */
     --status-falta: #C0392B;
+    /* Fondo pastel de Falta */
     --status-falta-bg: #FCEAE8;
+    /* Gris de estado Licencia */
     --status-licencia: #6B6B66;
+    /* Fondo de Licencia */
     --status-licencia-bg: #F2F2F2;
+    /* Gris de estado Programado */
     --status-scheduled: #9A9A94;
+    /* Fondo de Programado */
     --status-scheduled-bg: #F7F7F5;
 
     /* Explícito: sigue el tema del sistema operativo por default (ver
        bloque @media prefers-color-scheme más abajo). Cuando el toggle
        de theme.js fija una preferencia manual, JS agrega
        data-theme="light"/"dark" en <html> y ESE valor manda. */
+    /* Indica al navegador que el tema por defecto es claro */
     color-scheme: light;
+/* Cierra :root */
 }
 
 /* ============================================================
@@ -142,149 +207,276 @@
    - todos ya estaban documentados como "excepcion puntual" mas arriba
    en este archivo, antes de este cambio.
 ============================================================ */
+/* Bloque que solo aplica si el sistema operativo está en modo oscuro */
 @media (prefers-color-scheme: dark) {
+    /* Solo si el usuario no eligió tema a mano (sin data-theme) */
     html:not([data-theme]) {
+        /* Texto pasa a casi blanco */
         --ink: #F5F5F7;
+        /* Texto suave claro */
         --ink-soft: #E5E5EA;
+        /* Fondo pasa a gris muy oscuro */
         --white: #1C1C1E;
+        /* Línea fina oscura */
         --gray-hairline: #313135;
+        /* Borde oscuro */
         --gray-border: #3A3A3D;
+        /* Gris 50 oscuro */
         --gray-50: #232325;
+        /* Gris 100 oscuro */
         --gray-100: #2C2C2E;
+        /* Gris 200 oscuro */
         --gray-200: #3A3A3D;
+        /* Gris 400 invertido */
         --gray-400: #6E6E73;
+        /* Gris 500 invertido */
         --gray-500: #8E8E93;
+        /* Gris 600 invertido (texto apagado claro) */
         --gray-600: #AEAEB2;
+        /* Gris 800 invertido */
         --gray-800: #E5E5EA;
 
+        /* Nombre viejo en claro */
         --olive-900: #F5F5F7;
+        /* Nombre viejo en claro */
         --olive-800: #F5F5F7;
+        /* Nombre viejo en claro */
         --olive-700: #F5F5F7;
+        /* Nombre viejo en claro */
         --olive-600: #E5E5EA;
+        /* Nombre viejo en gris claro */
         --olive-500: #C7C7CC;
+        /* Tinte oscuro */
         --olive-tint: #2C2C2E;
+        /* Primario claro */
         --primary-color: #F5F5F7;
+        /* Secundario claro */
         --secondary-color: #E5E5EA;
+        /* Éxito claro */
         --success-color: #F5F5F7;
+        /* Peligro claro */
         --danger-color: #E5E5EA;
+        /* Advertencia claro */
         --warning-color: #E5E5EA;
+        /* Info atenuado claro */
         --info-muted: #AEAEB2;
+        /* Peligro atenuado claro */
         --danger-muted: #E5E5EA;
+        /* Advertencia atenuada claro */
         --warning-muted: #AEAEB2;
+        /* Fondo oscuro de secciones */
         --light-bg: #232325;
 
+        /* Sombra más marcada para fondo oscuro */
         --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.45);
+        /* Sombra suave oscura */
         --shadow-softer: 0 2px 12px rgba(0, 0, 0, 0.4);
+        /* Sombra de tarjeta oscura */
         --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.35);
 
+        /* Primario de Bootstrap en claro */
         --bs-primary: #F5F5F7;
+        /* Primario en RGB */
         --bs-primary-rgb: 245, 245, 247;
+        /* Secundario de Bootstrap */
         --bs-secondary: #AEAEB2;
+        /* Secundario en RGB */
         --bs-secondary-rgb: 174, 174, 178;
+        /* Éxito de Bootstrap */
         --bs-success: #F5F5F7;
+        /* Éxito en RGB */
         --bs-success-rgb: 245, 245, 247;
+        /* Peligro de Bootstrap */
         --bs-danger: #E5E5EA;
+        /* Peligro en RGB */
         --bs-danger-rgb: 229, 229, 234;
+        /* Advertencia de Bootstrap */
         --bs-warning: #AEAEB2;
+        /* Advertencia en RGB */
         --bs-warning-rgb: 174, 174, 178;
+        /* Info de Bootstrap */
         --bs-info: #AEAEB2;
+        /* Info en RGB */
         --bs-info-rgb: 174, 174, 178;
+        /* Color de enlaces claro */
         --bs-link-color: #F5F5F7;
+        /* Enlaces en RGB */
         --bs-link-color-rgb: 245, 245, 247;
+        /* Enlaces al pasar el mouse */
         --bs-link-hover-color: #F5F5F7;
 
         /* Acentos de estado (present/late/falta/licencia/scheduled) sin
            tocar: solo se oscurece el fondo pastel para que el texto
            (ahora claro) siga leyendose bien encima. */
+        /* Fondo oscuro de Presente */
         --status-present-bg: #12261A;
+        /* Fondo oscuro de Tardanza */
         --status-late-bg: #332508;
+        /* Fondo oscuro de Falta */
         --status-falta-bg: #2E1412;
+        /* Fondo oscuro de Licencia */
         --status-licencia-bg: #29292B;
+        /* Fondo oscuro de Programado */
         --status-scheduled-bg: #1F1F21;
 
+        /* Indica al navegador que use controles oscuros */
         color-scheme: dark;
+    /* Cierra html sin data-theme */
     }
+/* Cierra el bloque media de modo oscuro automático */
 }
+/* Modo oscuro elegido a mano por el usuario (data-theme="dark") */
 html[data-theme="dark"] {
+    /* Texto casi blanco */
     --ink: #F5F5F7;
+    /* Texto suave claro */
     --ink-soft: #E5E5EA;
+    /* Fondo gris muy oscuro */
     --white: #1C1C1E;
+    /* Línea fina oscura */
     --gray-hairline: #313135;
+    /* Borde oscuro */
     --gray-border: #3A3A3D;
+    /* Gris 50 oscuro */
     --gray-50: #232325;
+    /* Gris 100 oscuro */
     --gray-100: #2C2C2E;
+    /* Gris 200 oscuro */
     --gray-200: #3A3A3D;
+    /* Gris 400 invertido */
     --gray-400: #6E6E73;
+    /* Gris 500 invertido */
     --gray-500: #8E8E93;
+    /* Gris 600 invertido */
     --gray-600: #AEAEB2;
+    /* Gris 800 invertido */
     --gray-800: #E5E5EA;
 
+    /* Nombre viejo en claro */
     --olive-900: #F5F5F7;
+    /* Nombre viejo en claro */
     --olive-800: #F5F5F7;
+    /* Nombre viejo en claro */
     --olive-700: #F5F5F7;
+    /* Nombre viejo en claro */
     --olive-600: #E5E5EA;
+    /* Nombre viejo en gris claro */
     --olive-500: #C7C7CC;
+    /* Tinte oscuro */
     --olive-tint: #2C2C2E;
+    /* Primario claro */
     --primary-color: #F5F5F7;
+    /* Secundario claro */
     --secondary-color: #E5E5EA;
+    /* Éxito claro */
     --success-color: #F5F5F7;
+    /* Peligro claro */
     --danger-color: #E5E5EA;
+    /* Advertencia claro */
     --warning-color: #E5E5EA;
+    /* Info atenuado claro */
     --info-muted: #AEAEB2;
+    /* Peligro atenuado claro */
     --danger-muted: #E5E5EA;
+    /* Advertencia atenuada claro */
     --warning-muted: #AEAEB2;
+    /* Fondo oscuro de secciones */
     --light-bg: #232325;
 
+    /* Sombra marcada */
     --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.45);
+    /* Sombra suave oscura */
     --shadow-softer: 0 2px 12px rgba(0, 0, 0, 0.4);
+    /* Sombra de tarjeta oscura */
     --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.35);
 
+    /* Primario de Bootstrap */
     --bs-primary: #F5F5F7;
+    /* Primario en RGB */
     --bs-primary-rgb: 245, 245, 247;
+    /* Secundario */
     --bs-secondary: #AEAEB2;
+    /* Secundario en RGB */
     --bs-secondary-rgb: 174, 174, 178;
+    /* Éxito */
     --bs-success: #F5F5F7;
+    /* Éxito en RGB */
     --bs-success-rgb: 245, 245, 247;
+    /* Peligro */
     --bs-danger: #E5E5EA;
+    /* Peligro en RGB */
     --bs-danger-rgb: 229, 229, 234;
+    /* Advertencia */
     --bs-warning: #AEAEB2;
+    /* Advertencia en RGB */
     --bs-warning-rgb: 174, 174, 178;
+    /* Info */
     --bs-info: #AEAEB2;
+    /* Info en RGB */
     --bs-info-rgb: 174, 174, 178;
+    /* Enlaces */
     --bs-link-color: #F5F5F7;
+    /* Enlaces en RGB */
     --bs-link-color-rgb: 245, 245, 247;
+    /* Enlaces al pasar el mouse */
     --bs-link-hover-color: #F5F5F7;
 
+    /* Fondo oscuro de Presente */
     --status-present-bg: #12261A;
+    /* Fondo oscuro de Tardanza */
     --status-late-bg: #332508;
+    /* Fondo oscuro de Falta */
     --status-falta-bg: #2E1412;
+    /* Fondo oscuro de Licencia */
     --status-licencia-bg: #29292B;
+    /* Fondo oscuro de Programado */
     --status-scheduled-bg: #1F1F21;
 
+    /* Controles nativos en oscuro */
     color-scheme: dark;
+/* Cierra el modo oscuro manual */
 }
 
+/* Reset: quita márgenes y rellenos y hace que el ancho incluya borde y relleno */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* Fondo de html y body con el color base */
 html, body { background: var(--white); }
 
+/* Estilos del cuerpo de la página */
 body {
+    /* Fuente Inter y alternativas del sistema */
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    /* Fondo base */
     background: var(--white);
+    /* Ocupa como mínimo toda la altura de la pantalla */
     min-height: 100vh;
+    /* Color de texto principal */
     color: var(--ink);
+    /* Suavizado de letras en Chrome/Safari */
     -webkit-font-smoothing: antialiased;
+    /* Suavizado de letras en Firefox para Mac */
     -moz-osx-font-smoothing: grayscale;
+/* Cierra body */
 }
 
+/* Contenedor principal de la app */
 .main-container {
+    /* Fondo base */
     background: var(--white);
+    /* Ancho completo */
     width: 100%;
+    /* Ancho máximo de 1400px */
     max-width: 1400px;
+    /* Altura mínima de la pantalla */
     min-height: 100vh;
+    /* Centrado horizontal */
     margin: 0 auto;
+    /* Sin relleno */
     padding: 0;
+    /* Posición relativa para ubicar hijos absolutos */
     position: relative;
+/* Cierra .main-container */
 }
 
 /* ============================================================
@@ -292,12 +484,19 @@ body {
    /logo.png) — NO se reemplaza por un icono minimalista, se deja
    grande y visible tal cual el archivo original.
 ============================================================ */
+/* Logo de la institución en el login */
 .login-header .institution-logo {
+    /* Alto de 84px */
     height: 84px;
+    /* Ancho automático para no deformarlo */
     width: auto;
+    /* Como bloque */
     display: block;
+/* Cierra la regla */
 }
+/* Logo del dashboard: 44px de alto */
 .dashboard-brand .dashboard-logo { height: 44px; width: auto; }
+/* En celulares (hasta 576px) el logo del dashboard baja a 34px */
 @media (max-width: 576px) { .dashboard-brand .dashboard-logo { height: 34px; } }
 
 /* ============================================================
@@ -305,142 +504,268 @@ body {
 ============================================================ */
 /* Marca: verde petróleo del logo (/logo.png). Igual en claro y en
    oscuro - es un color de identidad, no de superficie. */
+/* Segundo bloque :root con los colores de marca */
 :root {
+    /* Verde petróleo de marca */
     --brand: #204E4A;
+    /* Verde petróleo oscuro */
     --brand-deep: #133330;
+    /* Verde petróleo brillante */
     --brand-bright: #2F7A72;
+    /* Brillo verde translúcido */
     --brand-glow: rgba(47, 122, 114, 0.18);
+/* Cierra :root */
 }
 
+/* Pantalla de login */
 #loginScreen {
+    /* Altura mínima de toda la pantalla */
     min-height: 100vh;
+    /* Ancho completo */
     width: 100%;
+    /* Flexbox para centrar */
     display: flex;
+    /* Centrado horizontal */
     justify-content: center;
+    /* Centrado vertical */
     align-items: center;
+    /* Relleno: arriba, costados y abajo */
     padding: 32px 16px 40px;
+    /* Fondo compuesto por varias capas */
     background:
+        /* Brillo verde arriba a la izquierda */
         radial-gradient(900px 500px at 12% -10%, var(--brand-glow), transparent 60%),
+        /* Brillo verde abajo a la derecha */
         radial-gradient(700px 500px at 110% 110%, var(--brand-glow), transparent 60%),
+        /* Color de fondo base debajo de los brillos */
         var(--gray-50);
+/* Cierra #loginScreen */
 }
 
+/* Caja que contiene el login */
 .login-shell {
+    /* Ancho completo */
     width: 100%;
+    /* Ancho máximo de 440px en celular */
     max-width: 440px;
+    /* Usa CSS Grid */
     display: grid;
+    /* Una sola columna */
     grid-template-columns: 1fr;
+    /* Fondo blanco */
     background: var(--white);
+    /* Borde gris */
     border: 1px solid var(--gray-border);
+    /* Bordes muy redondeados */
     border-radius: var(--radius-xl);
+    /* Sombra doble para dar profundidad */
     box-shadow: 0 24px 60px rgba(19, 51, 48, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04);
+    /* Oculta lo que se salga de los bordes redondeados */
     overflow: hidden;
+    /* Animación de entrada al cargar */
     animation: loginRise 0.5s ease both;
+/* Cierra .login-shell */
 }
+/* Define la animación loginRise */
 @keyframes loginRise {
+    /* Empieza transparente y 12px más abajo */
     from { opacity: 0; transform: translateY(12px); }
+    /* Termina visible y en su lugar */
     to { opacity: 1; transform: none; }
+/* Cierra la animación */
 }
+/* Si el usuario pidió menos movimiento, se quita la animación */
 @media (prefers-reduced-motion: reduce) { .login-shell { animation: none; } }
 
 /* Panel de marca: solo con ancho de sobra; en celular se oculta y
    queda solo la tarjeta. */
+/* El panel de marca está oculto por defecto */
 .login-brand-panel { display: none; }
+/* Desde 900px de ancho (PC o tablet grande) */
 @media (min-width: 900px) {
+    /* El login se ensancha a 960px y pasa a dos columnas */
     .login-shell { max-width: 960px; grid-template-columns: 1.05fr 1fr; }
+    /* Panel de marca visible en pantallas anchas */
     .login-brand-panel {
+        /* Se muestra con flexbox */
         display: flex;
+        /* Contenido pegado abajo */
         align-items: flex-end;
+        /* Posición relativa para los anillos decorativos */
         position: relative;
+        /* Relleno interno */
         padding: 48px 44px;
+        /* Texto blanco */
         color: #FFFFFF;
+        /* Fondo compuesto */
         background:
+            /* Brillo blanco arriba a la derecha */
             radial-gradient(520px 360px at 85% 10%, rgba(255, 255, 255, 0.10), transparent 60%),
+            /* Degradé diagonal con los verdes de marca */
             linear-gradient(155deg, var(--brand-bright) 0%, var(--brand) 45%, var(--brand-deep) 100%);
+        /* Oculta lo que se salga */
         overflow: hidden;
+    /* Cierra el panel de marca */
     }
     /* Anillos decorativos que evocan el diafragma del logo */
+    /* Pseudo-elemento antes del panel */
     .login-brand-panel::before,
+    /* Pseudo-elemento después del panel */
     .login-brand-panel::after {
+        /* Contenido vacío, obligatorio para que se dibujen */
         content: "";
+        /* Posición absoluta dentro del panel */
         position: absolute;
+        /* Forma circular */
         border-radius: 50%;
+        /* Borde blanco translúcido */
         border: 1px solid rgba(255, 255, 255, 0.12);
+        /* No interfieren con el mouse */
         pointer-events: none;
+    /* Cierra la regla de anillos */
     }
+    /* Anillo grande arriba a la derecha */
     .login-brand-panel::before { width: 420px; height: 420px; top: -140px; right: -160px; }
+    /* Anillo chico, un poco más visible */
     .login-brand-panel::after { width: 260px; height: 260px; top: -60px; right: -80px; border-color: rgba(255, 255, 255, 0.18); }
+/* Cierra el media de 900px */
 }
+/* Contenido del panel de marca, con ancho máximo */
 .login-brand-content { position: relative; max-width: 360px; }
+/* Etiqueta chica del panel de marca */
 .login-brand-kicker {
+    /* En línea pero con tamaño propio */
     display: inline-block;
+    /* Letra chica */
     font-size: 0.72rem;
+    /* Negrita */
     font-weight: 700;
+    /* Separación entre letras */
     letter-spacing: 0.14em;
+    /* Relleno interno */
     padding: 5px 12px;
+    /* Forma de píldora */
     border-radius: var(--radius-pill);
+    /* Fondo blanco translúcido */
     background: rgba(255, 255, 255, 0.14);
+    /* Separación inferior */
     margin-bottom: 18px;
+/* Cierra la regla */
 }
+/* Título del panel de marca */
 .login-brand-panel h2 {
+    /* Tamaño grande */
     font-size: 2.1rem;
+    /* Extra negrita */
     font-weight: 800;
+    /* Interlineado ajustado */
     line-height: 1.1;
+    /* Letras apenas más juntas */
     letter-spacing: -0.02em;
+    /* Separación inferior */
     margin-bottom: 12px;
+    /* Blanco */
     color: #FFFFFF;
+/* Cierra la regla */
 }
+/* Párrafo del panel: blanco translúcido y separado */
 .login-brand-panel p { color: rgba(255, 255, 255, 0.82); font-size: 1rem; margin-bottom: 26px; }
+/* Lista de características: sin viñetas, en grilla con espacio */
 .login-brand-features { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+/* Cada ítem: ícono y texto alineados con espacio */
 .login-brand-features li { display: flex; align-items: center; gap: 12px; font-size: 0.92rem; font-weight: 500; }
+/* Ícono de cada característica */
 .login-brand-features i {
+    /* Centrado del ícono con flexbox */
     display: inline-flex; align-items: center; justify-content: center;
+    /* Tamaño fijo de 34px sin encogerse */
     width: 34px; height: 34px; flex-shrink: 0;
+    /* Esquinas redondeadas */
     border-radius: 10px;
+    /* Fondo blanco translúcido */
     background: rgba(255, 255, 255, 0.14);
+    /* Tamaño del ícono */
     font-size: 1rem;
+/* Cierra la regla */
 }
 
+/* Tarjeta del formulario de login */
 .login-card {
+    /* Relleno interno */
     padding: 20px 24px 26px;
+    /* Flexbox */
     display: flex;
+    /* En columna */
     flex-direction: column;
+    /* Permite achicarse sin desbordar */
     min-width: 0;
+/* Cierra la regla */
 }
+/* En pantallas anchas: más relleno y contenido centrado verticalmente */
 @media (min-width: 900px) { .login-card { padding: 28px 44px 36px; justify-content: center; } }
+/* Barra de idioma y tema */
 .login-toolbar {
+    /* Flexbox */
     display: flex;
+    /* Alineada a la derecha */
     justify-content: flex-end;
+    /* Centrado vertical */
     align-items: center;
+    /* Espacio entre botones */
     gap: 8px;
+    /* Separación inferior */
     margin-bottom: 8px;
+/* Cierra la regla */
 }
 
+/* Encabezado del login */
 .login-header {
+    /* Texto centrado */
     text-align: center;
+    /* Separación inferior */
     margin-bottom: 24px;
+    /* Sin relleno */
     padding: 0;
+    /* Sin línea inferior */
     border-bottom: none;
+    /* Ancho completo */
     width: 100%;
+/* Cierra la regla */
 }
 /* El PNG del logo trae fondo blanco: se lo apoya en una "baldosa"
    blanca para que en modo oscuro se vea como un ícono de app y no
    como un recorte. */
+/* Recuadro blanco detrás del logo */
 .login-logo-tile {
+    /* Flexbox en línea */
     display: inline-flex;
+    /* Relleno */
     padding: 6px 10px;
+    /* Esquinas redondeadas */
     border-radius: var(--radius-lg);
+    /* Blanco fijo (también en modo oscuro) */
     background: #FFFFFF;
+    /* Separación inferior */
     margin-bottom: 14px;
+/* Cierra la regla */
 }
+/* Título del login */
 .login-header h1 {
+    /* Color de texto principal */
     color: var(--ink);
+    /* Extra negrita */
     font-weight: 800;
+    /* Tamaño */
     font-size: 1.7rem;
+    /* Letras más juntas */
     letter-spacing: -0.02em;
+    /* Separación inferior */
     margin-bottom: 4px;
+/* Cierra la regla */
 }
+/* Oculta íconos dentro del título */
 .login-header h1 i { display: none; }
+/* Subtítulo del login en gris */
 .login-header p { color: var(--gray-600); font-size: 0.95rem; font-weight: 400; margin-top: 2px; }
 
 /* ===== SELECTOR DE IDIOMA (ES/EN/PT) =====
@@ -454,32 +779,54 @@ body {
    la app (--accent-blue, ver arriba) para el estado activo, a
    pedido: "fondo azul/primary" - no se inventa un color nuevo, se
    reusa el que ya existe para geocerca. */
+/* Selector de idioma en fila centrada verticalmente */
 .lang-switcher { display: flex; align-items: center; }
+/* En el login va alineado a la derecha */
 .lang-switcher-login { justify-content: flex-end; margin: 0; }
+/* Contenedor de las píldoras de idioma */
 .lang-switcher-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Cada botón píldora de idioma */
 .lang-pill {
+    /* Flexbox en línea con espacio entre bandera y texto */
     display: inline-flex; align-items: center; gap: 5px;
+    /* Fondo gris, texto gris, borde invisible */
     background: var(--gray-100); color: var(--gray-600); border: 1px solid transparent;
+    /* Relleno, forma de píldora, letra chica y negrita */
     padding: 5px 11px; border-radius: var(--radius-pill); font-size: 0.78rem; font-weight: 700;
+    /* Cursor de mano y transiciones suaves */
     cursor: pointer; transition: background var(--transition-base), color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-base);
+/* Cierra la regla */
 }
+/* Al pasar el mouse sobre un idioma no activo: fondo más oscuro */
 .lang-pill:hover:not(.lang-pill-active) { background: var(--gray-200); color: var(--ink); }
+/* Idioma activo: fondo azul, texto blanco, sombra y un poco más grande */
 .lang-pill-active { background: var(--accent-blue); color: #FFFFFF; box-shadow: 0 3px 10px rgba(0, 102, 255, 0.35); transform: scale(1.06); }
+/* Círculo de la bandera */
 .lang-pill-flag {
+    /* Centrado del contenido */
     display: inline-flex; align-items: center; justify-content: center;
+    /* 16px, redondo y recortado */
     width: 16px; height: 16px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+    /* Borde interior sutil */
     box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+/* Cierra la regla */
 }
+/* El dibujo de la bandera llena el círculo */
 .lang-pill-flag svg { width: 100%; height: 100%; display: block; object-fit: cover; }
+/* En celulares chicos (hasta 575px) */
 @media (max-width: 575px) {
+    /* Píldoras más chicas */
     .lang-pill { padding: 4px 8px; font-size: 0.68rem; gap: 3px; }
+    /* Banderas de 14px */
     .lang-pill-flag { width: 14px; height: 14px; }
     /* En el header del dashboard (no en login, que ya está centrado
        solo) el selector puede quedar apretado junto al badge de rol y
        el botón de salir - se lo deja envolver en su propia línea
        cuando no entra, en vez de comprimir o desbordar el resto de
        .dashboard-header-actions. */
+    /* En el dashboard, el selector ocupa su propia línea si no entra */
     .dashboard-header-actions .lang-switcher-pills { flex-basis: 100%; justify-content: flex-end; }
+/* Cierra el media */
 }
 
 /* ===== TOGGLE DE MODO OSCURO =====
@@ -489,116 +836,223 @@ body {
    icono de a DÓNDE se va a cambiar al tocarlo (sol = "pasar a claro"
    cuando ya está oscuro, luna = "pasar a oscuro" cuando está claro),
    mismo criterio que cualquier toggle de tema estándar. */
+/* Contenedor del botón de tema */
 .theme-switcher { display: flex; align-items: center; }
+/* Botón redondo de tema claro/oscuro */
 .theme-toggle-btn {
+    /* Centrado del ícono */
     display: inline-flex; align-items: center; justify-content: center;
+    /* Tamaño de 30px */
     width: 30px; height: 30px;
+    /* Fondo y texto gris, borde invisible */
     background: var(--gray-100); color: var(--gray-600); border: 1px solid transparent;
+    /* Redondo, cursor de mano, no se encoge */
     border-radius: 50%; font-size: 0.9rem; cursor: pointer; flex-shrink: 0;
+    /* Transiciones suaves */
     transition: background var(--transition-base), color var(--transition-base), transform var(--transition-base);
+/* Cierra la regla */
 }
+/* Al pasar el mouse: más oscuro y un poco más grande */
 .theme-toggle-btn:hover { background: var(--gray-200); color: var(--ink); transform: scale(1.06); }
 
+/* Formulario de login */
 .login-form {
+    /* Ancho completo */
     width: 100%;
+    /* Centrado */
     margin: 0 auto;
+    /* Sin relleno */
     padding: 0;
+    /* Fondo transparente */
     background: transparent;
+    /* Sin borde */
     border: none;
+    /* Sin esquinas redondeadas */
     border-radius: 0;
+    /* Sin sombra */
     box-shadow: none;
+/* Cierra la regla */
 }
+/* Separación entre grupos de campos */
 .login-form .form-group { margin-bottom: 14px; }
+/* Oculta las etiquetas del login (el placeholder ya explica) */
 .login-form label { display: none !important; } /* placeholders ya explican el campo, look mas limpio */
+/* Envoltorio del campo con posición relativa para el ícono */
 .login-input { position: relative; }
+/* Ícono dentro del campo */
 .login-input-icon {
+    /* Posición absoluta */
     position: absolute;
+    /* A 18px de la izquierda */
     left: 18px;
+    /* A mitad de altura */
     top: 50%;
+    /* Corrige para centrarlo exacto */
     transform: translateY(-50%);
+    /* Color gris */
     color: var(--gray-500);
+    /* Tamaño */
     font-size: 1.05rem;
+    /* No bloquea los clics al campo */
     pointer-events: none;
+    /* Transición del color */
     transition: color var(--transition-base);
+/* Cierra la regla */
 }
+/* Cuando el campo tiene foco, el ícono se pinta de verde */
 .login-input:focus-within .login-input-icon { color: var(--brand-bright); }
+/* Campos de texto del login */
 #loginScreen .login-form .form-control {
+    /* Fondo gris clarito */
     background: var(--gray-hairline);
+    /* Borde invisible */
     border: 1.5px solid transparent;
+    /* Esquinas redondeadas */
     border-radius: var(--radius-md);
+    /* Alto de 54px */
     height: 54px;
+    /* Relleno izquierdo grande para dejar lugar al ícono */
     padding: 0 18px 0 48px;
+    /* Tamaño de letra */
     font-size: 1rem;
+    /* Color de texto */
     color: var(--ink);
+    /* Transiciones de borde, fondo y sombra */
     transition: border-color var(--transition-base), background var(--transition-base), box-shadow var(--transition-base);
+/* Cierra la regla */
 }
+/* Campo contraseña con lugar a la derecha para el botón ojo */
 #loginScreen .login-form #loginPass { padding-right: 52px; }
+/* Color del texto de ejemplo (placeholder) */
 #loginScreen .login-form .form-control::placeholder { color: var(--gray-600); }
+/* Campo del login con foco */
 #loginScreen .login-form .form-control:focus {
+    /* Fondo blanco */
     background: var(--white);
+    /* Borde verde */
     border-color: var(--brand-bright);
+    /* Halo verde alrededor */
     box-shadow: 0 0 0 4px var(--brand-glow);
+/* Cierra la regla */
 }
+/* Botón ojo de mostrar contraseña */
 .login-input-toggle {
+    /* Posición absoluta */
     position: absolute;
+    /* A 8px de la derecha */
     right: 8px;
+    /* A mitad de altura */
     top: 50%;
+    /* Centrado vertical exacto */
     transform: translateY(-50%);
+    /* Ancho de 40px */
     width: 40px;
+    /* Alto de 40px */
     height: 40px;
+    /* Sin borde */
     border: none;
+    /* Esquinas redondeadas */
     border-radius: 10px;
+    /* Fondo transparente */
     background: transparent;
+    /* Ícono gris */
     color: var(--gray-500);
+    /* Tamaño del ícono */
     font-size: 1.05rem;
+    /* Cursor de mano */
     cursor: pointer;
+/* Cierra la regla */
 }
+/* Al pasar el mouse: ícono oscuro y fondo gris */
 .login-input-toggle:hover { color: var(--ink); background: var(--gray-100); }
+/* Botón Ingresar del login */
 #loginScreen .login-form .btn-primary.login-submit {
+    /* Sin borde */
     border: none;
+    /* Alto de 54px */
     height: 54px;
+    /* Sin relleno */
     padding: 0;
+    /* Negrita */
     font-weight: 700;
+    /* Tamaño de letra */
     font-size: 1.02rem;
+    /* Ancho completo */
     width: 100%;
+    /* Esquinas redondeadas */
     border-radius: var(--radius-md);
+    /* Separación superior */
     margin-top: 8px;
+    /* Texto blanco (important para ganarle a Bootstrap) */
     color: #FFFFFF !important;
+    /* Degradé verde de marca */
     background: linear-gradient(135deg, var(--brand-bright), var(--brand)) !important;
+    /* Borde transparente */
     border-color: transparent !important;
+    /* Sombra verde */
     box-shadow: 0 10px 24px rgba(32, 78, 74, 0.28);
+    /* Flexbox en línea */
     display: inline-flex;
+    /* Centrado vertical */
     align-items: center;
+    /* Centrado horizontal */
     justify-content: center;
+    /* Espacio entre texto y flecha */
     gap: 8px;
+    /* Transiciones */
     transition: transform var(--transition-base), box-shadow var(--transition-base), filter var(--transition-base);
+/* Cierra la regla */
 }
+/* Al pasar el mouse: sube 1px, más brillo y más sombra */
 #loginScreen .login-form .btn-primary.login-submit:hover { opacity: 1; transform: translateY(-1px); filter: brightness(1.06); box-shadow: 0 14px 28px rgba(32, 78, 74, 0.34); }
+/* Al hacer clic vuelve a su lugar */
 #loginScreen .login-form .btn-primary.login-submit:active { transform: translateY(0); }
+/* La flecha del botón tiene transición */
 #loginScreen .login-form .btn-primary.login-submit i { transition: transform var(--transition-base); }
+/* Al pasar el mouse la flecha se corre a la derecha */
 #loginScreen .login-form .btn-primary.login-submit:hover i { transform: translateX(3px); }
+/* Mensaje de error del login: centrado, negrita y oculto por defecto */
 .login-error { color: var(--ink); text-align: center; margin-top: 10px; display: none; font-weight: 600; font-size: 0.9rem; }
+/* Separación del enlace de contraseña olvidada */
 #forgotPasswordBtnWrap { margin-top: 6px !important; }
+/* Enlace de contraseña olvidada */
 #forgotPasswordBtnWrap .btn-link {
+    /* Color gris */
     color: var(--gray-600) !important;
+    /* Letra chica */
     font-size: 0.85rem;
+    /* Grosor medio */
     font-weight: 500;
+    /* Sin subrayado */
     text-decoration: none;
+/* Cierra la regla */
 }
+/* Al pasar el mouse: más oscuro y subrayado */
 #forgotPasswordBtnWrap .btn-link:hover { color: var(--ink) !important; text-decoration: underline; }
 
 /* Banner de carga del modulo de reconocimiento facial: discreto,
    no debe competir visualmente con el login limpio. */
+/* Aviso de carga de modelos dentro del login */
 #loginScreen .models-banner {
+    /* Fondo transparente */
     background: transparent;
+    /* Sin borde */
     border: none;
+    /* Texto gris */
     color: var(--gray-600);
+    /* Letra chica */
     font-size: 0.78rem;
+    /* Centrado */
     justify-content: center;
+    /* Sin relleno */
     padding: 0;
+    /* Separación superior */
     margin: 18px 0 0;
+/* Cierra la regla */
 }
+/* Aviso de modelos del login en estado OK */
 #loginScreen .models-banner.ok,
+/* y en estado error: siempre fondo transparente */
 #loginScreen .models-banner.error { background: transparent; }
 
 /* ===== FICHAJE RÁPIDO CON CÁMARA =====
@@ -608,132 +1062,237 @@ body {
    así que se ocultan los datos personales ("Mis Datos"), los botones
    manuales de Entrada/Salida (el registro sale del modal tras
    identificarse) y las opciones avanzadas. */
+/* Separador con la letra o en el medio */
 .login-divider {
+    /* Flexbox */
     display: flex;
+    /* Centrado vertical */
     align-items: center;
+    /* Espacio entre líneas y texto */
     gap: 12px;
+    /* Márgenes arriba y abajo */
     margin: 18px 0 14px;
+    /* Color gris */
     color: var(--gray-500);
+    /* Letra chica */
     font-size: 0.8rem;
+    /* Seminegrita */
     font-weight: 600;
+    /* En mayúsculas */
     text-transform: uppercase;
+    /* Letras separadas */
     letter-spacing: 0.08em;
+/* Cierra la regla */
 }
+/* Línea antes del texto */
 .login-divider::before,
+/* y línea después: ocupan el espacio libre, 1px de alto, gris */
 .login-divider::after { content: ""; flex: 1; height: 1px; background: var(--gray-border); }
+/* Botón Fichar con cámara del login */
 #loginScreen .login-form .btn.login-quick-btn {
+    /* Ancho completo */
     width: 100%;
+    /* Alto de 54px */
     height: 54px;
+    /* Esquinas redondeadas */
     border-radius: var(--radius-md);
+    /* Borde verde */
     border: 1.5px solid var(--brand-bright) !important;
+    /* Fondo transparente */
     background: transparent !important;
+    /* Texto verde */
     color: var(--brand-bright) !important;
+    /* Negrita */
     font-weight: 700;
+    /* Tamaño de letra */
     font-size: 1rem;
+    /* Flexbox en línea */
     display: inline-flex;
+    /* Centrado vertical */
     align-items: center;
+    /* Centrado horizontal */
     justify-content: center;
+    /* Espacio entre ícono y texto */
     gap: 8px;
+    /* Transiciones */
     transition: background var(--transition-base), color var(--transition-base);
+/* Cierra la regla */
 }
+/* Al pasar el mouse */
 #loginScreen .login-form .btn.login-quick-btn:hover {
+    /* Fondo verde translúcido */
     background: var(--brand-glow) !important;
+/* Cierra la regla */
 }
+/* En modo oscuro manual: verde más claro para que se lea */
 html[data-theme="dark"] #loginScreen .login-form .btn.login-quick-btn { color: #7FC4BB !important; border-color: #7FC4BB !important; }
+/* En modo oscuro automático */
 @media (prefers-color-scheme: dark) {
+    /* el mismo verde claro */
     html:not([data-theme]) #loginScreen .login-form .btn.login-quick-btn { color: #7FC4BB !important; border-color: #7FC4BB !important; }
+/* Cierra el media */
 }
 
+/* En modo fichaje rápido se ocultan: la columna Mis Datos */
 #teacherDashboard.quick-mode .col-md-6.order-2,
+/* la info de materia */
 #teacherDashboard.quick-mode #materiaFichajeInfo,
+/* el botón Entrada */
 #teacherDashboard.quick-mode #btnEntrada,
+/* el botón Salida */
 #teacherDashboard.quick-mode #btnSalida,
+/* el botón Retiro */
 #teacherDashboard.quick-mode #btnRetirada,
+/* la ayuda de botones */
 #teacherDashboard.quick-mode #attendanceButtonsHint,
+/* las opciones avanzadas */
 #teacherDashboard.quick-mode #opcionesAvanzadasDocente,
+/* y el botón de opciones avanzadas */
 #teacherDashboard.quick-mode .btn-link[onclick="toggleOpcionesAvanzadasDocente()"] { display: none !important; }
+/* En modo rápido la columna de cámara ocupa todo el ancho, hasta 760px, centrada */
 #teacherDashboard.quick-mode .col-md-6.order-1 { flex: 0 0 100%; max-width: 760px; margin: 0 auto; }
+/* Caja de alta rápida con borde punteado */
 .quick-alta-wrap { margin-top: 10px; padding: 12px; border: 1px dashed var(--gray-border); border-radius: var(--radius-md); text-align: center; }
+/* Fuera del modo rápido, la caja de alta rápida no se muestra */
 #teacherDashboard:not(.quick-mode) #quickAltaWrap { display: none !important; }
 
 /* ============================================================
    DASHBOARD: header + contenido
 ============================================================ */
+/* Relleno de la pantalla del dashboard */
 #dashboardScreen { padding: 20px 20px 60px; }
+/* En PC (desde 992px) más relleno */
 @media (min-width: 992px) { #dashboardScreen { padding: 28px 32px 60px; } }
 
+/* Encabezado del dashboard */
 .dashboard-header {
+    /* Flexbox */
     display: flex;
+    /* Separa los extremos */
     justify-content: space-between;
+    /* Centrado vertical */
     align-items: center;
+    /* Relleno */
     padding: 4px 0 20px;
+    /* Línea inferior fina */
     border-bottom: 1px solid var(--gray-hairline);
+    /* Separación inferior */
     margin-bottom: 24px;
+    /* Permite bajar de línea */
     flex-wrap: wrap;
+    /* Espacio entre elementos */
     gap: 12px;
+/* Cierra la regla */
 }
+/* Título del dashboard: negrita y tamaño medio */
 .dashboard-header h2 { color: var(--ink); font-weight: 800; font-size: 1.3rem; margin: 0; letter-spacing: -0.01em; }
+/* Bloque de marca: logo y título en fila */
 .dashboard-brand { display: flex; align-items: center; gap: 10px; }
+/* Acciones del encabezado en fila, con salto de línea si no entran */
 .dashboard-header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
 /* ============================================================
    CAMARA
 ============================================================ */
+/* Contenedor de la cámara */
 .camera-container {
+    /* Fondo casi negro */
     background: #0A0A0A;
+    /* Esquinas redondeadas */
     border-radius: var(--radius-lg);
+    /* Oculta lo que se salga */
     overflow: hidden;
+    /* Posición relativa para superponer el lienzo */
     position: relative;
+    /* Ancho máximo de 640px */
     max-width: 640px;
+    /* Centrado */
     margin: 0 auto;
+    /* Borde fino */
     border: 1px solid var(--gray-hairline);
+/* Cierra la regla */
 }
+/* El video ocupa todo el ancho */
 .camera-container video { width: 100%; height: auto; display: block; }
+/* Lienzo encima del video, sin bloquear clics */
 .camera-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
 
+/* Zona de controles de la cámara */
 .camera-controls {
+    /* Texto centrado */
     text-align: center;
+    /* Relleno */
     padding: 20px;
+    /* Fondo base */
     background: var(--white);
+    /* Solo redondea las esquinas de abajo */
     border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+/* Cierra la regla */
 }
 
+/* Botones de capturar, entrada, salida y retiro */
 .btn-capture, .btn-entry, .btn-exit, .btn-early-exit {
+    /* Sin borde */
     border: none;
+    /* Texto en color de fondo (contraste) */
     color: var(--white);
+    /* Fondo en color de texto */
     background: var(--ink);
+    /* Relleno grande */
     padding: 14px 28px;
+    /* Forma de píldora */
     border-radius: var(--radius-pill);
+    /* Negrita */
     font-weight: 700;
+    /* Transición de opacidad */
     transition: opacity var(--transition-base);
+    /* Margen alrededor */
     margin: 6px 6px;
+/* Cierra la regla */
 }
+/* Al pasar el mouse: más transparente */
 .btn-capture:hover, .btn-entry:hover, .btn-exit:hover, .btn-early-exit:hover { background: var(--ink); opacity: 0.8; }
+/* Deshabilitados: muy transparentes y cursor prohibido */
 .btn-entry:disabled, .btn-exit:disabled, .btn-early-exit:disabled { opacity: 0.3; cursor: not-allowed; }
 
 /* ===== Camara del docente: es lo PRIMERO que se ve al entrar (ver
    el orden del DOM en index.html - #teacherDashboard), tamaño chico
    a normal (tope 480px, centrada) y con los botones al costado en
    vez de abajo en desktop, para que entren todos sin scroll. ===== */
+/* Diseño de cámara del docente: fila flexible que baja de línea */
 .teacher-camera-layout { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+/* Cámara del docente con ancho máximo de 380px */
 .teacher-camera-layout .camera-container { max-width: 380px; margin: 0 auto; flex: 0 0 auto; }
+/* Controles al costado de la cámara */
 .teacher-camera-layout .camera-controls {
+    /* Ocupan el resto con mínimo de 220px, alineados a la izquierda */
     flex: 1 1 220px; min-width: 220px; border-radius: var(--radius-lg); text-align: left; padding: 15px;
+/* Cierra la regla */
 }
+/* Botón capturar dentro de los controles */
 .teacher-camera-layout .camera-controls .btn-capture,
+/* Botón entrada */
 .teacher-camera-layout .camera-controls .btn-entry,
+/* Botón salida */
 .teacher-camera-layout .camera-controls .btn-exit,
+/* Botón retiro */
 .teacher-camera-layout .camera-controls .btn-early-exit,
+/* Botón secundario */
 .teacher-camera-layout .camera-controls .btn-secondary {
+    /* Todos a lo ancho, uno debajo del otro */
     display: block; width: 100%; margin: 0 0 8px 0; padding: 14px 16px; text-align: center;
+/* Cierra la regla */
 }
+/* En celulares y tablets chicas (hasta 767px) */
 @media (max-width: 767px) {
     /* En mobile la cámara ocupa todo el ancho disponible, con un tope
        de 480px para que no quede gigante en tablets/phablets. */
+    /* Cámara a todo el ancho con tope de 480px */
     .teacher-camera-layout .camera-container { max-width: 480px; width: 100%; }
     /* Gap más chico (~mt-2) entre la cámara y lo que sigue - en
        desktop el gap de 16px entre columna de cámara y de controles
        queda igual, no se toca acá. */
+    /* Menos espacio entre cámara y controles */
     .teacher-camera-layout { gap: 8px; }
 
     /* Reorden SOLO en mobile, sin tocar el layout de desktop (que no
@@ -743,27 +1302,49 @@ html[data-theme="dark"] #loginScreen .login-form .btn.login-quick-btn { color: #
        Identificarme + cartel de instrucciones + Entrada/Salida/
        Retirada), 3) bloque de DATOS al final (Materia/Horario/Evento/
        Kiosco/Modo prueba + acciones secundarias). */
+    /* Controles de la cámara */
     .teacher-camera-layout .camera-controls {
+        /* Flexbox */
         display: flex;
+        /* En columna, para poder reordenarlos */
         flex-direction: column;
+    /* Cierra la regla */
     }
+    /* Pasos de prueba de vida */
     .teacher-camera-layout .camera-controls > #livenessSteps,
+    /* estado del reconocimiento */
     .teacher-camera-layout .camera-controls > #faceRecognitionStatus,
+    /* barra de progreso */
     .teacher-camera-layout .camera-controls > #recognitionProgress,
+    /* botón capturar */
     .teacher-camera-layout .camera-controls > .btn-capture,
+    /* botón entrada */
     .teacher-camera-layout .camera-controls > .btn-entry,
+    /* botón salida */
     .teacher-camera-layout .camera-controls > .btn-exit,
+    /* botón retiro */
     .teacher-camera-layout .camera-controls > .btn-early-exit,
+    /* y ayuda de botones */
     .teacher-camera-layout .camera-controls > #attendanceButtonsHint {
+        /* van en segundo lugar */
         order: 2;
+    /* Cierra la regla */
     }
+    /* Info de materia */
     .teacher-camera-layout .camera-controls > #materiaFichajeInfo,
+    /* insignias de contexto */
     .teacher-camera-layout .camera-controls > #fichajeContextBadges,
+    /* kiosco */
     .teacher-camera-layout .camera-controls > #kioskAuthorizeWrap,
+    /* último fichaje */
     .teacher-camera-layout .camera-controls > #miUltimoFichajeBox,
+    /* y botón salir */
     .teacher-camera-layout .camera-controls > #teacherLogoutBtn {
+        /* van en tercer lugar */
         order: 3;
+    /* Cierra la regla */
     }
+/* Cierra el media */
 }
 
 /* Una vez que el modelo cargó OK, el cartel "Cargando módulo..." /
@@ -774,149 +1355,253 @@ html[data-theme="dark"] #loginScreen .login-form .btn.login-quick-btn { color: #
    login ni el del registro de docente, que tienen otro layout.
    (setModelsBanner() en script.js solo cambia texto/clase, nunca lo
    oculta - el ocultamiento es puramente visual, vía CSS). */
+/* Oculta el aviso de modelos del docente cuando ya cargaron */
 #teacherModelsBanner.ok { display: none; }
 
+/* En celulares y tablets chicas */
 @media (max-width: 767px) {
     /* .dashboard-header es compartido con el panel de Rector/
        Secretaría (no tocar su tamaño ahí) - acá se lo achica SOLO
        cuando el que está visible es el dashboard del docente, para
        que la cámara quede "pegada" al header en mobile sin scroll. */
+    /* Si se ve el panel del docente, menos relleno arriba */
     #dashboardScreen:has(#teacherDashboard:not(.hidden)) {
+        /* Relleno superior de 10px */
         padding-top: 10px;
+    /* Cierra la regla */
     }
+    /* Encabezado más compacto en el panel del docente */
     #dashboardScreen:has(#teacherDashboard:not(.hidden)) .dashboard-header {
+        /* Relleno inferior chico */
         padding: 0 0 8px;
+        /* Separación inferior chica */
         margin-bottom: 10px;
+    /* Cierra la regla */
     }
+    /* Logo más chico en el panel del docente */
     #dashboardScreen:has(#teacherDashboard:not(.hidden)) .dashboard-brand .dashboard-logo {
+        /* 24px de alto */
         height: 24px;
+    /* Cierra la regla */
     }
+    /* Título más chico en el panel del docente */
     #dashboardScreen:has(#teacherDashboard:not(.hidden)) .dashboard-header h2 {
+        /* Tamaño de letra */
         font-size: 1.05rem;
+    /* Cierra la regla */
     }
+/* Cierra el media */
 }
 
+/* Relleno del panel de administración */
 .admin-panel { padding: 4px 0 20px; }
 
 /* ============================================================
    TABLA ADMIN (desktop) - fondo blanco, sin franja de color
 ============================================================ */
+/* Tabla del admin */
 .admin-table {
+    /* Fondo base */
     background: var(--white);
+    /* Borde fino */
     border: 1px solid var(--gray-hairline);
+    /* Esquinas redondeadas */
     border-radius: var(--radius-lg);
+    /* Oculta lo que se salga */
     overflow: hidden;
+    /* Relleno chico */
     padding: 4px;
+/* Cierra la regla */
 }
+/* Encabezado de la tabla con texto gris */
 .admin-table thead { background: var(--white); color: var(--gray-600); }
+/* Celdas de título */
 .admin-table thead th {
+    /* Letra chica, mayúsculas, separada y negrita */
     font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700;
+    /* Línea inferior fina */
     border-bottom: 1px solid var(--gray-hairline) !important;
+/* Cierra la regla */
 }
+/* Fila con fondo gris al pasar el mouse */
 .admin-table tbody tr:hover { background: var(--gray-50); }
+/* Línea inferior en cada celda */
 .admin-table tbody td { border-bottom: 1px solid var(--gray-hairline) !important; }
 
 /* ============================================================
    ALERTAS: tarjetas blancas, sombra suave, sin rojo/verde
 ============================================================ */
+/* Tarjeta de alerta */
 .alert-card {
+    /* Fondo base */
     background: var(--white);
+    /* Borde fino */
     border: 1px solid var(--gray-hairline);
+    /* Esquinas redondeadas */
     border-radius: var(--radius-lg);
+    /* Relleno */
     padding: 18px;
+    /* Separación inferior */
     margin-bottom: 12px;
+    /* Sin borde izquierdo de color */
     border-left: none;
+    /* Sombra de tarjeta */
     box-shadow: var(--shadow-card);
+/* Cierra la regla */
 }
+/* Alerta justificada con fondo base */
 .alert-card.justified { background: var(--white); }
 
+/* Insignia Justificada: gris con texto oscuro */
 .badge-justified { background: var(--gray-hairline); color: var(--ink); padding: 5px 12px; border-radius: var(--radius-pill); font-size: 0.75rem; font-weight: 700; }
+/* Insignia No justificada: oscura con texto claro */
 .badge-unjustified { background: var(--ink); color: var(--white); padding: 5px 12px; border-radius: var(--radius-pill); font-size: 0.75rem; font-weight: 700; }
 
+/* Sección de formulario (tarjeta) */
 .form-section {
+    /* Fondo base */
     background: var(--white);
+    /* Relleno */
     padding: 24px;
+    /* Borde fino */
     border: 1px solid var(--gray-hairline);
+    /* Esquinas redondeadas */
     border-radius: var(--radius-lg);
+    /* Separación inferior */
     margin-bottom: 24px;
+    /* Sombra de tarjeta */
     box-shadow: var(--shadow-card);
+/* Cierra la regla */
 }
+/* Título de sección: negrita y tamaño medio */
 .form-section h4 { color: var(--ink); margin-bottom: 18px; font-weight: 800; font-size: 1.05rem; }
+/* Ícono del título */
 .form-section h4 i { color: var(--ink); }
 
 /* Se agrega al formulario de alta/edicion de docente mientras se esta
    editando uno existente (ver editTeacher()/clearRegistrationForm()
    en script.js), para que sea obvio a simple vista que no se esta
    cargando un docente nuevo. */
+/* Formulario resaltado mientras se edita un docente */
 .form-section.editing {
+    /* Borde grueso */
     border: 2px solid var(--ink);
+    /* Sombra más marcada */
     box-shadow: var(--shadow-soft);
+/* Cierra la regla */
 }
 
 
+/* Contador de fotos capturadas: centrado, chico y gris */
 .capture-status { text-align: center; font-size: 0.85rem; color: var(--gray-600); margin-top: 6px; font-weight: 600; }
+/* Cuando ya hay 3 fotos: color principal */
 .capture-status.ready { color: var(--ink); }
 
+/* Contenedor de avisos flotantes, fijo arriba a la derecha y encima de todo */
 .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
+/* Aviso flotante (toast) */
 .toast-custom {
+    /* Fondo base */
     background: var(--white);
+    /* Texto principal */
     color: var(--ink);
+    /* Relleno */
     padding: 14px 22px;
+    /* Esquinas redondeadas */
     border-radius: var(--radius-lg);
+    /* Sombra suave */
     box-shadow: var(--shadow-soft);
+    /* Separación entre avisos */
     margin-bottom: 10px;
+    /* Animación de entrada desde la derecha */
     animation: slideInRight 0.4s ease;
+    /* Sin borde izquierdo */
     border-left: none;
+    /* Borde fino */
     border: 1px solid var(--gray-hairline);
+    /* Ancho mínimo de 260px */
     min-width: 260px;
+/* Cierra la regla */
 }
+/* Avisos de error y advertencia con el mismo borde fino */
 .toast-custom.error, .toast-custom.warning { border: 1px solid var(--gray-hairline); }
 
+/* Animación de entrada desde la derecha */
 @keyframes slideInRight {
+    /* Empieza fuera de pantalla y transparente */
     from { transform: translateX(100%); opacity: 0; }
+    /* Termina en su lugar y visible */
     to { transform: translateX(0); opacity: 1; }
+/* Cierra la animación */
 }
 
+/* Clase utilitaria: oculta cualquier elemento */
 .hidden { display: none !important; }
 
 /* ============================================================
    TARJETAS DE ESTADISTICAS (Inicio del panel admin)
 ============================================================ */
+/* Tarjeta de estadística */
 .stat-card {
+    /* Fondo base */
     background: var(--white);
+    /* Borde fino */
     border: 1px solid var(--gray-hairline);
+    /* Esquinas redondeadas */
     border-radius: var(--radius-lg);
+    /* Relleno */
     padding: 22px 18px;
+    /* Texto centrado */
     text-align: center;
+    /* Sombra de tarjeta */
     box-shadow: var(--shadow-card);
+/* Cierra la regla */
 }
+/* Número grande de la tarjeta */
 .stat-card .number { font-size: 2.2rem; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; }
+/* Etiqueta chica en mayúsculas y gris */
 .stat-card .label { color: var(--gray-600); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-top: 4px; }
 
 /* Resumen compacto de Inicio (a ~1/3 de la altura del stat-card
    normal, que sigue completo en Auditoría/Estadísticas). */
+/* Tarjeta compacta: menos relleno */
 .stat-card.compact { padding: 8px 10px; border-radius: var(--radius-md); }
+/* Número más chico */
 .stat-card.compact .number { font-size: 1.25rem; }
+/* Etiqueta más chica */
 .stat-card.compact .label { font-size: 0.58rem; margin-top: 1px; }
 
 /* ===== "Docentes que deberían presentarse hoy" (semáforo de
    puntualidad, Inicio) - colores del pedido (#22c55e/#eab308/#f97316/
    #ef4444/#9ca3af), excepción puntual igual que en calendario/grilla. ===== */
+/* Leyenda del semáforo en fila con salto de línea */
 .semaforo-legend { display: flex; flex-wrap: wrap; gap: 14px; }
+/* Cada ítem de la leyenda */
 .semaforo-legend-item { display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--gray-600); }
+/* Punto de color redondo de 10px */
 .semaforo-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+/* Fila de un docente en el semáforo */
 .semaforo-row {
+    /* Flexbox con extremos separados */
     display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    /* Fondo gris, borde fino y borde izquierdo grueso de color */
     background: var(--gray-50); border: 1px solid var(--gray-hairline); border-left: 5px solid var(--gray-400);
+    /* Esquinas redondeadas, relleno y separación */
     border-radius: var(--radius-sm); padding: 8px 12px; margin-bottom: 6px;
+/* Cierra la regla */
 }
+/* Bloque principal de la fila en columna */
 .semaforo-row-main { display: flex; flex-direction: column; gap: 1px; }
+/* Nombre del docente en negrita */
 .semaforo-row-name { font-weight: 700; color: var(--ink); font-size: 0.9rem; }
+/* Detalle chico en gris */
 .semaforo-row-detail { font-size: 0.75rem; color: var(--gray-600); }
+/* Insignia de estado: blanca, chica, píldora y sin cortar línea */
 .semaforo-badge { color: #FFFFFF; font-size: 0.72rem; font-weight: 700; padding: 4px 10px; border-radius: var(--radius-pill); white-space: nowrap; }
 /* El amarillo (#eab308) no tiene contraste suficiente con texto
    blanco (WCAG) - se lo pinta acá por color exacto en vez de agregar
    una clase .status-tardanza más (ver semaforo.color en script.js). */
+/* Si la insignia es amarilla, texto oscuro para que se lea */
 .semaforo-badge[style*="eab308"] { color: #422006; }
 
 /* Tarjeta de Evento Especial dentro de "Esperados Hoy": amarillo flúo
@@ -924,19 +1609,29 @@ html[data-theme="dark"] #loginScreen .login-form .btn.login-quick-btn { color: #
    vistazo (ver getEventoEntriesParaHoy()/tipoCumplimiento en script.js).
    El borde izquierdo sigue siendo el color del semáforo (mismo criterio
    que las tarjetas de materia) - acá solo se le agrega el fondo. */
+/* Fila de evento especial con fondo amarillo flúo */
 .semaforo-row-evento { background: #f5ff00; border-color: #d4d900; }
+/* Detalle del evento en texto oscuro */
 .semaforo-row-evento .semaforo-row-detail { color: #4a4a00; }
+/* Insignia de cumplimiento del evento */
 .badge-cumplimiento {
+    /* En línea, chica y negrita */
     display: inline-block; margin-left: 6px; font-size: 0.62rem; font-weight: 700;
+    /* Píldora con texto blanco */
     padding: 2px 7px; border-radius: var(--radius-pill); vertical-align: middle; color: #FFFFFF;
+/* Cierra la regla */
 }
+/* Con perjuicio: marrón */
 .badge-con-perjuicio { background: #7c2d12; }
+/* Sin perjuicio: azul oscuro */
 .badge-sin-perjuicio { background: #1e3a8a; }
 
 /* Choque de horario real en los datos (ver resolverChoquesHorario()
    en script.js): rojo encima de cualquier otro color, para que salte
    a la vista antes que el semáforo normal. */
+/* Fila con choque de horario: fondo y borde rojo */
 .semaforo-row-choque { background: #fee2e2; border-color: #ef4444; }
+/* Detalle en rojo oscuro */
 .semaforo-row-choque .semaforo-row-detail { color: #7f1d1d; }
 
 /* ===== TURNOS (Mañana/Tarde/Noche) =====
@@ -947,34 +1642,59 @@ html[data-theme="dark"] #loginScreen .login-form .btn.login-quick-btn { color: #
    claro/oscuro, mismo criterio que WhatsApp/CON-SIN perjuicio):
    distinguir la franja tiene que verse igual en los dos modos, y el
    texto blanco de los badges necesita el fondo saturado siempre. */
+/* Título de cada turno en Esperados Hoy */
 .esperados-turno-header {
+    /* Flexbox con extremos separados */
     display: flex; justify-content: space-between; align-items: center;
+    /* Relleno y márgenes */
     padding: 8px 4px 6px; margin: 16px 0 8px;
+    /* Línea inferior gruesa */
     border-bottom: 2px solid var(--gray-hairline);
+    /* Negrita, chico, en mayúsculas */
     font-weight: 800; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink);
+/* Cierra la regla */
 }
+/* El primer título no tiene margen arriba */
 .esperados-turno-header:first-child { margin-top: 0; }
+/* Contador del turno en gris */
 .esperados-turno-count { font-weight: 600; font-size: 0.72rem; color: var(--gray-600); text-transform: none; letter-spacing: 0; }
+/* Línea naranja clara para Mañana */
 .turno-header-manana { border-bottom-color: #E8A33D; }
+/* Línea naranja para Tarde */
 .turno-header-tarde { border-bottom-color: #E8672A; }
+/* Línea azul oscura para Noche */
 .turno-header-noche { border-bottom-color: #3B3F8C; }
 
+/* Insignia de turno */
 .turno-badge {
+    /* Flexbox en línea */
     display: inline-flex; align-items: center; gap: 4px;
+    /* Letra chica y negrita */
     font-size: 0.72rem; font-weight: 700; padding: 3px 10px;
+    /* Píldora con texto blanco */
     border-radius: var(--radius-pill); color: #FFFFFF; margin-top: 2px;
+/* Cierra la regla */
 }
+/* Fondo de Mañana */
 .turno-badge-manana { background: #E8A33D; }
+/* Fondo de Tarde */
 .turno-badge-tarde { background: #E8672A; }
+/* Fondo de Noche */
 .turno-badge-noche { background: #3B3F8C; }
 
+/* Agrega un asterisco a las etiquetas obligatorias */
 .required-field::after { content: " *"; color: var(--ink); font-weight: bold; }
 
 /* ===== BUSCADOR (lupa) ===== */
+/* Caja de búsqueda con ancho máximo */
 .search-box { position: relative; max-width: 420px; }
+/* Lupa ubicada dentro del campo a la izquierda */
 .search-box i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--gray-500); }
+/* Relleno izquierdo para no tapar la lupa */
 .search-box .form-control { padding-left: 38px; }
+/* Dentro de la app, un poco más de relleno */
 #app .search-box .form-control { padding-left: 42px; }
+/* La lupa queda encima y no bloquea clics */
 .search-box i { z-index: 2; pointer-events: none; }
 
 /* ===== CALENDARIO =====
@@ -984,316 +1704,588 @@ html[data-theme="dark"] #loginScreen .login-form .btn.login-quick-btn { color: #
    en escala de gris + negro (sin rojo/verde saturado) para que
    siga encajando con la paleta minimalista. */
 
+/* Leyenda de colores del calendario */
 .schedule-legend { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 10px; padding: 10px; background: var(--gray-50); border-radius: var(--radius-md); }
+/* Cada ítem de la leyenda */
 .schedule-legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.8rem; color: var(--ink); }
+/* Cuadrito de color de 20px */
 .schedule-legend-color { width: 20px; height: 20px; border-radius: 4px; border: 1px solid var(--gray-hairline); }
+/* Cuadrito de seleccionado */
 .schedule-legend-color.selected { background: var(--ink); }
+/* Cuadrito Presente */
 .schedule-legend-color.status-present { background: var(--status-present); border-color: var(--status-present); }
+/* Cuadrito Tardanza */
 .schedule-legend-color.status-late { background: var(--status-late); border-color: var(--status-late); }
+/* Cuadrito Falta */
 .schedule-legend-color.status-falta { background: var(--status-falta); border-color: var(--status-falta); }
+/* Cuadrito Licencia */
 .schedule-legend-color.status-licencia { background: var(--status-licencia); border-color: var(--status-licencia); }
+/* Cuadrito Programado */
 .schedule-legend-color.status-scheduled { background: var(--status-scheduled); border-color: var(--status-scheduled); }
 
+/* Recuadro de información de acceso */
 .password-info {
+    /* Fondo gris */
     background: var(--gray-50);
+    /* Borde izquierdo grueso */
     border-left: 4px solid var(--ink);
+    /* Relleno, esquinas y separación superior */
     padding: 10px 15px; border-radius: var(--radius-sm); margin-top: 10px;
+/* Cierra la regla */
 }
+/* Texto en negrita del recuadro */
 .password-info strong { color: var(--ink); }
 
 
+/* Chip de horario */
 .horario-chip {
+    /* Flexbox en línea con espacio */
     display: inline-flex; align-items: center; gap: 8px;
+    /* Fondo gris y texto principal */
     background: var(--gray-hairline); color: var(--ink);
+    /* Borde */
     border: 1px solid var(--gray-border);
+    /* Píldora, relleno y letra */
     border-radius: var(--radius-pill); padding: 6px 8px 6px 14px; font-size: 0.85rem; font-weight: 600;
+/* Cierra la regla */
 }
+/* Botón X del chip */
 .horario-chip-remove {
+    /* Sin fondo ni borde, letra grande */
     background: none; border: none; color: var(--ink); font-size: 1.1rem; line-height: 1;
+    /* Cursor de mano y negrita */
     cursor: pointer; padding: 0 4px; font-weight: 700;
+/* Cierra la regla */
 }
+/* Al pasar el mouse se aclara */
 .horario-chip-remove:hover { opacity: 0.6; }
 
 /* ===== WHATSAPP (boton rapido de contacto): se deja su verde de marca
    por ser un icono de identificacion universal, no un color decorativo
    del sistema; es chico y puntual, no compite con la paleta. ===== */
+/* Botón de WhatsApp con su verde de marca */
 .btn-whatsapp { background: #25D366; border-color: #25D366; color: #fff; }
+/* Al pasar el mouse o con foco: verde más oscuro */
 .btn-whatsapp:hover, .btn-whatsapp:focus { background: #1DA851; border-color: #1DA851; color: #fff; }
 
 /* ===== GEOCERCA: mapa Leaflet (Configuracion y Evento Especial)
    Unico acento de color de toda la app: azul #0066FF, ver
    L.circle(...) en script.js. ===== */
+/* Contenedor del mapa de la geocerca */
 .geocerca-map-container {
+    /* Como bloque */
     display: block;
+    /* Ancho completo */
     width: 100%;
+    /* Alto mínimo de 380px */
     min-height: 380px;
+    /* Esquinas redondeadas */
     border-radius: var(--radius-md);
+    /* Oculta lo que se salga */
     overflow: hidden;
+    /* Borde fino */
     border: 1px solid var(--gray-hairline);
+/* Cierra la regla */
 }
+/* Perilla del deslizador en azul (Chrome/Safari) */
 .form-range::-webkit-slider-thumb { background: var(--accent-blue); }
+/* Perilla del deslizador en azul (Firefox) */
 .form-range::-moz-range-thumb { background: var(--accent-blue); border: none; }
+/* Riel del deslizador en gris */
 .form-range::-webkit-slider-runnable-track { background: var(--gray-border); }
+/* Halo azul en la perilla con foco */
 .form-range:focus::-webkit-slider-thumb { box-shadow: 0 0 0 4px rgba(0,102,255,0.15); }
+/* Números del radio en azul */
 #geofenceRadiusLabel, #eventoGeocercaRadioLabel { color: var(--accent-blue); }
 
 /* ===== EVENTOS ESPECIALES: checklist de docentes convocados ===== */
+/* Lista de docentes convocados */
 .evento-docente-checklist {
+    /* Alto máximo con scroll vertical y borde */
     max-height: 240px; overflow-y: auto; border: 1px solid var(--gray-hairline);
+    /* Esquinas, relleno y fondo gris */
     border-radius: var(--radius-md); padding: 6px 14px; background: var(--gray-50);
+/* Cierra la regla */
 }
+/* Cada casilla con relleno y línea inferior */
 .evento-docente-checklist .form-check { padding: 6px 0 6px 1.8em; border-bottom: 1px solid var(--gray-hairline); }
+/* La última sin línea */
 .evento-docente-checklist .form-check:last-child { border-bottom: none; }
+/* Texto cuando la lista está vacía */
 .evento-docente-checklist .dropdown-empty { padding: 8px 0; color: var(--gray-600); font-size: 0.85rem; }
 
 /* ===== CALENDARIO ANUAL (por docente) ===== */
+/* Grilla de mini calendarios que se acomoda sola */
 .mini-calendar-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+/* Cada mini calendario */
 .mini-calendar { background: var(--gray-50); border: 1px solid var(--gray-hairline); border-radius: var(--radius-md); padding: 10px; }
+/* Título del mes */
 .mini-calendar-title { font-weight: 700; color: var(--ink); text-align: center; margin-bottom: 6px; font-size: 0.9rem; }
+/* Grilla de 7 columnas (días de la semana) */
 .mini-calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+/* Nombres de los días */
 .mini-calendar-dow { font-size: 0.6rem; text-align: center; color: var(--gray-600); font-weight: 600; }
+/* Cada día */
 .mini-calendar-day {
+    /* Letra chica, centrado y redondeado */
     font-size: 0.65rem; text-align: center; padding: 3px 0; border-radius: 3px;
+    /* Fondo base y borde */
     background: var(--white); border: 1px solid var(--gray-hairline); cursor: default;
+/* Cierra la regla */
 }
+/* Celdas vacías transparentes */
 .mini-calendar-day.empty { background: transparent; border: none; }
+/* Día presente: oscuro */
 .mini-calendar-day.day-present { background: var(--ink); color: var(--white); border-color: var(--ink); }
+/* Día con falta: gris */
 .mini-calendar-day.day-falta { background: var(--gray-500); color: var(--white); border-color: var(--gray-500); }
+/* Día con licencia: gris claro */
 .mini-calendar-day.day-licencia { background: var(--gray-300, #d9d9d3); color: var(--ink); border-color: var(--gray-border); }
+/* Día programado: gris muy claro */
 .mini-calendar-day.day-scheduled { background: var(--gray-hairline); border-color: var(--gray-border); }
 
 /* ===== Fichaje automático (ver htmlFichajeAutomatico() en script.js) ===== */
+/* Mensaje de fichaje automático centrado */
 .fichaje-auto { text-align: center; padding: 6px 4px; }
+/* Título en negrita */
 .fichaje-auto h5 { font-weight: 800; margin-bottom: 6px; }
+/* Ícono grande */
 .fichaje-auto-icon { font-size: 2.8rem; line-height: 1; margin-bottom: 8px; }
+/* Ícono verde si salió bien */
 .fichaje-auto.is-ok .fichaje-auto-icon { color: #1E9E57; }
+/* Ícono ámbar si llegó tarde */
 .fichaje-auto.is-tarde .fichaje-auto-icon { color: #C98A0B; }
+/* Ícono verde petróleo si es informativo */
 .fichaje-auto.is-info .fichaje-auto-icon { color: var(--brand-bright); }
+/* Lista de clases fichadas */
 .fichaje-auto-clases { list-style: none; padding: 0; margin: 4px auto 8px; display: inline-block; text-align: left; font-size: 0.9rem; }
+/* Cada clase con relleno */
 .fichaje-auto-clases li { padding: 2px 0; }
 
 /* ===== Modo Prueba (geolocalización desactivada) ===== */
+/* Sección Modo Prueba activa: borde y fondo ámbar */
 .modo-prueba-section.is-activo { border: 2px solid #E0A100; background: rgba(224, 161, 0, 0.07); }
+/* Fila del interruptor */
 .modo-prueba-switch { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+/* Interruptor más grande */
 .modo-prueba-switch .form-check-input { width: 2.6em; height: 1.35em; cursor: pointer; }
+/* Interruptor encendido en ámbar */
 #app .modo-prueba-switch .form-check-input:checked { background-color: #E0A100; border-color: #E0A100; }
+/* Texto de estado gris */
 .modo-prueba-estado { font-size: 0.82rem; color: var(--gray-600); }
+/* Texto de estado activo en ámbar oscuro y negrita */
 .modo-prueba-estado.is-activo { color: #8A5E00; font-weight: 700; }
+/* Cartel de Modo Prueba */
 .modo-prueba-banner {
+    /* Flexbox con espacio */
     display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+    /* Márgenes y relleno */
     margin: 0 0 14px; padding: 10px 14px;
+    /* Esquinas redondeadas */
     border-radius: var(--radius-md);
+    /* Fondo ámbar y texto oscuro */
     background: #E0A100; color: #1A1A1A;
+    /* Negrita */
     font-weight: 700; font-size: 0.9rem;
+/* Cierra la regla */
 }
+/* Cartel oculto */
 .modo-prueba-banner.hidden { display: none !important; }
+/* Botón del cartel empujado a la derecha */
 .modo-prueba-banner .btn { margin-left: auto; font-weight: 700; }
 
 /* ===== Campanita de alertas + buzón lateral (offcanvas) ===== */
+/* Botón campanita */
 .alerts-bell {
+    /* Posición relativa para el globito */
     position: relative;
+    /* Centrado del ícono */
     display: inline-flex; align-items: center; justify-content: center;
+    /* Tamaño de 36px */
     width: 36px; height: 36px; flex-shrink: 0;
+    /* Redondo */
     border-radius: 50%;
+    /* Borde */
     border: 1px solid var(--gray-border);
+    /* Fondo base */
     background: var(--white);
+    /* Color de ícono */
     color: var(--ink);
+    /* Tamaño del ícono */
     font-size: 1.05rem;
+    /* Cursor de mano */
     cursor: pointer;
+    /* Transiciones */
     transition: background var(--transition-base), transform var(--transition-base);
+/* Cierra la regla */
 }
+/* Al pasar el mouse: gris y un poco más grande */
 .alerts-bell:hover { background: var(--gray-100); transform: scale(1.05); }
+/* Campanita oculta */
 .alerts-bell.hidden { display: none !important; }
+/* Globito con la cantidad de alertas */
 .alerts-bell-count {
+    /* Arriba a la derecha de la campanita */
     position: absolute; top: -4px; right: -6px;
+    /* Tamaño mínimo */
     min-width: 19px; height: 19px; padding: 0 5px;
+    /* Redondo */
     border-radius: 999px;
+    /* Rojo con texto blanco */
     background: #DC3545; color: #FFFFFF;
+    /* Letra chica, centrada */
     font-size: 0.68rem; font-weight: 800; line-height: 19px; text-align: center;
+    /* Anillo del color de fondo alrededor */
     box-shadow: 0 0 0 2px var(--white);
+/* Cierra la regla */
 }
+/* Panel lateral de alertas hasta 560px de ancho */
 .alerts-offcanvas { width: min(560px, 100vw) !important; background: var(--gray-50); color: var(--ink); }
+/* Encabezado del panel */
 .alerts-offcanvas .offcanvas-header { background: var(--white); border-bottom: 1px solid var(--gray-border); }
+/* Título en negrita */
 .alerts-offcanvas .offcanvas-title { font-weight: 700; }
+/* Barra de acciones masivas */
 .alerts-bulk-bar {
+    /* Queda fija arriba al hacer scroll */
     position: sticky; top: -16px; z-index: 2;
+    /* Flexbox con extremos separados */
     display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+    /* Márgenes negativos para ocupar todo el ancho */
     margin: -16px -16px 12px; padding: 10px 16px;
+    /* Fondo y línea inferior */
     background: var(--white); border-bottom: 1px solid var(--gray-border);
+/* Cierra la regla */
 }
+/* Barra masiva oculta */
 .alerts-bulk-bar.hidden { display: none !important; }
+/* Casilla Seleccionar todas */
 #app .alerts-bulk-all, .alerts-bulk-all { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 0.86rem; font-weight: 600; cursor: pointer; }
+/* Tamaño de casillas de selección */
 .alerts-bulk-all .form-check-input, .alert-card .alert-select { margin: 0; width: 1.15em; height: 1.15em; cursor: pointer; }
+/* Casilla dentro de cada alerta */
 .alert-card .alert-select { margin-right: 8px; vertical-align: -2px; }
+/* Alerta seleccionada con contorno verde */
 .alert-card.is-selected { outline: 2px solid var(--brand-bright); outline-offset: -2px; }
 
 
 /* ===== Asistencias (ver renderAsistencias() en script.js) ===== */
+/* Filtros de asistencias en grilla de 7 columnas */
 .asis-filtros { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
+/* Hasta 1199px: 4 columnas */
 @media (max-width: 1199px) { .asis-filtros { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* Hasta 575px: 2 columnas */
 @media (max-width: 575px) { .asis-filtros { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Barra de acciones con extremos separados */
 .asis-acciones { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
+/* Botones de rangos rápidos */
 .asis-rapidos { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Resumen en fila */
 .asis-resumen { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+/* Chip del resumen */
 .asis-chip { font-size: 0.8rem; padding: 4px 10px; border-radius: var(--radius-pill); background: var(--gray-100); color: var(--ink); }
+/* Texto de aviso en ámbar */
 .asis-aviso { font-size: 0.78rem; color: #B26A00; }
+/* Borde de la tabla de asistencias */
 .asis-tabla-wrap { border: 1px solid var(--gray-border); border-radius: var(--radius-md); }
+/* Tabla sin margen y letra chica */
 #app .asis-tabla { margin: 0; font-size: 0.86rem; }
+/* Encabezados en mayúsculas, gris y sin cortar */
 #app .asis-tabla th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--gray-600); background: var(--gray-50); white-space: nowrap; }
+/* Celdas centradas verticalmente */
 #app .asis-tabla td { vertical-align: middle; color: var(--ink); background: var(--white); }
+/* Números de ancho fijo para que alineen */
 .asis-mono { font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Texto de tardanza en ámbar */
 .asis-tarde-txt { color: #B26A00; font-weight: 600; }
+/* Insignia de estado */
 .asis-badge { display: inline-block; font-size: 0.74rem; font-weight: 700; padding: 3px 9px; border-radius: var(--radius-pill); white-space: nowrap; }
+/* Presente: verde */
 .asis-presente { background: rgba(46, 125, 50, 0.14); color: #1E6B23; }
+/* Tarde: ámbar */
 .asis-tarde { background: rgba(201, 138, 11, 0.16); color: #8A5E00; }
+/* Falta: rojo */
 .asis-falta { background: rgba(198, 40, 40, 0.13); color: #B22222; }
+/* Media falta: naranja */
 .asis-media { background: rgba(249, 115, 22, 0.15); color: #B4530B; }
 /* Media falta (retiro anticipado) en Grilla Completa, calendario y detalle del día. */
+/* Cuadrito de leyenda Media falta en naranja */
 .schedule-legend-color.status-media_falta { background: #f97316; border-color: #f97316; }
+/* Celda de grilla con media falta: borde naranja */
 .grid-item.status-media_falta { border-left-color: #f97316 !important; }
+/* Licencia: gris */
 .asis-licencia { background: var(--gray-100); color: var(--gray-800); }
+/* Pendiente: verde petróleo */
 .asis-pendiente { background: var(--brand-glow); color: var(--brand-bright); }
 
 /* ===== Calendario del Establecimiento (FullCalendar) =====
    Colores de la app vía las variables --fc-* de FullCalendar, así
    respeta modo claro/oscuro. Ver showAnnualCalendar() en script.js. */
+/* Filtros del calendario en 5 columnas */
 .cal-filtros { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+/* Hasta 991px: 3 columnas */
 @media (max-width: 991px) { .cal-filtros { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* Hasta 575px: 1 columna */
 @media (max-width: 575px) { .cal-filtros { grid-template-columns: 1fr; } }
+/* Barra con leyenda y botones */
 .cal-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+/* La leyenda ocupa el espacio libre */
 .cal-toolbar .schedule-legend { flex: 1 1 auto; }
+/* Mensaje sin resultados */
 .cal-sin-resultados { background: var(--gray-50); border: 1px solid var(--gray-border); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 12px; font-size: 0.88rem; color: var(--gray-600); }
+/* Punto de clase con docente: verde petróleo */
 .cal-dot-scheduled { background: #2F7A72 !important; }
+/* Punto de clase sin docente: gris punteado */
 .cal-dot-sin-docente { background: var(--gray-100) !important; border: 1.5px dashed #9A9A94; }
+/* Calendario FullCalendar: variables de color */
 .establecimiento-calendar {
+    /* Color de bordes */
     --fc-border-color: var(--gray-border);
+    /* Fondo de página */
     --fc-page-bg-color: var(--white);
+    /* Fondo neutro */
     --fc-neutral-bg-color: var(--gray-50);
+    /* Fondo de evento en lista al pasar el mouse */
     --fc-list-event-hover-bg-color: var(--gray-50);
+    /* Fondo del día de hoy */
     --fc-today-bg-color: var(--brand-glow);
+    /* Línea roja de la hora actual */
     --fc-now-indicator-color: #C62828;
+    /* Fondo de botones */
     --fc-button-bg-color: var(--gray-100);
+    /* Borde de botones */
     --fc-button-border-color: var(--gray-border);
+    /* Texto de botones */
     --fc-button-text-color: var(--ink);
+    /* Fondo de botones al pasar el mouse */
     --fc-button-hover-bg-color: var(--gray-200);
+    /* Borde al pasar el mouse */
     --fc-button-hover-border-color: var(--gray-border);
+    /* Fondo del botón activo */
     --fc-button-active-bg-color: var(--brand-bright);
+    /* Borde del botón activo */
     --fc-button-active-border-color: var(--brand-bright);
+    /* Tamaño de letra del calendario */
     font-size: 0.85rem;
+    /* Color de texto */
     color: var(--ink);
+/* Cierra la regla */
 }
+/* Botones del calendario sin sombra ni mayúsculas */
 .establecimiento-calendar .fc-button { font-weight: 600; font-size: 0.82rem; text-transform: none; box-shadow: none !important; }
+/* Botón activo con texto blanco */
 .establecimiento-calendar .fc-button-active { color: #FFFFFF !important; }
+/* Título del calendario */
 .establecimiento-calendar .fc-toolbar-title { font-size: 1.15rem; font-weight: 700; }
+/* Primera letra del título en mayúscula */
 .establecimiento-calendar .fc-toolbar-title::first-letter { text-transform: uppercase; }
+/* Encabezados de columna */
 .establecimiento-calendar .fc-col-header-cell-cushion,
+/* números de día */
 .establecimiento-calendar .fc-daygrid-day-number,
+/* texto de días en lista */
 .establecimiento-calendar .fc-list-day-text,
+/* y texto lateral: sin subrayado y con mayúscula inicial */
 .establecimiento-calendar .fc-list-day-side-text { color: var(--ink); text-decoration: none; text-transform: capitalize; }
+/* Contenido de cada evento en vista semanal */
 .establecimiento-calendar .fc-timegrid-event .fc-event-main { padding: 2px 4px; font-size: 0.76rem; line-height: 1.25; }
+/* Eventos con cursor de mano y redondeados */
 .establecimiento-calendar .fc-event { cursor: pointer; border-radius: 6px; }
+/* Eventos de vista mensual pueden bajar de línea */
 .establecimiento-calendar .fc-daygrid-event { white-space: normal; }
 /* ===== Pestaña Materias: encabezado, barra carrera/período ===== */
+/* Encabezado de Materias con extremos separados */
 .materias-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+/* Botones de acción de Materias */
 .materias-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Barra de carrera y período */
 .materias-toolbar {
+    /* Flexbox alineado abajo con espacio */
     display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px;
+    /* Relleno y separación */
     padding: 12px 14px; margin-bottom: 14px;
+    /* Fondo gris, borde y esquinas */
     background: var(--gray-50); border: 1px solid var(--gray-border); border-radius: var(--radius-md);
+/* Cierra la regla */
 }
+/* Bloque de carrera: flexible con mínimo 260px y máximo 420px */
 .materias-toolbar-carrera { flex: 1 1 260px; max-width: 420px; }
+/* Bloque de período: ocupa el doble */
 .materias-toolbar-periodo { flex: 2 1 420px; }
+/* Selector de período en fila */
 .periodo-selector { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Grupo de un año */
 .periodo-grupo {
+    /* Flexbox en línea */
     display: inline-flex; align-items: center; gap: 2px;
+    /* Relleno y forma de píldora */
     padding: 3px; border-radius: var(--radius-pill);
+    /* Fondo y borde */
     background: var(--white); border: 1px solid var(--gray-border);
+/* Cierra la regla */
 }
+/* Etiqueta del año en mayúsculas y gris */
 .periodo-anio { font-size: 0.74rem; font-weight: 800; color: var(--gray-600); padding: 0 8px 0 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+/* Botón de cuatrimestre */
 #app .periodo-grupo .grilla-anio-cuat-btn {
+    /* Sin borde ni fondo */
     border: none; background: transparent; color: var(--ink);
+    /* Letra, relleno y píldora */
     font-size: 0.8rem; font-weight: 600; padding: 5px 11px; border-radius: var(--radius-pill);
+    /* Cursor de mano y transiciones */
     min-height: 0; cursor: pointer; transition: background var(--transition-base), color var(--transition-base);
+/* Cierra la regla */
 }
+/* Al pasar el mouse: fondo gris */
 #app .periodo-grupo .grilla-anio-cuat-btn:hover { background: var(--gray-100); }
+/* Título de cada parte de Materias */
 .materias-seccion-titulo { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 14px; margin: 6px 0 8px; }
+/* Títulos en negrita */
 .materias-seccion-titulo h5, .materias-seccion-titulo h6 { font-weight: 800; }
 /* Celular: la planilla mantiene un ancho legible y se desplaza de costado. */
+/* En celulares y tablets chicas */
 @media (max-width: 767px) {
+    /* La planilla se desplaza de costado */
     .materias-panel #grillaMateriasCalendar { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    /* y mantiene un ancho mínimo legible de 620px */
     .materias-panel #grillaMateriasCalendar .fc-header-toolbar, .materias-panel #grillaMateriasCalendar .fc-view-harness { min-width: 620px; }
+/* Cierra el media */
 }
+/* Al imprimir */
 @media print {
+    /* Se ocultan botones, barra, conflictos y ayudas */
     .materias-head .materias-acciones, .materias-toolbar, #grillaMateriasConflictos, .materias-seccion-titulo .text-muted { display: none !important; }
+/* Cierra el media de impresión */
 }
 
 /* Período elegido de la grilla de Materias (año + cuatrimestre), bien visible. */
+/* Botón de período elegido en verde de marca */
 #app .grilla-anio-cuat-btn.active { background: var(--brand-bright) !important; border-color: var(--brand-bright) !important; color: #FFFFFF !important; }
 /* Planilla editable de Materias: bloques con materia + profesor, como la planilla impresa. */
+/* Alto de cada franja horaria del calendario */
 .establecimiento-calendar .fc-timegrid-slot { height: 3em; }
+/* Franjas un poco más altas en la planilla */
 .planilla-editor .fc-timegrid-slot { height: 3.2em; }
+/* Clase con docente: verde de marca */
 .planilla-editor .fc-event.planilla-con-docente { background: var(--brand-bright); border-color: var(--brand-bright); }
+/* Clase sin docente: gris con borde punteado */
 .planilla-editor .fc-event.planilla-sin-docente { background: var(--gray-100); border: 1.5px dashed #9A9A94; }
+/* Texto de clase sin docente en color principal */
 .planilla-editor .fc-event.planilla-sin-docente .planilla-evento { color: var(--ink); }
+/* Contenido de cada bloque de la planilla */
 .planilla-evento { padding: 3px 5px; color: #FFFFFF; line-height: 1.2; overflow: hidden; }
+/* Hora del bloque */
 .planilla-evento-hora { font-size: 0.7rem; font-weight: 700; opacity: 0.85; font-variant-numeric: tabular-nums; }
+/* Nombre de la materia */
 .planilla-evento-nombre { font-size: 0.8rem; font-weight: 700; }
+/* Nombre del profesor */
 .planilla-evento-prof { font-size: 0.74rem; opacity: 0.9; }
+/* Etiqueta Anual */
 .planilla-anual-tag { font-size: 0.6rem; font-weight: 800; padding: 0 4px; border-radius: 4px; background: rgba(255, 255, 255, 0.25); }
+/* Etiqueta Anual en bloque sin docente */
 .planilla-sin-docente .planilla-anual-tag { background: var(--gray-200); }
+/* Zona seleccionada en verde translúcido */
 .planilla-editor .fc-highlight { background: var(--brand-glow); }
 /* Calendario del Establecimiento compacto (por defecto) / ampliado
    (botón Ampliar, ver toggleAmpliarCalendario()). */
+/* Botones de la barra del calendario */
 .cal-toolbar-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+/* Relleno del cuerpo del modal del calendario */
 #annualCalendarModal .modal-body { padding: 14px 16px; }
+/* Relleno del encabezado del modal */
 #annualCalendarModal .modal-header { padding: 10px 16px; }
+/* Tamaño del título del modal */
 #annualCalendarModal .modal-title { font-size: 1.05rem; }
+/* Filtros compactos */
 .cal-filtros-compactos { gap: 8px; margin-bottom: 8px; }
+/* Etiquetas de filtro más chicas */
 .cal-filtros-compactos .form-label { font-size: 0.72rem; margin-bottom: 2px !important; }
+/* Campos de filtro más bajos */
 #app .cal-filtros-compactos .form-control { min-height: 0; height: 32px; padding: 4px 10px; font-size: 0.82rem; }
+/* Leyenda más compacta */
 #annualCalendarModal .schedule-legend { padding: 4px 8px; font-size: 0.78rem; }
+/* Barra con menos separación */
 #annualCalendarModal .cal-toolbar { margin-bottom: 8px !important; }
+/* Franjas más bajas en modo compacto */
 .establecimiento-calendar.cal-compacto .fc-timegrid-slot { height: 2.1em; }
+/* Encabezados de columna más chicos */
 .establecimiento-calendar.cal-compacto .fc-col-header-cell-cushion { font-size: 0.8rem; padding: 4px 2px; }
+/* Horas laterales más chicas */
 .establecimiento-calendar.cal-compacto .fc-timegrid-slot-label-cushion { font-size: 0.72rem; }
+/* Bloques con menos relleno */
 .establecimiento-calendar.cal-compacto .planilla-evento { padding: 2px 4px; }
+/* Hora del bloque más chica */
 .establecimiento-calendar.cal-compacto .planilla-evento-hora { font-size: 0.64rem; }
+/* Nombre de materia más chico */
 .establecimiento-calendar.cal-compacto .planilla-evento-nombre { font-size: 0.72rem; }
+/* Profesor más chico */
 .establecimiento-calendar.cal-compacto .planilla-evento-prof { font-size: 0.66rem; }
+/* Calendario ampliado: franjas más altas */
 .establecimiento-calendar.cal-compacto.is-ampliado .fc-timegrid-slot { height: 4.6em; }
+/* Hora más grande */
 .establecimiento-calendar.cal-compacto.is-ampliado .planilla-evento-hora { font-size: 0.74rem; }
+/* Nombre más grande */
 .establecimiento-calendar.cal-compacto.is-ampliado .planilla-evento-nombre { font-size: 0.9rem; }
+/* Profesor más grande */
 .establecimiento-calendar.cal-compacto.is-ampliado .planilla-evento-prof { font-size: 0.8rem; }
+/* Eventos redondeados con sombra leve */
 .establecimiento-calendar .fc-event { border-radius: 8px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
 /* Colores por año (Calendario del Establecimiento con varios años a la vista). */
+/* Clase utilitaria: el contenedor no genera caja propia */
 .d-contents { display: contents; }
+/* Punto de 1er año: verde petróleo */
 .cal-anio-dot-1 { background: #2F7A72 !important; }
+/* Punto de 2do año: azul */
 .cal-anio-dot-2 { background: #2F5E9E !important; }
+/* Punto de 3er año: violeta */
 .cal-anio-dot-3 { background: #7A4FA3 !important; }
+/* Puntos de 4to y 5to año: terracota */
 .cal-anio-dot-4, .cal-anio-dot-5 { background: #A3542F !important; }
+/* Clase con docente de 2do año: azul */
 .establecimiento-calendar .fc-event.planilla-con-docente.cal-anio-2 { background: #2F5E9E; border-color: #2F5E9E; }
+/* Clase con docente de 3er año: violeta */
 .establecimiento-calendar .fc-event.planilla-con-docente.cal-anio-3 { background: #7A4FA3; border-color: #7A4FA3; }
+/* Clase con docente de 4to año */
 .establecimiento-calendar .fc-event.planilla-con-docente.cal-anio-4,
+/* y de 5to año: terracota */
 .establecimiento-calendar .fc-event.planilla-con-docente.cal-anio-5 { background: #A3542F; border-color: #A3542F; }
+/* Clase sin docente de 1er año: borde izquierdo verde */
 .establecimiento-calendar .fc-event.planilla-sin-docente.cal-anio-1 { border-left: 4px solid #2F7A72; }
+/* Clase sin docente de 2do año: borde izquierdo azul */
 .establecimiento-calendar .fc-event.planilla-sin-docente.cal-anio-2 { border-left: 4px solid #2F5E9E; }
+/* Clase sin docente de 3er año: borde izquierdo violeta */
 .establecimiento-calendar .fc-event.planilla-sin-docente.cal-anio-3 { border-left: 4px solid #7A4FA3; }
+/* Etiqueta del año dentro del bloque */
 .cal-anio-tag { display: inline-block; font-size: 0.62rem; font-weight: 800; padding: 0 4px; border-radius: 4px; background: rgba(255, 255, 255, 0.28); margin-right: 2px; }
+/* Etiqueta del año en bloque sin docente */
 .planilla-sin-docente .cal-anio-tag { background: var(--gray-200); }
 /* Varios años: nombres que saltan de renglón (no se cortan) y filas más altas. */
+/* Nombres largos bajan de renglón con guiones */
 .establecimiento-calendar .planilla-evento-nombre { overflow-wrap: break-word; hyphens: auto; -webkit-hyphens: auto; }
+/* Varios años: franjas más altas */
 .establecimiento-calendar.cal-compacto.is-multi .fc-timegrid-slot { height: 3.3em; }
+/* Varios años ampliado: aún más altas */
 .establecimiento-calendar.cal-compacto.is-multi.is-ampliado .fc-timegrid-slot { height: 4.8em; }
+/* Varios años: nombre más chico */
 .establecimiento-calendar.is-multi .planilla-evento-nombre { font-size: 0.62rem; line-height: 1.15; letter-spacing: -0.01em; }
+/* Varios años: hora más chica */
 .establecimiento-calendar.is-multi .planilla-evento-hora { font-size: 0.6rem; white-space: nowrap; }
+/* Varios años ampliado: nombre más grande */
 .establecimiento-calendar.is-multi.is-ampliado .planilla-evento-nombre { font-size: 0.7rem; }
+/* Varios años ampliado: hora más grande */
 .establecimiento-calendar.is-multi.is-ampliado .planilla-evento-hora { font-size: 0.72rem; }
+/* Varios años: profesor más chico */
 .establecimiento-calendar.is-multi .planilla-evento-prof { font-size: 0.62rem; }
 /* Le gana a #app table:not(.ios-table) { display: block } del bloque mobile: esa regla rompe la grilla del calendario. */
+/* Las tablas del calendario se ven como tabla normal */
 #app .establecimiento-calendar table { display: table !important; white-space: normal !important; overflow: visible !important; }
+/* En celulares chicos */
 @media (max-width: 575px) {
+    /* La barra del calendario baja de línea */
     .establecimiento-calendar .fc-toolbar { flex-wrap: wrap; gap: 8px; }
+    /* Título más chico */
     .establecimiento-calendar .fc-toolbar-title { font-size: 1rem; }
+/* Cierra el media */
 }
 
 
@@ -1301,46 +2293,85 @@ html[data-theme="dark"] #loginScreen .login-form .btn.login-quick-btn { color: #
 
 /* ===== GRILLA COMPLETA DE HORARIOS (vista semana, con estado de
    asistencia por celda) ===== */
+/* Barra de la grilla de horarios */
 .grid-horarios-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+/* Filtros de la grilla */
 .grid-horarios-filtros { display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 auto; }
+/* Selectores de hasta 190px */
 .grid-horarios-filtros .form-select { max-width: 190px; }
+/* Navegación de semanas */
 .grid-horarios-nav { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+/* Columna del día de hoy resaltada */
 .grid-horarios-table th.grid-day-today { background: var(--gray-hairline); }
+/* Celdas alineadas arriba */
 .grid-horarios-table td { vertical-align: top; padding: 3px; }
+/* Cada clase dentro de la grilla */
 .grid-item {
+    /* Bloque, alineado a la izquierda, redondeado */
     display: block; text-align: left; border-radius: var(--radius-sm); padding: 5px 7px;
+    /* Separación, borde y fondo */
     margin-bottom: 4px; border: 1px solid var(--gray-hairline); background: var(--white);
+    /* Borde izquierdo de color y cursor de mano */
     border-left: 4px solid var(--gray-400); cursor: pointer;
+/* Cierra la regla */
 }
+/* La última sin separación */
 .grid-item:last-child { margin-bottom: 0; }
+/* Al pasar el mouse se oscurece apenas */
 .grid-item:hover { filter: brightness(0.97); }
+/* Hora de la clase */
 .grid-item-time { font-size: 0.6rem; color: var(--gray-600); font-weight: 600; }
+/* Nombre de la materia */
 .grid-item-materia { font-size: 0.72rem; font-weight: 700; color: var(--ink); line-height: 1.2; }
+/* Nombre del profesor */
 .grid-item-profesor { font-size: 0.65rem; color: var(--gray-600); line-height: 1.2; }
+/* Texto del estado */
 .grid-item-status { display: inline-block; font-size: 0.65rem; font-weight: 700; margin-top: 2px; }
+/* Clase presente: borde y fondo verde */
 .grid-item.status-present { border-left-color: var(--status-present); background: var(--status-present-bg); }
+/* Texto de estado verde */
 .grid-item.status-present .grid-item-status { color: var(--status-present); }
+/* Clase con tardanza: ámbar */
 .grid-item.status-late { border-left-color: var(--status-late); background: var(--status-late-bg); }
+/* Texto de estado ámbar */
 .grid-item.status-late .grid-item-status { color: var(--status-late); }
+/* Clase con falta: rojo */
 .grid-item.status-falta { border-left-color: var(--status-falta); background: var(--status-falta-bg); }
+/* Texto de estado rojo */
 .grid-item.status-falta .grid-item-status { color: var(--status-falta); }
+/* Clase con licencia: gris */
 .grid-item.status-licencia { border-left-color: var(--status-licencia); background: var(--status-licencia-bg); }
+/* Texto de estado gris */
 .grid-item.status-licencia .grid-item-status { color: var(--status-licencia); }
+/* Clase programada: gris claro */
 .grid-item.status-scheduled { border-left-color: var(--status-scheduled); background: var(--status-scheduled-bg); }
+/* Texto de estado gris */
 .grid-item.status-scheduled .grid-item-status { color: var(--gray-600); }
 
+/* Versión celular: tarjetas por día en columna */
 .grid-mobile-cards { display: flex; flex-direction: column; gap: 12px; }
+/* Tarjeta de un día */
 .grid-mobile-day { border: 1px solid var(--gray-hairline); border-radius: var(--radius-md); padding: 10px; background: var(--gray-50); }
+/* Tarjeta del día de hoy resaltada */
 .grid-mobile-day.grid-day-today { border-color: var(--ink); background: var(--white); }
+/* Título del día */
 .grid-mobile-day-title { font-weight: 700; margin-bottom: 8px; }
+/* Fecha chica en gris */
 .grid-mobile-day-title small { font-weight: 400; color: var(--gray-600); }
+/* Clases con fondo base */
 .grid-mobile-day .grid-item { background: var(--white); }
 
+/* Estado del reconocimiento facial */
 .face-recognition-status { margin: 10px 0; padding: 12px 14px; border-radius: var(--radius-md); font-weight: 600; }
+/* Estado éxito */
 .face-recognition-status.success { background: var(--gray-50); color: var(--ink); border: 1px solid var(--gray-hairline); }
+/* Estado error */
 .face-recognition-status.error   { background: var(--gray-hairline); color: var(--ink); border: 1px solid var(--gray-border); }
+/* Estado esperando */
 .face-recognition-status.waiting { background: var(--gray-50); color: var(--gray-600); border: 1px solid var(--gray-hairline); }
+/* Estado procesando */
 .face-recognition-status.processing { background: var(--gray-hairline); color: var(--ink); border: 1px solid var(--gray-border); }
+/* Estado advertencia */
 .face-recognition-status.warning { background: var(--gray-hairline); color: var(--ink); border: 1px solid var(--gray-border); }
 
 /* Consigna activa de la prueba de vida ("Mirá al frente", "Girá la
@@ -1349,65 +2380,113 @@ html[data-theme="dark"] #loginScreen .login-form .btn.login-quick-btn { color: #
    sobre fondo oscuro semitransparente (para que se lea encima del
    video en cualquier fondo/iluminación). Titila, no agranda: el
    tamaño de fuente se hereda igual que el resto de los estados. */
+/* Animación de titileo */
 @keyframes livenessPromptBlink {
+    /* Al inicio y al final: visible */
     0%, 100% { opacity: 1; }
+    /* A la mitad: casi transparente */
     50% { opacity: 0.4; }
+/* Cierra la animación */
 }
+/* Consigna activa de prueba de vida */
 .face-recognition-status.liveness-prompt {
+    /* Fondo oscuro translúcido */
     background: rgba(10, 10, 10, 0.78);
+    /* Texto rojo */
     color: #FF3B30;
+    /* Extra negrita */
     font-weight: 800;
+    /* Borde rojo translúcido */
     border: 1px solid rgba(255, 59, 48, 0.55);
+    /* Titila sin parar */
     animation: livenessPromptBlink 0.6s ease-in-out infinite;
+/* Cierra la regla */
 }
+/* Si el usuario pidió menos movimiento */
 @media (prefers-reduced-motion: reduce) {
+    /* no titila */
     .face-recognition-status.liveness-prompt { animation: none; opacity: 1; }
+/* Cierra el media */
 }
 
 /* ===== Prueba de vida / Anti-Spoofing (liveness.js): anillo guía
    estilo MercadoPago sobre la cámara + chips de progreso "1/N <gesto>"
    (N = 2 o 3, al azar por intento - ver getRandomChallenges()). ===== */
+/* Anillo guía sobre la cámara */
 .liveness-ring {
+    /* Posición absoluta */
     position: absolute;
+    /* Centrado */
     top: 50%; left: 50%;
+    /* Ancho del 64% */
     width: 64%;
+    /* Siempre cuadrado */
     aspect-ratio: 1 / 1;
+    /* Corrige el centrado */
     transform: translate(-50%, -50%);
+    /* Borde blanco translúcido */
     border: 4px solid rgba(255, 255, 255, 0.6);
+    /* Redondo */
     border-radius: 50%;
+    /* No bloquea clics */
     pointer-events: none;
+    /* Sombra enorme que oscurece fuera del anillo */
     box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.18);
+    /* Transiciones de color */
     transition: border-color 0.25s ease, box-shadow 0.25s ease;
+/* Cierra la regla */
 }
+/* Anillo OK: verde */
 .liveness-ring.ok { border-color: #2E7D4F; box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.05); }
+/* Anillo fallido: rojo */
 .liveness-ring.fail { border-color: #8B2E2E; }
+/* Anillo oculto */
 .liveness-ring.hidden { display: none; }
 
+/* Pasos de prueba de vida en fila */
 .liveness-steps { display: flex; gap: 6px; flex-wrap: wrap; }
+/* Pasos ocultos */
 .liveness-steps.hidden { display: none; }
+/* Cada paso (chip) */
 .liveness-step {
+    /* Letra chica */
     font-size: 0.68rem;
+    /* Negrita */
     font-weight: 700;
+    /* Relleno */
     padding: 4px 9px;
+    /* Píldora */
     border-radius: var(--radius-pill);
+    /* Fondo gris */
     background: var(--gray-hairline);
+    /* Texto gris */
     color: var(--gray-600);
+    /* Borde */
     border: 1px solid var(--gray-border);
+/* Cierra la regla */
 }
+/* Paso activo: oscuro */
 .liveness-step.active { background: var(--ink); color: var(--white); border-color: var(--ink); }
+/* Paso completado: claro con borde oscuro */
 .liveness-step.done { background: var(--gray-50); color: var(--ink); border-color: var(--ink); }
 
+/* Botón de acordeón abierto: fondo gris, sin sombra */
 .accordion-button:not(.collapsed) { background: var(--gray-50); color: var(--ink); box-shadow: none; }
+/* Sin sombra con foco */
 .accordion-button:focus { box-shadow: none; }
+/* Flecha del acordeón sin filtro */
 .accordion-button::after { filter: none; }
+/* Cuerpo del acordeón con alto máximo y scroll */
 .accordion-body { max-height: 400px; overflow-y: auto; }
 /* La grilla semanal y el listado de docentes ya traen su propio
    scroll interno (weekly-grid-container / tarjetas), asi que no
    conviene recortarlos a 400px como al buzon de alertas. */
+/* El listado de docentes no tiene límite de alto */
 #teachersAccordionBody { max-height: none; overflow: visible; }
 /* Chart.js necesita un contenedor de altura fija: con
    maintainAspectRatio:false el canvas llena este alto y ancho,
    en vez de calcular una altura enorme a partir del ancho. */
+/* Contenedor de gráficos de 300px de alto */
 .chart-container { position: relative; height: 300px; width: 100%; }
 
 /* ============================================================
@@ -1423,31 +2502,56 @@ html[data-theme="dark"] #loginScreen .login-form .btn.login-quick-btn { color: #
    blancas con borde negro/gris: asi no quedan varias barras negras
    apiladas una debajo de la otra en una misma pantalla.
 ============================================================ */
+/* Todos los botones de la app */
 #app .btn {
+    /* Esquinas redondeadas */
     border-radius: var(--radius-md);
+    /* Negrita */
     font-weight: 700;
+    /* Transiciones */
     transition: opacity var(--transition-base), background-color var(--transition-base), color var(--transition-base);
+/* Cierra la regla */
 }
+/* Botones primario y éxito */
 #app .btn-primary, #app .btn-success {
+    /* Fondo oscuro */
     background-color: var(--ink) !important;
+    /* Borde oscuro */
     border-color: var(--ink) !important;
+    /* Texto claro */
     color: var(--white) !important;
+/* Cierra la regla */
 }
+/* Primario al pasar el mouse o con foco */
 #app .btn-primary:hover, #app .btn-primary:focus,
+/* y éxito: más transparentes */
 #app .btn-success:hover, #app .btn-success:focus { opacity: 0.8; color: var(--white) !important; }
 
+/* Botones peligro, advertencia, info y secundario */
 #app .btn-danger, #app .btn-warning, #app .btn-info, #app .btn-secondary {
+    /* Fondo claro */
     background-color: var(--white) !important;
+    /* Borde gris */
     border-color: var(--gray-border) !important;
+    /* Texto oscuro */
     color: var(--ink) !important;
+/* Cierra la regla */
 }
+/* Peligro al pasar el mouse o con foco */
 #app .btn-danger:hover, #app .btn-danger:focus,
+/* Advertencia */
 #app .btn-warning:hover, #app .btn-warning:focus,
+/* Info */
 #app .btn-info:hover, #app .btn-info:focus,
+/* Secundario */
 #app .btn-secondary:hover, #app .btn-secondary:focus {
+    /* Fondo gris claro */
     background-color: var(--gray-hairline) !important;
+    /* Borde gris */
     border-color: var(--gray-border) !important;
+    /* Texto oscuro */
     color: var(--ink) !important;
+/* Cierra la regla */
 }
 
 /* Variantes "outline" de Bootstrap: mismo tratamiento blanco+borde.
@@ -1456,19 +2560,33 @@ html[data-theme="dark"] #loginScreen .login-form .btn.login-quick-btn { color: #
    compilado de Bootstrap (no leen --bs-*), por eso necesita el mismo
    forzado que el resto - si no, en modo oscuro queda texto oscuro
    sobre fondo oscuro. */
+/* Botones outline primario, secundario y éxito */
 #app .btn-outline-primary, #app .btn-outline-secondary, #app .btn-outline-success,
+/* outline peligro, advertencia, info y oscuro */
 #app .btn-outline-danger, #app .btn-outline-warning, #app .btn-outline-info, #app .btn-outline-dark {
+    /* Fondo claro */
     background-color: var(--white) !important;
+    /* Borde gris */
     border-color: var(--gray-border) !important;
+    /* Texto oscuro */
     color: var(--ink) !important;
+/* Cierra la regla */
 }
+/* Outline al pasar el mouse (primario, secundario, éxito) */
 #app .btn-outline-primary:hover, #app .btn-outline-secondary:hover, #app .btn-outline-success:hover,
+/* (peligro, advertencia, info, oscuro) */
 #app .btn-outline-danger:hover, #app .btn-outline-warning:hover, #app .btn-outline-info:hover, #app .btn-outline-dark:hover,
+/* Outline con foco (primario, secundario, éxito) */
 #app .btn-outline-primary:focus, #app .btn-outline-secondary:focus, #app .btn-outline-success:focus,
+/* (peligro, advertencia, info, oscuro) */
 #app .btn-outline-danger:focus, #app .btn-outline-warning:focus, #app .btn-outline-info:focus, #app .btn-outline-dark:focus {
+    /* Fondo gris claro */
     background-color: var(--gray-hairline) !important;
+    /* Borde gris */
     border-color: var(--gray-border) !important;
+    /* Texto oscuro */
     color: var(--ink) !important;
+/* Cierra la regla */
 }
 
 /* .text-muted de Bootstrap: lee --bs-secondary-color, una rgba() fija
@@ -1477,162 +2595,286 @@ html[data-theme="dark"] #loginScreen .login-form .btn.login-quick-btn { color: #
    oscuro (gris claro sobre fondo oscuro). Cubre tanto el texto
    estático (ej. "¿Cómo querés ingresar?", el hint de Licencias) como
    el generado por script.js con la misma clase. */
+/* Texto apagado de Bootstrap con el gris de la app */
 #app .text-muted { color: var(--gray-600) !important; }
 
 /* Botones "grandes" de una sola accion principal por pantalla:
    altos y con esquinas bien redondeadas, como pide el estilo Uber.
    Los .btn-sm (iconos de accion dentro de tarjetas/listas) quedan
    chicos y NO ocupan todo el ancho: ver regla siguiente. */
+/* Botones grandes: alto mínimo de 48px y bien redondeados */
 #app .btn:not(.btn-sm):not(.btn-link) { min-height: 48px; padding: 10px 22px; border-radius: var(--radius-lg); }
+/* Botones chicos */
 #app .btn-sm {
+    /* Alto mínimo de 34px */
     min-height: 34px;
+    /* Relleno */
     padding: 6px 12px;
+    /* Esquinas */
     border-radius: var(--radius-sm);
+    /* Letra chica */
     font-size: 0.8rem;
+    /* Ancho automático */
     width: auto !important;
+    /* Flexbox en línea */
     display: inline-flex !important;
+    /* Centrado vertical */
     align-items: center;
+    /* Espacio entre ícono y texto */
     gap: 4px;
+/* Cierra la regla */
 }
+/* Botones tipo enlace en seminegrita */
 #app .btn-link { font-weight: 600; }
 
 /* ============================================================
    BADGES / PILLS - sin rojo/verde/amarillo, solo negro y gris
 ============================================================ */
+/* Insignias (badges) */
 #app .badge {
+    /* Forma de píldora */
     border-radius: var(--radius-pill) !important;
+    /* Negrita */
     font-weight: 700;
+    /* Relleno */
     padding: 5px 12px;
+    /* Letra chica */
     font-size: 0.72rem;
+    /* Leve separación entre letras */
     letter-spacing: 0.01em;
+/* Cierra la regla */
 }
+/* Insignias de éxito, primario e info */
 #app .badge.bg-success, #app .badge.bg-primary, #app .badge.bg-info {
+    /* Fondo oscuro */
     background-color: var(--ink) !important;
+    /* Texto claro */
     color: var(--white) !important;
+/* Cierra la regla */
 }
+/* Insignias de peligro y advertencia */
 #app .badge.bg-danger, #app .badge.bg-warning {
+    /* Fondo gris claro */
     background-color: var(--gray-hairline) !important;
+    /* Texto oscuro */
     color: var(--ink) !important;
+    /* Borde */
     border: 1px solid var(--gray-border);
+/* Cierra la regla */
 }
 
+/* Barra de progreso: 10px, gris y píldora */
 .progress { height: 10px; margin-top: 10px; background-color: var(--gray-hairline); border-radius: var(--radius-pill); }
+/* Relleno de la barra: oscuro y con transición */
 .progress-bar { transition: width 0.3s ease; background-color: var(--ink) !important; border-radius: var(--radius-pill); }
 
 /* ============================================================
    PESTAÑAS DEL PANEL DE ADMIN: blancas con borde (chips), no
    subrayado. La activa se invierte a negro para marcar seleccion.
 ============================================================ */
+/* Pestañas del admin */
 .admin-tabs {
+    /* Sin línea inferior */
     border-bottom: none;
+    /* Separación inferior */
     margin-bottom: 22px;
+    /* En una sola línea */
     flex-wrap: nowrap;
+    /* Scroll horizontal si no entran */
     overflow-x: auto;
+    /* Scroll suave en iPhone */
     -webkit-overflow-scrolling: touch;
+    /* Espacio entre pestañas */
     gap: 8px;
+    /* Relleno inferior */
     padding-bottom: 4px;
+/* Cierra la regla */
 }
+/* Oculta la barra de scroll */
 .admin-tabs::-webkit-scrollbar { height: 0; }
+/* Cada pestaña */
 .admin-tabs .nav-link {
+    /* Borde gris */
     border: 1px solid var(--gray-border) !important;
+    /* Fondo base */
     background: var(--white);
+    /* Texto oscuro */
     color: var(--ink);
+    /* Seminegrita */
     font-weight: 600;
+    /* Letra chica */
     font-size: 0.85rem;
+    /* Relleno */
     padding: 10px 18px;
+    /* Sin cortar línea */
     white-space: nowrap;
+    /* Forma de píldora */
     border-radius: var(--radius-pill) !important;
+    /* Transiciones */
     transition: background-color 0.2s ease, color 0.2s ease;
+/* Cierra la regla */
 }
+/* Pestaña al pasar el mouse */
 .admin-tabs .nav-link:hover { background: var(--gray-hairline); }
+/* Pestaña activa */
 .admin-tabs .nav-link.active {
+    /* Texto claro */
     color: var(--white) !important;
+    /* Fondo oscuro */
     background: var(--ink) !important;
+    /* Borde oscuro */
     border-color: var(--ink) !important;
+/* Cierra la regla */
 }
+/* Globito dentro de pestaña activa invertido */
 .admin-tabs .nav-link.active .badge { background: var(--white) !important; color: var(--ink) !important; }
+/* Primera sección de cada pestaña */
 .admin-tab-content .tab-pane .form-section:first-child,
+/* o primer acordeón: sin margen arriba */
 .admin-tab-content .tab-pane .accordion:first-child { margin-top: 0 !important; }
 
+/* Acordeón del formulario de docente con separación */
 .docente-form-accordion { margin-bottom: 20px; }
+/* Su cuerpo sin límite de alto */
 .docente-form-accordion .accordion-body { max-height: none; overflow: visible; padding-top: 20px; }
 
+/* En pantallas hasta 768px */
 @media (max-width: 768px) {
+    /* Pestañas más chicas */
     .admin-tabs .nav-link { padding: 9px 14px; font-size: 0.8rem; }
+/* Cierra el media */
 }
 
 /* ============================================================
    BLOQUEO POR SUSCRIPCION VENCIDA (checkSuscripcion.js)
 ============================================================ */
+/* Capa de bloqueo por suscripción vencida */
 #suscripcionVencidaOverlay {
+    /* Fija sobre toda la pantalla, encima de todo */
     position: fixed; inset: 0; z-index: 100000;
+    /* Fondo base */
     background: var(--white);
+    /* Centra la tarjeta */
     display: flex; align-items: center; justify-content: center;
+    /* Relleno */
     padding: 20px;
+    /* Aparece con fundido */
     animation: fadeIn 0.3s ease;
+/* Cierra la regla */
 }
+/* Animación de fundido de entrada */
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+/* Tarjeta del aviso de suscripción */
 .suscripcion-vencida-card {
+    /* Hasta 420px, centrada */
     max-width: 420px; width: 100%; text-align: center;
+    /* Fondo base */
     background: var(--white);
+    /* Borde */
     border: 1px solid var(--gray-hairline);
+    /* Esquinas */
     border-radius: var(--radius-lg);
+    /* Sombra */
     box-shadow: var(--shadow-soft);
+    /* Relleno */
     padding: 48px 36px;
+/* Cierra la regla */
 }
+/* Ícono grande */
 .suscripcion-vencida-icon { font-size: 3rem; color: var(--ink); margin-bottom: 16px; }
+/* Título */
 .suscripcion-vencida-card h1 { font-size: 1.5rem; font-weight: 800; color: var(--ink); margin-bottom: 12px; }
+/* Párrafo gris */
 .suscripcion-vencida-card p { color: var(--gray-600); line-height: 1.5; margin-bottom: 28px; }
+/* Botón del aviso */
 .suscripcion-vencida-btn {
+    /* Flexbox en línea */
     display: inline-flex; align-items: center; gap: 8px;
+    /* Relleno y píldora */
     padding: 14px 28px; border-radius: var(--radius-pill);
+    /* Fondo oscuro, texto claro, negrita */
     background: var(--ink); border: none; color: var(--white); font-weight: 700;
+    /* Sin subrayado y con transición */
     text-decoration: none; transition: opacity 0.2s ease;
+/* Cierra la regla */
 }
+/* Al pasar el mouse se aclara */
 .suscripcion-vencida-btn:hover { opacity: 0.8; color: var(--white); }
 
 /* ===== ESTADO DE MODELOS DE RECONOCIMIENTO FACIAL ===== */
+/* Aviso de carga de modelos faciales */
 .models-banner {
+    /* Fondo, borde y esquinas */
     background: var(--gray-50); border: 1px solid var(--gray-hairline); border-radius: var(--radius-md);
+    /* Relleno, letra y flexbox */
     padding: 8px 14px; font-size: 0.8rem; color: var(--ink); display: flex;
+    /* Centrado, espacio y separación */
     align-items: center; gap: 8px; margin-bottom: 16px;
+/* Cierra la regla */
 }
+/* Estado OK */
 .models-banner.ok { background: var(--gray-50); color: var(--ink); border-color: var(--gray-hairline); }
+/* Estado error */
 .models-banner.error { background: var(--gray-hairline); color: var(--ink); border-color: var(--gray-border); }
+/* Ruedita de carga más chica */
 .models-banner .spinner-border { width: 0.9rem; height: 0.9rem; }
 
 /* ===== DEBUG DE GEOCERCA (visible siempre, no solo en modo prueba) ===== */
+/* Panel de depuración de geocerca */
 .geofence-debug-panel {
+    /* Fondo, borde punteado y esquinas */
     background: var(--gray-50); border: 1px dashed var(--gray-border); border-radius: var(--radius-md);
+    /* Relleno, letra chica y monoespaciada */
     padding: 8px 12px; font-size: 0.75rem; color: var(--ink); margin-top: 8px; font-family: monospace;
+/* Cierra la regla */
 }
+/* Interlineado de cada línea de depuración */
 .geofence-debug-line { line-height: 1.5; }
 
 /* ============================================================
    FORMULARIOS (global): inputs grandes y redondeados, sin foco azul
 ============================================================ */
+/* Campos de texto y selectores */
 #app .form-control, #app .form-select {
+    /* Borde gris */
     border: 1px solid var(--gray-border);
+    /* Esquinas */
     border-radius: var(--radius-md);
+    /* Relleno */
     padding: 10px 14px;
+    /* Texto oscuro */
     color: var(--ink);
+    /* Fondo base */
     background: var(--white);
+/* Cierra la regla */
 }
+/* Campos con foco */
 #app .form-control:focus, #app .form-select:focus {
+    /* Borde oscuro */
     border-color: var(--ink);
+    /* Sin halo azul */
     box-shadow: none;
+/* Cierra la regla */
 }
+/* Etiquetas de formulario */
 #app label:not(.form-check-label) { font-weight: 600; color: var(--ink); font-size: 0.85rem; margin-bottom: 4px; display: inline-block; }
+/* Casillas marcadas en oscuro */
 #app .form-check-input:checked { background-color: var(--ink); border-color: var(--ink); }
+/* Casillas con foco sin halo */
 #app .form-check-input:focus { box-shadow: none; border-color: var(--gray-400); }
 
 /* ============================================================
    MODALES: esquinas redondeadas, sin colores fuertes en headers
 ============================================================ */
+/* Contenido de modales redondeado y con sombra */
 #app .modal-content { border-radius: var(--radius-lg); border: none; box-shadow: var(--shadow-soft); }
+/* Línea inferior del encabezado del modal */
 #app .modal-header { border-bottom: 1px solid var(--gray-hairline); }
+/* Encabezado rojo de Bootstrap pasa a oscuro */
 #app .modal-header.bg-danger { background: var(--ink) !important; color: var(--white) !important; }
+/* Borde rojo pasa a fino gris */
 #app .modal-content.border-danger { border: 1px solid var(--gray-hairline) !important; }
+/* Línea superior del pie del modal */
 #app .modal-footer { border-top: 1px solid var(--gray-hairline); }
 
 /* ============================================================
@@ -1642,55 +2884,101 @@ html[data-theme="dark"] #loginScreen .login-form .btn.login-quick-btn { color: #
    en cada celda (ver loadTeachersTable() en script.js): no hace
    falta tocar el JS, la transformacion es 100% CSS.
 ============================================================ */
+/* Oculta el encabezado de las tablas tipo tarjeta */
 .ios-table thead { display: none; }
+/* La tabla y su cuerpo como bloques */
 .ios-table, .ios-table tbody { display: block; width: 100%; border: none; }
+/* Cuerpo de la tabla */
 .ios-table tbody {
+    /* Como grilla */
     display: grid;
+    /* Una columna */
     grid-template-columns: 1fr;
+    /* Espacio entre tarjetas */
     gap: 14px;
+/* Cierra la regla */
 }
+/* Desde 700px */
 @media (min-width: 700px) {
+    /* dos columnas */
     .ios-table tbody { grid-template-columns: repeat(2, 1fr); }
+/* Cierra el media */
 }
+/* Desde 1100px */
 @media (min-width: 1100px) {
+    /* tres columnas */
     .ios-table tbody { grid-template-columns: repeat(3, 1fr); }
+/* Cierra el media */
 }
+/* Cada fila se vuelve tarjeta */
 .ios-table tr {
+    /* Como bloque */
     display: block;
+    /* Fondo base */
     background: var(--white);
+    /* Borde */
     border: 1px solid var(--gray-hairline);
+    /* Esquinas */
     border-radius: var(--radius-lg);
+    /* Sombra */
     box-shadow: var(--shadow-card);
+    /* Relleno */
     padding: 16px;
+    /* Transición de sombra */
     transition: box-shadow 0.2s ease;
+/* Cierra la regla */
 }
+/* Tarjeta al pasar el mouse: más sombra */
 .ios-table tr:hover { box-shadow: var(--shadow-soft); background: var(--white); }
+/* Cada celda */
 .ios-table td {
+    /* Como bloque */
     display: block;
+    /* Sin borde */
     border: none !important;
+    /* Relleno vertical */
     padding: 7px 0;
+    /* Línea inferior */
     border-bottom: 1px solid var(--gray-hairline) !important;
+/* Cierra la regla */
 }
+/* Última celda sin línea y con más relleno */
 .ios-table td:last-child { border-bottom: none !important; padding-top: 12px; }
+/* Antes de cada celda se muestra su etiqueta */
 .ios-table td[data-label]::before {
+    /* Texto tomado del atributo data-label */
     content: attr(data-label);
+    /* Como bloque */
     display: block;
+    /* Letra chica */
     font-size: 0.66rem;
+    /* Negrita */
     font-weight: 700;
+    /* Mayúsculas */
     text-transform: uppercase;
+    /* Letras separadas */
     letter-spacing: 0.05em;
+    /* Gris */
     color: var(--gray-600);
+    /* Separación inferior */
     margin-bottom: 4px;
+/* Cierra la regla */
 }
 /* Primera celda (Foto): avatar circular grande y centrado, sin
    etiqueta arriba, como header visual de la tarjeta. */
+/* Celda Foto centrada y sin línea */
 .ios-table td[data-label="Foto"] { text-align: center; padding-top: 2px; border-bottom: none !important; }
+/* Sin etiqueta */
 .ios-table td[data-label="Foto"]::before { display: none; }
+/* Avatar de 64px con sombra */
 .ios-table td[data-label="Foto"] img { width: 64px !important; height: 64px !important; box-shadow: var(--shadow-softer); }
 /* Nombre / Docente / Titulo: la fila mas destacada de cada tarjeta
    (docentes, licencias y eventos respectivamente). */
+/* Celda Nombre */
 .ios-table td[data-label="Nombre"],
+/* Celda Docente */
 .ios-table td[data-label="Docente"],
+/* y Título: más grandes y en negrita */
 .ios-table td[data-label="Título"] { font-size: 1.02rem; font-weight: 700; }
 
 /* ============================================================
@@ -1700,32 +2988,50 @@ html[data-theme="dark"] #loginScreen .login-form .btn.login-quick-btn { color: #
    admin (ver el <div class="dropdown"> con .hamburger-btn en
    index.html, junto a la barra de botones que solo se ve en PC).
 ============================================================ */
+/* En pantallas hasta 768px */
 @media (max-width: 768px) {
+    /* Fondo base */
     body { background: var(--white); }
+    /* Altura mínima de la pantalla */
     .main-container { min-height: 100vh; }
+    /* Encabezado con relleno arriba */
     .dashboard-header { padding-top: 12px; }
+    /* Botones de cámara con margen */
     .camera-controls .btn { margin: 5px; }
 
     /* Botones y campos con umbral tactil comodo (44px minimo) */
+    /* Botones y campos con alto mínimo de 46px */
     #app .btn:not(.btn-sm), #app .form-control, #app .form-select { min-height: 46px; }
 
+    /* Botón hamburguesa */
     .hamburger-btn {
+        /* 44px, sin relleno */
         width: 44px; height: 44px; padding: 0;
+        /* Ícono centrado */
         display: flex; align-items: center; justify-content: center;
+        /* Esquinas y tamaño del ícono */
         border-radius: var(--radius-md); font-size: 1.2rem;
+        /* Fondo claro, borde gris, ícono oscuro */
         background: var(--white) !important; border: 1px solid var(--gray-border) !important; color: var(--ink) !important;
+    /* Cierra la regla */
     }
+    /* Menús desplegables redondeados y con sombra */
     .dropdown-menu { border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); border: 1px solid var(--gray-hairline); padding: 8px; }
+    /* Opciones del menú más altas, para tocar con el dedo */
     .dropdown-item { padding: 12px 14px; min-height: 44px; display: flex; align-items: center; gap: 8px; border-radius: var(--radius-sm); font-weight: 600; }
+    /* Opción activa o al pasar: fondo gris */
     .dropdown-item:active, .dropdown-item.active, .dropdown-item:hover { background: var(--gray-hairline); color: var(--ink); }
 
     /* Tablas que no tienen su propio layout de tarjetas (.ios-table):
        scroll horizontal en vez de romper el layout. */
+    /* Tablas comunes con scroll horizontal */
     #app table:not(.ios-table) { display: block; overflow-x: auto; white-space: nowrap; }
 
     /* Bottom sheet: los modales bloqueantes (fichaje, confirmaciones)
        se anclan abajo como en una app nativa. */
+    /* Animación de los modales */
     #app .modal.fade .modal-dialog { transition: transform 0.25s ease-out; }
+/* Cierra el media */
 }
 
 /* ============================================================
@@ -1738,260 +3044,486 @@ html[data-theme="dark"] #loginScreen .login-form .btn.login-quick-btn { color: #
    horario, contraseña, biometria, estado) se ve en la ficha
    full-screen (#teacherDetailScreen) al tocar la fila.
 ============================================================ */
+/* Lista compacta de docentes en una columna */
 .ios-table.teachers-compact tbody { grid-template-columns: 1fr !important; gap: 10px; }
+/* Cada fila compacta */
 .ios-table.teachers-compact tr {
+    /* Como grilla */
     display: grid;
+    /* Columnas: avatar, texto, botones */
     grid-template-columns: 40px 1fr auto;
+    /* Dos renglones */
     grid-template-rows: auto auto;
+    /* Espacio entre columnas */
     column-gap: 12px;
+    /* Centrado vertical */
     align-items: center;
+    /* Relleno (más a la derecha por la flecha) */
     padding: 10px 26px 10px 12px;
+    /* Cursor de mano */
     cursor: pointer;
+    /* Posición relativa para la flecha */
     position: relative;
+/* Cierra la regla */
 }
+/* Fila tocada: fondo gris */
 .ios-table.teachers-compact tr:active { background: var(--gray-50); }
+/* Celdas sin relleno ni línea */
 .ios-table.teachers-compact td { padding: 0 !important; border-bottom: none !important; }
+/* Sin etiquetas */
 .ios-table.teachers-compact td[data-label]::before { display: none !important; }
 
+/* Foto ocupa los dos renglones de la primera columna */
 .ios-table.teachers-compact td[data-label="Foto"] { grid-column: 1; grid-row: 1 / 3; text-align: left; }
+/* Avatar de 40px */
 .ios-table.teachers-compact td[data-label="Foto"] img { width: 40px !important; height: 40px !important; box-shadow: none; }
+/* Nombre */
 .ios-table.teachers-compact td[data-label="Nombre"] {
+    /* Columna 2, renglón 1 */
     grid-column: 2; grid-row: 1;
+    /* Tamaño y negrita */
     font-size: 0.95rem; font-weight: 700;
+    /* En una línea con puntos suspensivos si no entra */
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+/* Cierra la regla */
 }
+/* Materia */
 .ios-table.teachers-compact td[data-label="Materia"] {
+    /* Columna 2, renglón 2 */
     grid-column: 2; grid-row: 2;
+    /* Chica y gris */
     font-size: 0.78rem; font-weight: 400; color: var(--gray-600);
+    /* Una línea con puntos suspensivos */
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+/* Cierra la regla */
 }
+/* Acciones */
 .ios-table.teachers-compact td[data-label="Acciones"] {
+    /* Columna 3, ocupa los dos renglones */
     grid-column: 3; grid-row: 1 / 3;
+    /* Botones en fila */
     display: flex; align-items: center; gap: 6px;
+    /* Relleno izquierdo */
     padding-left: 8px !important;
+/* Cierra la regla */
 }
 /* Botones de acción: todos iguales (cuadrado suave gris, icono
    oscuro), así ninguno grita más que otro. Solo WhatsApp conserva su
    verde (en el icono) y Eliminar se tiñe de rojo al pasar el mouse.
    Especificidad con #app a propósito: le gana a #app .btn-primary /
    .btn-secondary etc. (que usan !important) de la sección BOTONES. */
+/* Botones de acción de cada docente */
 #app .ios-table.teachers-compact td[data-label="Acciones"] .btn {
+    /* Cuadrados de 36px sin relleno */
     width: 36px !important; height: 36px !important; /* le gana a #app .btn-sm { width: auto !important } */ min-height: 0 !important; padding: 0 !important;
+    /* Ícono centrado */
     display: inline-flex !important; align-items: center; justify-content: center;
+    /* Esquinas, tamaño y sin estirarse */
     border-radius: 10px; font-size: 0.95rem; flex: 0 0 auto;
+    /* Fondo gris */
     background: var(--gray-100) !important;
+    /* Borde invisible */
     border: 1px solid transparent !important;
+    /* Ícono oscuro */
     color: var(--ink) !important;
+    /* Opacidad completa */
     opacity: 1;
+    /* Transiciones */
     transition: background var(--transition-base), color var(--transition-base), transform var(--transition-base);
+/* Cierra la regla */
 }
+/* Botón de acción al pasar el mouse */
 #app .ios-table.teachers-compact td[data-label="Acciones"] .btn:hover {
+    /* Fondo verde translúcido */
     background: var(--brand-glow) !important;
+    /* Ícono verde */
     color: var(--brand-bright) !important;
+    /* Sube 1px */
     transform: translateY(-1px);
+    /* Opacidad completa */
     opacity: 1;
+/* Cierra la regla */
 }
+/* Botón de WhatsApp con ícono verde */
 #app .ios-table.teachers-compact td[data-label="Acciones"] .btn-whatsapp { color: #1DA851 !important; }
+/* WhatsApp al pasar el mouse */
 #app .ios-table.teachers-compact td[data-label="Acciones"] .btn-whatsapp:hover { background: rgba(37, 211, 102, 0.16) !important; color: #1DA851 !important; }
+/* Botón eliminar al pasar el mouse: rojo */
 #app .ios-table.teachers-compact td[data-label="Acciones"] .teacher-action-danger:hover { background: rgba(220, 53, 69, 0.12) !important; color: #DC3545 !important; }
+/* En celulares chicos */
 @media (max-width: 575px) {
     /* En celular: la fila pasa a 2 renglones y los botones van abajo,
        a lo ancho, para que no aprieten el nombre. */
+    /* La fila pasa a dos columnas */
     .ios-table.teachers-compact tr { grid-template-columns: 40px 1fr; row-gap: 10px; }
+    /* Los botones van abajo a lo ancho */
     .ios-table.teachers-compact td[data-label="Acciones"] { grid-column: 1 / -1; grid-row: 3; padding-left: 0 !important; justify-content: flex-start; flex-wrap: wrap; }
+    /* La flecha queda arriba */
     .ios-table.teachers-compact tr::after { top: 28px; transform: none; }
+/* Cierra el media */
 }
+/* DNI con números de ancho fijo */
 .teacher-row-dni { font-variant-numeric: tabular-nums; }
+/* Aviso en ámbar */
 .teacher-row-warn { color: #B26A00; font-weight: 600; }
+/* Ayuda del buscador de docentes */
 .teacher-search-hint {
+    /* Letra chica */
     font-size: 0.85rem;
+    /* Gris */
     color: var(--gray-600);
+    /* Márgenes */
     margin: -4px 0 12px;
+/* Cierra la regla */
 }
+/* Enlace Ver todos en verde */
 .teacher-search-hint .btn-link { font-size: 0.85rem; font-weight: 600; color: var(--brand-bright) !important; text-decoration: none; }
+/* Subrayado al pasar el mouse */
 .teacher-search-hint .btn-link:hover { text-decoration: underline; }
 /* Alta de docente: aviso de "fotos listas, falta guardar", botón
    Guardar resaltado y ventana de alta exitosa (ver
    updateCaptureStatusUI()/mostrarAltaExitosa() en script.js). */
+/* Contador de fotos listo: verde y negrita */
 #app .capture-status.ready { color: #1E7B45; font-weight: 700; }
+/* Botón Guardar resaltado cuando las fotos están listas */
 #app .btn.save-teacher-ready {
+    /* Degradé verde de marca */
     background: linear-gradient(135deg, var(--brand-bright), var(--brand)) !important;
+    /* Borde transparente */
     border-color: transparent !important;
+    /* Texto blanco */
     color: #FFFFFF !important;
+    /* Pulso que se repite 3 veces */
     animation: saveTeacherPulse 1.6s ease-out 3;
+/* Cierra la regla */
 }
+/* Animación de pulso */
 @keyframes saveTeacherPulse {
+    /* Empieza con halo verde pegado */
     0% { box-shadow: 0 0 0 0 rgba(47, 122, 114, 0.55); }
+    /* Termina con halo grande y transparente */
     100% { box-shadow: 0 0 0 16px rgba(47, 122, 114, 0); }
+/* Cierra la animación */
 }
+/* Sin animación si el usuario pidió menos movimiento */
 @media (prefers-reduced-motion: reduce) { #app .btn.save-teacher-ready { animation: none; } }
+/* Campo inválido: borde y halo rojo */
 #app .form-control.is-invalid { border-color: #DC3545 !important; box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15) !important; }
+/* Ícono de alta exitosa grande y verde */
 .alta-exitosa-icon { font-size: 3.4rem; color: #1E9E57; line-height: 1; margin-bottom: 10px; }
+/* Recuadro con los datos del alta */
 .alta-exitosa-datos {
+    /* Fondo gris */
     background: var(--gray-50);
+    /* Borde */
     border: 1px solid var(--gray-border);
+    /* Esquinas */
     border-radius: var(--radius-md);
+    /* Relleno */
     padding: 12px 14px;
+    /* Como grilla */
     display: grid;
+    /* Espacio entre filas */
     gap: 8px;
+/* Cierra la regla */
 }
+/* Cada dato con etiqueta y valor separados */
 .alta-exitosa-datos > div { display: flex; justify-content: space-between; gap: 12px; font-size: 0.92rem; }
+/* Etiqueta en gris */
 .alta-exitosa-datos span { color: var(--gray-600); }
+/* Ícono verde dentro del valor */
 .alta-exitosa-datos strong i { color: #1E9E57; }
 
 /* ===== Materias asignadas en el alta de docente =====
    Lista por año con horario en chips + calendario semanal del docente
    (ver renderMateriasDocenteFiltrado()/renderCalendarioDocente()). */
+/* Lista de materias para asignar */
 .materias-asignar-lista {
+    /* Borde */
     border: 1px solid var(--gray-border);
+    /* Esquinas */
     border-radius: var(--radius-md);
+    /* Relleno */
     padding: 8px;
+    /* Alto máximo de 340px */
     max-height: 340px;
+    /* Scroll vertical */
     overflow-y: auto;
+    /* Fondo base */
     background: var(--white);
+/* Cierra la regla */
 }
+/* Título de cada año en la lista */
 .materias-asignar-anio {
+    /* Letra chica */
     font-size: 0.72rem;
+    /* Negrita */
     font-weight: 700;
+    /* Letras separadas */
     letter-spacing: 0.08em;
+    /* Mayúsculas */
     text-transform: uppercase;
+    /* Gris */
     color: var(--gray-600);
+    /* Relleno */
     padding: 8px 6px 4px;
+/* Cierra la regla */
 }
+/* Cada materia de la lista */
 .materia-asignar-item {
+    /* Flexbox */
     display: flex;
+    /* Alineado arriba */
     align-items: flex-start;
+    /* Espacio entre casilla y texto */
     gap: 10px;
+    /* Relleno */
     padding: 9px 10px;
+    /* Esquinas */
     border-radius: var(--radius-sm);
+    /* Borde invisible */
     border: 1px solid transparent;
+    /* Cursor de mano */
     cursor: pointer;
+    /* Separación inferior */
     margin: 0 0 4px !important;
+    /* Transiciones */
     transition: background var(--transition-base), border-color var(--transition-base);
+/* Cierra la regla */
 }
 /* Le gana a #app label:not(.form-check-label) { display: inline-block } (sección FORMULARIOS). */
+/* La etiqueta de materia se muestra en fila a lo ancho */
 #app label.materia-asignar-item { display: flex; flex-direction: row; flex-wrap: nowrap; width: 100%; font-weight: 400; font-size: inherit; }
+/* Casilla sin flotar y de tamaño fijo */
 #app .materia-asignar-item .form-check-input { float: none; flex: 0 0 auto; width: 1.1em; height: 1.1em; margin: 3px 0 0; }
+/* Materia al pasar el mouse: fondo gris */
 .materia-asignar-item:hover { background: var(--gray-50); }
 /* Materia con otro profesor: solo referencia, sin casilla ni hover. */
+/* Materia ocupada por otro profesor: atenuada */
 .materia-asignar-item.is-ocupada { cursor: default; opacity: 0.6; }
+/* Sin efecto al pasar el mouse */
 .materia-asignar-item.is-ocupada:hover { background: transparent; }
+/* Candado de materia ocupada */
 .materia-asignar-lock { width: 1.1em; display: inline-flex; justify-content: center; color: var(--gray-500); margin-top: 2px; flex-shrink: 0; }
 
+/* Materia elegida: fondo y borde verde */
 .materia-asignar-item.is-selected { background: var(--brand-glow); border-color: var(--brand-bright); }
+/* Casilla sin encogerse */
 .materia-asignar-item .form-check-input { margin: 3px 0 0; flex-shrink: 0; }
+/* Casilla marcada en verde */
 #app .materia-asignar-item .form-check-input:checked { background-color: var(--brand-bright); border-color: var(--brand-bright); }
+/* Bloque de info de la materia en columna */
 .materia-asignar-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+/* Nombre de la materia */
 .materia-asignar-nombre { font-weight: 600; font-size: 0.9rem; color: var(--ink); }
+/* Nombre del otro profesor */
 .materia-asignar-otro { font-weight: 500; font-size: 0.75rem; color: var(--gray-600); margin-left: 4px; }
+/* Chips de horario en fila */
 .materia-asignar-horarios { display: flex; flex-wrap: wrap; gap: 4px; }
+/* Chip de horario de la materia */
 .materia-horario-chip {
+    /* Letra chica */
     font-size: 0.74rem;
+    /* Seminegrita */
     font-weight: 600;
+    /* Relleno */
     padding: 2px 8px;
+    /* Píldora */
     border-radius: var(--radius-pill);
+    /* Fondo gris */
     background: var(--gray-100);
+    /* Texto oscuro */
     color: var(--gray-800);
+    /* Números de ancho fijo */
     font-variant-numeric: tabular-nums;
+/* Cierra la regla */
 }
 
+/* Calendario semanal del docente */
 .calendario-docente {
+    /* Como grilla */
     display: grid;
+    /* Columnas de mínimo 120px que se acomodan solas */
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    /* Espacio entre días */
     gap: 8px;
+/* Cierra la regla */
 }
+/* Cada día del calendario */
 .calendario-dia {
+    /* Borde */
     border: 1px solid var(--gray-border);
+    /* Esquinas */
     border-radius: var(--radius-md);
+    /* Relleno */
     padding: 8px;
+    /* Fondo base */
     background: var(--white);
+    /* Alto mínimo */
     min-height: 84px;
+/* Cierra la regla */
 }
+/* Día libre con fondo gris */
 .calendario-dia.is-libre { background: var(--gray-50); }
+/* Nombre del día */
 .calendario-dia-nombre {
+    /* Letra chica */
     font-size: 0.75rem;
+    /* Negrita */
     font-weight: 700;
+    /* Mayúsculas */
     text-transform: uppercase;
+    /* Letras separadas */
     letter-spacing: 0.06em;
+    /* Gris */
     color: var(--gray-600);
+    /* Separación inferior */
     margin-bottom: 6px;
+/* Cierra la regla */
 }
+/* Bloque de clase */
 .calendario-bloque {
+    /* Borde izquierdo verde */
     border-left: 3px solid var(--brand-bright);
+    /* Fondo verde translúcido */
     background: var(--brand-glow);
+    /* Esquinas */
     border-radius: 6px;
+    /* Relleno */
     padding: 5px 7px;
+    /* Separación inferior */
     margin-bottom: 6px;
+    /* Flexbox */
     display: flex;
+    /* En columna */
     flex-direction: column;
+/* Cierra la regla */
 }
+/* Hora del bloque en verde */
 .calendario-bloque-hora { font-size: 0.74rem; font-weight: 700; color: var(--brand-bright); font-variant-numeric: tabular-nums; }
+/* Materia del bloque */
 .calendario-bloque-materia { font-size: 0.78rem; font-weight: 600; color: var(--ink); line-height: 1.2; }
+/* Bloque con choque de horario: rojo */
 .calendario-bloque.is-conflicto { border-left-color: #DC3545; background: rgba(220, 53, 69, 0.10); }
+/* Hora del bloque con choque en rojo */
 .calendario-bloque.is-conflicto .calendario-bloque-hora { color: #DC3545; }
+/* Texto de día libre */
 .calendario-libre { font-size: 0.75rem; color: var(--gray-500); }
+/* Resumen debajo del calendario */
 .calendario-resumen {
+    /* Separación superior */
     margin-top: 8px;
+    /* Letra chica */
     font-size: 0.82rem;
+    /* Gris */
     color: var(--gray-600);
+    /* Flexbox */
     display: flex;
+    /* Baja de línea */
     flex-wrap: wrap;
+    /* Espacio */
     gap: 6px 14px;
+    /* Centrado vertical */
     align-items: center;
+/* Cierra la regla */
 }
+/* Aviso en rojo */
 .calendario-aviso { color: #DC3545; font-weight: 600; }
 
 
+/* En la lista compacta se ocultan: DNI */
 .ios-table.teachers-compact td[data-label="DNI"],
+/* Teléfono */
 .ios-table.teachers-compact td[data-label="Teléfono"],
+/* Domicilio */
 .ios-table.teachers-compact td[data-label="Domicilio"],
+/* Localidad */
 .ios-table.teachers-compact td[data-label="Localidad"],
+/* Horario */
 .ios-table.teachers-compact td[data-label="Horario"],
+/* Contraseña */
 .ios-table.teachers-compact td[data-label="Contraseña"],
+/* Biometría */
 .ios-table.teachers-compact td[data-label="Biometría"],
+/* y Estado hoy */
 .ios-table.teachers-compact td[data-label="Estado hoy"] { display: none !important; }
 
 /* Flecha ">" para entrar al detalle */
+/* Flecha para entrar al detalle del docente */
 .ios-table.teachers-compact tr::after {
+    /* Caracter de flecha */
     content: "\203A";
+    /* Ubicada a la derecha y centrada */
     position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    /* Tamaño, negrita y gris */
     font-size: 1.3rem; font-weight: 700; color: var(--gray-400); line-height: 1;
+    /* No bloquea clics */
     pointer-events: none;
+/* Cierra la regla */
 }
 
 /* ============================================================
    FICHA DE DOCENTE: pantalla de detalle full-screen (tipo iOS)
 ============================================================ */
+/* Encabezado de la ficha del docente */
 .teacher-detail-header {
+    /* Flexbox con extremos separados */
     display: flex; justify-content: space-between; align-items: center;
+    /* Relleno, línea inferior y separación */
     padding: 4px 0 18px; border-bottom: 1px solid var(--gray-hairline); margin-bottom: 24px;
+    /* Baja de línea con espacio */
     flex-wrap: wrap; gap: 10px;
+/* Cierra la regla */
 }
+/* Botón volver */
 .teacher-detail-back {
+    /* Sin fondo ni borde, negrita */
     background: none; border: none; color: var(--ink); font-weight: 700; font-size: 0.95rem;
+    /* Flexbox en línea con relleno */
     display: inline-flex; align-items: center; gap: 2px; padding: 8px 6px 8px 0;
+/* Cierra la regla */
 }
+/* Al pasar el mouse se aclara */
 .teacher-detail-back:hover { opacity: 0.6; }
+/* Botones del encabezado en fila */
 .teacher-detail-header-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+/* Cada botón del encabezado */
 .teacher-detail-header-actions .btn {
+    /* 36px sin relleno */
     width: 36px; height: 36px; min-height: 0 !important; padding: 0 !important;
+    /* Ícono centrado */
     display: inline-flex !important; align-items: center; justify-content: center;
+    /* Redondo */
     border-radius: 50%;
+/* Cierra la regla */
 }
 
+/* Cuerpo de la ficha centrado hasta 440px */
 .teacher-detail-body { max-width: 440px; margin: 0 auto; text-align: center; padding-bottom: 24px; }
+/* Foto grande del docente */
 .teacher-detail-avatar {
+    /* 120px redonda y recortada */
     width: 120px; height: 120px; border-radius: 50%; object-fit: cover;
+    /* Sombra, separación y fondo */
     box-shadow: var(--shadow-soft); margin-bottom: 16px; background: var(--gray-100);
+/* Cierra la regla */
 }
+/* Nombre grande */
 .teacher-detail-name { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.01em; }
+/* DNI en gris */
 .teacher-detail-dni { color: var(--gray-600); font-size: 0.9rem; margin-bottom: 20px; }
+/* Grilla de datos en columna */
 .teacher-detail-info-grid { text-align: left; display: flex; flex-direction: column; gap: 14px; }
+/* Cada fila de dato con línea inferior */
 .teacher-detail-info-row { border-bottom: 1px solid var(--gray-hairline); padding-bottom: 10px; }
+/* Etiqueta del dato */
 .teacher-detail-info-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--gray-600); font-weight: 700; margin-bottom: 4px; }
+/* Valor del dato */
 .teacher-detail-info-value { font-weight: 600; }
 
+/* Botones de abajo en columna, centrados */
 .teacher-detail-actions { max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 0 32px; }
+/* Cada botón a lo ancho */
 .teacher-detail-actions .btn { width: 100%; }
 
 /* ============================================================
@@ -2001,226 +3533,420 @@ html[data-theme="dark"] #loginScreen .login-form .btn.login-quick-btn { color: #
    un solo estilo y resumen de Inicio con íconos. Va al final a
    propósito: pisa reglas anteriores sin tener que reescribirlas.
 ============================================================ */
+/* Color de fondo de página en claro */
 :root { --page-bg: #F2F5F4; }
+/* Fondo de página en oscuro automático */
 @media (prefers-color-scheme: dark) { html:not([data-theme]) { --page-bg: #121214; } }
+/* Fondo de página en oscuro manual */
 html[data-theme="dark"] { --page-bg: #121214; }
 
+/* Body y contenedor usan el fondo de página */
 body, .main-container { background: var(--page-bg); }
+/* Login con el fondo de página */
 #loginScreen { background-color: var(--page-bg); }
+/* Relleno superior del dashboard */
 #dashboardScreen { padding-top: 16px; }
 
 /* Header como tarjeta */
+/* Encabezado como tarjeta */
 .dashboard-header {
+    /* Fondo base */
     background: var(--white);
+    /* Borde */
     border: 1px solid var(--gray-border);
+    /* Línea inferior */
     border-bottom: 1px solid var(--gray-border);
+    /* Esquinas */
     border-radius: var(--radius-lg);
+    /* Relleno */
     padding: 12px 16px;
+    /* Separación */
     margin-bottom: 18px;
+    /* Sombra leve */
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+/* Cierra la regla */
 }
+/* Título más chico */
 .dashboard-header h2 { font-size: 1.15rem; }
+/* Logo de 38px */
 .dashboard-brand .dashboard-logo { height: 38px; }
 /* Engranaje de Configuración: mismo formato que la campanita */
+/* Botón engranaje */
 .header-icon-btn {
+    /* Ícono centrado */
     display: inline-flex; align-items: center; justify-content: center;
+    /* 36px sin encogerse */
     width: 36px; height: 36px; flex-shrink: 0;
+    /* Redondo */
     border-radius: 50%;
+    /* Borde */
     border: 1px solid var(--gray-border);
+    /* Fondo base */
     background: var(--white);
+    /* Ícono oscuro */
     color: var(--ink);
+    /* Tamaño del ícono */
     font-size: 1.05rem;
+    /* Cursor de mano */
     cursor: pointer;
+    /* Transiciones */
     transition: background var(--transition-base), transform var(--transition-base);
+/* Cierra la regla */
 }
+/* Al pasar el mouse: gris y más grande */
 .header-icon-btn:hover { background: var(--gray-100); transform: scale(1.05); }
+/* Activo: verde de marca */
 .header-icon-btn.active { background: var(--brand-bright); border-color: var(--brand-bright); color: #FFFFFF; }
+/* Oculto */
 .header-icon-btn.hidden { display: none !important; }
 
 /* Menú del usuario: avatar + nombre + rol, con sus opciones personales */
+/* Botón del menú de usuario */
 .user-menu-btn {
+    /* Flexbox en línea */
     display: inline-flex; align-items: center; gap: 8px;
+    /* Relleno */
     padding: 3px 10px 3px 3px;
+    /* Borde */
     border: 1px solid var(--gray-border);
+    /* Píldora */
     border-radius: var(--radius-pill);
+    /* Fondo base */
     background: var(--white);
+    /* Texto oscuro */
     color: var(--ink);
+    /* Alineado a la izquierda */
     text-align: left;
+    /* Cursor de mano */
     cursor: pointer;
+    /* Transición */
     transition: background var(--transition-base);
+/* Cierra la regla */
 }
+/* Al pasar el mouse o abierto: gris */
 .user-menu-btn:hover, .user-menu-btn[aria-expanded="true"] { background: var(--gray-100); }
+/* Deshabilitado: atenuado */
 .user-menu-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+/* Avatar del usuario */
 .user-avatar {
+    /* Centrado */
     display: inline-flex; align-items: center; justify-content: center;
+    /* 30px sin encogerse */
     width: 30px; height: 30px; flex-shrink: 0;
+    /* Redondo */
     border-radius: 50%;
+    /* Fondo verde */
     background: var(--brand-bright);
+    /* Texto blanco */
     color: #FFFFFF;
+    /* Iniciales chicas en negrita */
     font-size: 0.78rem; font-weight: 800; letter-spacing: 0.02em;
+/* Cierra la regla */
 }
+/* Textos del botón en columna */
 .user-menu-text { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+/* Nombre con puntos suspensivos si es largo */
 .user-menu-name { font-weight: 700; font-size: 0.84rem; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Rol chico en gris */
 .user-menu-role { font-size: 0.7rem; color: var(--gray-600); }
+/* Rol oculto */
 .user-menu-role.hidden { display: none; }
+/* Flechita chica gris */
 .user-menu-caret { font-size: 0.7rem; color: var(--gray-600); }
+/* Lista desplegable del usuario */
 .user-menu-dropdown { min-width: 220px; padding: 6px; border-radius: var(--radius-md); }
+/* Opciones del menú */
 .user-menu-dropdown .dropdown-item { display: flex; align-items: center; gap: 10px; border-radius: var(--radius-sm); padding: 8px 10px; font-size: 0.88rem; }
+/* Opción oculta */
 .user-menu-dropdown li.hidden { display: none; }
+/* Opción Salir en rojo */
 .user-menu-dropdown .user-menu-logout { color: #C0392B; }
 /* Encabezado del menú con nombre y rol: solo en celular, donde el botón muestra solo el avatar */
+/* Cabecera del menú oculta en PC */
 .user-menu-head { display: none; }
 
 /* Idioma elegido y controles con el color de marca */
+/* Idioma activo en verde de marca */
 .lang-pill-active { background: var(--brand-bright); box-shadow: 0 3px 10px rgba(47, 122, 114, 0.35); }
+/* Perilla del deslizador verde (Chrome/Safari) */
 .form-range::-webkit-slider-thumb { background: var(--brand-bright); }
+/* Perilla del deslizador verde (Firefox) */
 .form-range::-moz-range-thumb { background: var(--brand-bright); }
 
 /* Botón principal = color de marca (antes negro) */
+/* Botones primario y éxito */
 #app .btn-primary, #app .btn-success {
+    /* Degradé verde de marca */
     background: linear-gradient(135deg, var(--brand-bright), var(--brand)) !important;
+    /* Borde transparente */
     border-color: transparent !important;
+    /* Texto blanco */
     color: #FFFFFF !important;
+/* Cierra la regla */
 }
+/* Primario al pasar el mouse o con foco */
 #app .btn-primary:hover, #app .btn-primary:focus,
+/* y éxito: un poco más brillantes */
 #app .btn-success:hover, #app .btn-success:focus { filter: brightness(1.07); opacity: 1; color: #FFFFFF !important; }
 
 /* Pestañas: activa en color de marca */
+/* Menos espacio entre pestañas */
 .admin-tabs { gap: 6px; }
+/* Fondo de pestañas */
 .admin-tabs .nav-link { background: var(--white); }
+/* Íconos de pestañas atenuados */
 .admin-tabs .nav-link i { opacity: 0.75; }
+/* Pestaña activa */
 .admin-tabs .nav-link.active {
+    /* Fondo verde */
     background: var(--brand-bright) !important;
+    /* Borde verde */
     border-color: var(--brand-bright) !important;
+    /* Sombra verde */
     box-shadow: 0 4px 12px rgba(47, 122, 114, 0.28);
+/* Cierra la regla */
 }
+/* Ícono de pestaña activa sin atenuar */
 .admin-tabs .nav-link.active i { opacity: 1; }
 
 /* Accesos rápidos: todos iguales, discretos */
+/* Botones de acceso rápido */
 #app .quick-actions .quick-action {
+    /* Fondo claro */
     background: var(--white) !important;
+    /* Borde gris */
     border: 1px solid var(--gray-border) !important;
+    /* Texto oscuro */
     color: var(--ink) !important;
+    /* Seminegrita */
     font-weight: 600;
+    /* Píldora */
     border-radius: var(--radius-pill);
+    /* Relleno */
     padding: 6px 12px;
+/* Cierra la regla */
 }
+/* Ícono verde */
 #app .quick-actions .quick-action i { color: var(--brand-bright); }
+/* Al pasar el mouse: fondo verde translúcido */
 #app .quick-actions .quick-action:hover { background: var(--brand-glow) !important; border-color: rgba(47, 122, 114, 0.4) !important; }
 
 /* Tarjetas de contenido */
+/* Secciones con borde, esquinas y sombra leve */
 .form-section { border: 1px solid var(--gray-border); border-radius: 18px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04); }
+/* Íconos de títulos en verde */
 .form-section h4 i { color: var(--brand-bright); }
 
 /* Resumen de Inicio: ícono + número */
+/* Tarjeta de resumen nueva */
 .stat-card.stat-v2 {
+    /* Flexbox con espacio */
     display: flex; align-items: center; gap: 12px;
+    /* Alineada a la izquierda */
     text-align: left; padding: 12px 14px;
+    /* Borde y esquinas */
     border: 1px solid var(--gray-border); border-radius: 16px;
+    /* Sombra leve */
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    /* Misma altura que sus vecinas */
     height: 100%;
+/* Cierra la regla */
 }
+/* Ícono de la tarjeta */
 .stat-v2 .stat-icon {
+    /* 40px sin encogerse */
     width: 40px; height: 40px; flex-shrink: 0;
+    /* Centrado */
     display: inline-flex; align-items: center; justify-content: center;
+    /* Esquinas y tamaño */
     border-radius: 12px; font-size: 1.15rem;
+    /* Colores tomados de variables propias de cada tarjeta */
     background: var(--stat-bg, var(--gray-100)); color: var(--stat-color, var(--ink));
+/* Cierra la regla */
 }
+/* Texto puede achicarse */
 .stat-v2 .stat-body { min-width: 0; }
+/* Número */
 .stat-card.stat-v2 .number { font-size: 1.55rem; line-height: 1.1; }
+/* Etiqueta en una línea con puntos suspensivos */
 .stat-card.stat-v2 .label { font-size: 0.62rem; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Colores de la tarjeta Total */
 .stat-total { --stat-bg: var(--brand-glow); --stat-color: var(--brand-bright); }
+/* Colores de Esperados */
 .stat-esperados { --stat-bg: rgba(47, 94, 158, 0.13); --stat-color: #2F5E9E; }
+/* Colores de Presentes */
 .stat-presentes { --stat-bg: rgba(34, 197, 94, 0.14); --stat-color: #1E9E57; }
+/* Colores de Ausentes */
 .stat-ausentes { --stat-bg: rgba(239, 68, 68, 0.13); --stat-color: #D93636; }
+/* Colores de Tardanzas */
 .stat-tardanzas { --stat-bg: rgba(234, 179, 8, 0.16); --stat-color: #A77A00; }
+/* Colores de Media Falta */
 .stat-media { --stat-bg: rgba(249, 115, 22, 0.14); --stat-color: #D5620F; }
 
 /* Estado vacío amable */
+/* Estado vacío centrado */
 .empty-state { text-align: center; padding: 26px 12px 18px; }
+/* Ícono del estado vacío */
 .empty-state-icon {
+    /* 58px centrado */
     width: 58px; height: 58px; margin: 0 auto 10px;
+    /* Centrado del ícono */
     display: flex; align-items: center; justify-content: center;
+    /* Redondo, fondo y color verde */
     border-radius: 50%; background: var(--brand-glow); color: var(--brand-bright); font-size: 1.6rem;
+/* Cierra la regla */
 }
+/* Título del estado vacío */
 .empty-state-title { font-weight: 700; color: var(--ink); }
+/* Texto del estado vacío */
 .empty-state-text { font-size: 0.86rem; color: var(--gray-600); margin-top: 2px; }
 
 /* Celular: header prolijo (marca arriba, controles en una fila) */
+/* En celulares chicos */
 @media (max-width: 575px) {
+    /* Encabezado con menos relleno */
     .dashboard-header { padding: 10px 12px; gap: 10px; }
+    /* Título más chico */
     .dashboard-header h2 { font-size: 1rem; }
+    /* Logo de 30px */
     .dashboard-brand .dashboard-logo { height: 30px; }
+    /* Acciones a lo ancho repartidas */
     .dashboard-header-actions { width: 100%; gap: 6px; justify-content: space-between; }
+    /* Idioma primero */
     .dashboard-header-actions .lang-switcher { order: 1; }
+    /* Tema segundo */
     .dashboard-header-actions .theme-switcher { order: 2; }
+    /* Campanita tercera */
     .dashboard-header-actions .alerts-bell { order: 3; }
+    /* Engranaje cuarto */
     .dashboard-header-actions .header-icon-btn { order: 4; }
+    /* Menú de usuario quinto */
     .dashboard-header-actions .user-menu { order: 5; }
+    /* Botón de usuario solo avatar */
     .user-menu-btn { padding: 3px; }
+    /* Oculta nombre y flechita */
     .user-menu-text, .user-menu-caret { display: none; }
+    /* Muestra la cabecera del menú con nombre y rol */
     .user-menu-head { display: flex; flex-direction: column; padding: 6px 10px 8px; margin-bottom: 4px; border-bottom: 1px solid var(--gray-border); }
+    /* Tarjetas de resumen más compactas */
     .stat-card.stat-v2 { padding: 10px; gap: 8px; }
+    /* Íconos más chicos */
     .stat-v2 .stat-icon { width: 34px; height: 34px; font-size: 1rem; }
+    /* Números más chicos */
     .stat-card.stat-v2 .number { font-size: 1.3rem; }
+/* Cierra el media */
 }
 
 /* Modo oscuro: estados de Asistencias con texto claro (contraste). */
+/* Oscuro automático: colores claros para los estados de Asistencias */
 @media (prefers-color-scheme: dark) { html:not([data-theme]) .asis-presente { color: #6EE7A0; } html:not([data-theme]) .asis-tarde, html:not([data-theme]) .asis-tarde-txt { color: #F5C451; } html:not([data-theme]) .asis-media { color: #FDBA74; } html:not([data-theme]) .asis-falta { color: #FCA5A5; } html:not([data-theme]) .asis-pendiente { color: #7FC4BB; } html:not([data-theme]) .asis-licencia { color: var(--gray-800); } }
+/* Oscuro manual: los mismos colores claros */
 html[data-theme="dark"] .asis-presente { color: #6EE7A0; } html[data-theme="dark"] .asis-tarde, html[data-theme="dark"] .asis-tarde-txt { color: #F5C451; } html[data-theme="dark"] .asis-media { color: #FDBA74; } html[data-theme="dark"] .asis-falta { color: #FCA5A5; } html[data-theme="dark"] .asis-pendiente { color: #7FC4BB; } html[data-theme="dark"] .asis-licencia { color: var(--gray-800); }
 
 /* ===== Eventos Especiales en filas (ver renderListaEventos()) ===== */
+/* Lista de eventos en columna */
 .eventos-lista { display: flex; flex-direction: column; gap: 8px; }
+/* Título de grupo de eventos */
 .eventos-grupo-titulo {
+    /* Chico, negrita, mayúsculas */
     font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+    /* Gris y separación */
     color: var(--gray-600); margin: 4px 0 2px;
+/* Cierra la regla */
 }
+/* Contador del grupo */
 .eventos-grupo-titulo span { background: var(--gray-100); color: var(--ink); border-radius: 999px; padding: 1px 8px; margin-left: 4px; }
+/* Fila de un evento */
 .evento-row {
+    /* Flexbox con espacio */
     display: flex; align-items: center; gap: 14px;
+    /* Relleno */
     padding: 10px 12px;
+    /* Fondo base */
     background: var(--white);
+    /* Borde */
     border: 1px solid var(--gray-border);
+    /* Esquinas */
     border-radius: 14px;
+    /* Transiciones */
     transition: border-color var(--transition-base), box-shadow var(--transition-base);
+/* Cierra la regla */
 }
+/* Al pasar el mouse: borde verde y sombra */
 .evento-row:hover { border-color: rgba(47, 122, 114, 0.45); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
+/* Evento de hoy resaltado */
 .evento-row.is-hoy { border-color: var(--brand-bright); box-shadow: 0 0 0 3px var(--brand-glow); }
+/* Evento pasado atenuado */
 .evento-row.is-pasado { opacity: 0.62; }
+/* Recuadro de la fecha */
 .evento-fecha {
+    /* 56px, centrado */
     width: 56px; flex-shrink: 0; text-align: center;
+    /* Esquinas y relleno */
     border-radius: 12px; padding: 6px 0;
+    /* Fondo y texto verde */
     background: var(--brand-glow); color: var(--brand-bright);
+    /* Columna sin interlineado */
     display: flex; flex-direction: column; line-height: 1;
+/* Cierra la regla */
 }
+/* Fecha de evento pasado en gris */
 .evento-row.is-pasado .evento-fecha { background: var(--gray-100); color: var(--gray-600); }
+/* Número del día */
 .evento-dia { font-size: 1.35rem; font-weight: 800; }
+/* Mes */
 .evento-mes { font-size: 0.66rem; font-weight: 800; letter-spacing: 0.08em; margin-top: 3px; }
+/* Texto HOY */
 .evento-hoy { font-size: 0.56rem; font-weight: 800; letter-spacing: 0.08em; margin-bottom: 3px; }
+/* Info del evento ocupa el espacio libre */
 .evento-info { flex: 1; min-width: 0; }
+/* Título del evento */
 .evento-titulo { font-weight: 700; color: var(--ink); display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+/* Etiqueta del evento */
 .evento-tag {
+    /* Chica, negrita, píldora */
     font-size: 0.66rem; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+    /* Fondo gris */
     background: var(--gray-100); color: var(--gray-800); white-space: nowrap;
+/* Cierra la regla */
 }
+/* Etiqueta con perjuicio en naranja */
 .evento-tag.is-perjuicio { background: rgba(249, 115, 22, 0.14); color: #B4530B; }
+/* Datos del evento en fila */
 .evento-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 3px; font-size: 0.8rem; color: var(--gray-600); }
+/* Íconos con separación */
 .evento-meta i { margin-right: 3px; }
+/* Botones del evento */
 .evento-acciones { display: flex; gap: 6px; flex-shrink: 0; }
+/* Cada botón del evento */
 #app .evento-acciones .evento-btn {
+    /* 36px sin relleno */
     width: 36px !important; height: 36px !important; min-height: 0 !important; padding: 0 !important;
+    /* Ícono centrado */
     display: inline-flex !important; align-items: center; justify-content: center;
+    /* Esquinas y tamaño */
     border-radius: 10px; font-size: 0.95rem;
+    /* Fondo gris, borde invisible, ícono oscuro */
     background: var(--gray-100) !important; border: 1px solid transparent !important; color: var(--ink) !important;
+/* Cierra la regla */
 }
+/* Al pasar el mouse: verde */
 #app .evento-acciones .evento-btn:hover { background: var(--brand-glow) !important; color: var(--brand-bright) !important; }
+/* Eliminar al pasar el mouse: rojo */
 #app .evento-acciones .evento-btn-danger:hover { background: rgba(220, 53, 69, 0.12) !important; color: #DC3545 !important; }
+/* Oscuro automático: etiqueta con perjuicio más clara */
 @media (prefers-color-scheme: dark) { html:not([data-theme]) .evento-tag.is-perjuicio { color: #FDBA74; } }
+/* Oscuro manual: lo mismo */
 html[data-theme="dark"] .evento-tag.is-perjuicio { color: #FDBA74; }
+/* En celulares chicos */
 @media (max-width: 575px) {
+    /* Fila de evento baja de línea */
     .evento-row { flex-wrap: wrap; gap: 10px; }
+    /* La info ocupa casi todo el ancho */
     .evento-info { flex-basis: calc(100% - 70px); }
+    /* Botones abajo a la derecha */
     .evento-acciones { width: 100%; justify-content: flex-end; }
+/* Cierra el media */
 }
 
 /* ============================================================
@@ -2228,99 +3954,203 @@ html[data-theme="dark"] .evento-tag.is-perjuicio { color: #FDBA74; }
    acordeones, tablas, botón X): antes quedaban con el fondo blanco
    de Bootstrap y el texto claro de la app -> ilegibles.
 ============================================================ */
+/* Modo oscuro automático para Bootstrap */
 @media (prefers-color-scheme: dark) {
+    /* Solo sin data-theme */
     html:not([data-theme]) {
+    /* Fondo del body de Bootstrap */
     --bs-body-bg: var(--white);
+    /* Texto del body */
     --bs-body-color: var(--ink);
+    /* Texto enfatizado */
     --bs-emphasis-color: var(--ink);
+    /* Texto secundario */
     --bs-secondary-color: var(--gray-600);
+    /* Fondo terciario */
     --bs-tertiary-bg: var(--gray-50);
+    /* Bordes */
     --bs-border-color: var(--gray-border);
+    /* Títulos */
     --bs-heading-color: var(--ink);
+    /* Enlaces verde claro */
     --bs-link-color: #7FC4BB;
+    /* Enlaces al pasar el mouse */
     --bs-link-hover-color: #A5D8D0;
+    /* Cierra la regla */
     }
 
+    /* Modales en oscuro */
     html:not([data-theme]) .modal { --bs-modal-bg: var(--white); --bs-modal-color: var(--ink); --bs-modal-header-border-color: var(--gray-border); --bs-modal-footer-border-color: var(--gray-border); }
+    /* Menús desplegables en oscuro */
     html:not([data-theme]) .dropdown-menu { --bs-dropdown-bg: var(--white); --bs-dropdown-color: var(--ink); --bs-dropdown-link-color: var(--ink); --bs-dropdown-link-hover-color: var(--ink); --bs-dropdown-link-hover-bg: var(--gray-100); --bs-dropdown-border-color: var(--gray-border); --bs-dropdown-divider-bg: var(--gray-border); }
+    /* Acordeones en oscuro */
     html:not([data-theme]) .accordion { --bs-accordion-bg: var(--white); --bs-accordion-color: var(--ink); --bs-accordion-border-color: var(--gray-border); --bs-accordion-btn-bg: var(--white); --bs-accordion-btn-color: var(--ink); --bs-accordion-active-bg: var(--gray-100); --bs-accordion-active-color: var(--ink); }
+    /* Flecha del acordeón invertida a blanco */
     html:not([data-theme]) .accordion-button::after { filter: invert(1) grayscale(100%) brightness(200%); }
+    /* Tarjetas en oscuro */
     html:not([data-theme]) .card { --bs-card-bg: var(--white); --bs-card-color: var(--ink); --bs-card-border-color: var(--gray-border); --bs-card-cap-bg: var(--gray-50); }
+    /* Listas en oscuro */
     html:not([data-theme]) .list-group { --bs-list-group-bg: var(--white); --bs-list-group-color: var(--ink); --bs-list-group-border-color: var(--gray-border); }
+    /* Tablas en oscuro */
     html:not([data-theme]) .table { --bs-table-bg: transparent; --bs-table-color: var(--ink); --bs-table-border-color: var(--gray-border); --bs-table-striped-bg: rgba(255, 255, 255, 0.03); --bs-table-hover-bg: rgba(255, 255, 255, 0.05); }
+    /* Popovers en oscuro */
     html:not([data-theme]) .popover { --bs-popover-bg: var(--white); --bs-popover-body-color: var(--ink); --bs-popover-border-color: var(--gray-border); }
+    /* Botón X invertido a blanco */
     html:not([data-theme]) .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
+    /* Selectores en oscuro */
     html:not([data-theme]) .form-select { background-color: var(--gray-50); color: var(--ink); border-color: var(--gray-border); }
+    /* Texto oscuro de Bootstrap pasa a claro */
     html:not([data-theme]) .text-dark { color: var(--ink) !important; }
+    /* Fondo claro de Bootstrap pasa a gris oscuro */
     html:not([data-theme]) .bg-light { background-color: var(--gray-50) !important; }
+/* Cierra el media */
 }
+/* Modo oscuro manual para Bootstrap */
 html[data-theme="dark"] {
+    /* Fondo del body */
     --bs-body-bg: var(--white);
+    /* Texto del body */
     --bs-body-color: var(--ink);
+    /* Texto enfatizado */
     --bs-emphasis-color: var(--ink);
+    /* Texto secundario */
     --bs-secondary-color: var(--gray-600);
+    /* Fondo terciario */
     --bs-tertiary-bg: var(--gray-50);
+    /* Bordes */
     --bs-border-color: var(--gray-border);
+    /* Títulos */
     --bs-heading-color: var(--ink);
+    /* Enlaces */
     --bs-link-color: #7FC4BB;
+    /* Enlaces al pasar el mouse */
     --bs-link-hover-color: #A5D8D0;
+/* Cierra la regla */
 }
+/* Modales */
 html[data-theme="dark"] .modal { --bs-modal-bg: var(--white); --bs-modal-color: var(--ink); --bs-modal-header-border-color: var(--gray-border); --bs-modal-footer-border-color: var(--gray-border); }
+/* Menús desplegables */
 html[data-theme="dark"] .dropdown-menu { --bs-dropdown-bg: var(--white); --bs-dropdown-color: var(--ink); --bs-dropdown-link-color: var(--ink); --bs-dropdown-link-hover-color: var(--ink); --bs-dropdown-link-hover-bg: var(--gray-100); --bs-dropdown-border-color: var(--gray-border); --bs-dropdown-divider-bg: var(--gray-border); }
+/* Acordeones */
 html[data-theme="dark"] .accordion { --bs-accordion-bg: var(--white); --bs-accordion-color: var(--ink); --bs-accordion-border-color: var(--gray-border); --bs-accordion-btn-bg: var(--white); --bs-accordion-btn-color: var(--ink); --bs-accordion-active-bg: var(--gray-100); --bs-accordion-active-color: var(--ink); }
+/* Flecha del acordeón */
 html[data-theme="dark"] .accordion-button::after { filter: invert(1) grayscale(100%) brightness(200%); }
+/* Tarjetas */
 html[data-theme="dark"] .card { --bs-card-bg: var(--white); --bs-card-color: var(--ink); --bs-card-border-color: var(--gray-border); --bs-card-cap-bg: var(--gray-50); }
+/* Listas */
 html[data-theme="dark"] .list-group { --bs-list-group-bg: var(--white); --bs-list-group-color: var(--ink); --bs-list-group-border-color: var(--gray-border); }
+/* Tablas */
 html[data-theme="dark"] .table { --bs-table-bg: transparent; --bs-table-color: var(--ink); --bs-table-border-color: var(--gray-border); --bs-table-striped-bg: rgba(255, 255, 255, 0.03); --bs-table-hover-bg: rgba(255, 255, 255, 0.05); }
+/* Popovers */
 html[data-theme="dark"] .popover { --bs-popover-bg: var(--white); --bs-popover-body-color: var(--ink); --bs-popover-border-color: var(--gray-border); }
+/* Botón X */
 html[data-theme="dark"] .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
+/* Selectores */
 html[data-theme="dark"] .form-select { background-color: var(--gray-50); color: var(--ink); border-color: var(--gray-border); }
+/* Texto oscuro de Bootstrap */
 html[data-theme="dark"] .text-dark { color: var(--ink) !important; }
+/* Fondo claro de Bootstrap */
 html[data-theme="dark"] .bg-light { background-color: var(--gray-50) !important; }
 
 /* Detalle de evento (ver viewEvento()) */
+/* Detalle de evento en grilla */
 .evento-detalle { display: grid; gap: 10px; }
+/* Cada fila del detalle */
 .evento-detalle-fila { display: flex; gap: 12px; align-items: flex-start; }
+/* Ícono de cada fila en recuadro verde */
 .evento-detalle-fila > i { width: 34px; height: 34px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; background: var(--brand-glow); color: var(--brand-bright); font-size: 1rem; }
+/* Etiqueta del dato */
 .evento-detalle-label { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray-600); }
+/* Valor del dato */
 .evento-detalle-valor { color: var(--ink); }
+/* Lista de docentes convocados */
 .evento-detalle-docentes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+/* Chip de cada docente */
 .evento-detalle-docentes span { font-size: 0.8rem; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: var(--gray-100); color: var(--ink); }
 
 /* Estado del evento (formulario + etiquetas) */
+/* Opciones de estado en dos columnas */
 .evento-estado-opciones { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+/* Cada opción */
 .evento-estado-opcion {
+    /* Columna, cursor de mano */
     display: flex; flex-direction: column; gap: 2px; cursor: pointer;
+    /* Relleno, esquinas, borde y fondo */
     padding: 10px 12px; border-radius: 12px; border: 1.5px solid var(--gray-border); background: var(--white);
+    /* Grosor normal y sin margen */
     font-weight: 400 !important; margin: 0 !important;
+/* Cierra la regla */
 }
+/* Ícono de la opción en verde */
 .evento-estado-opcion i { color: var(--brand-bright); font-size: 1.1rem; }
+/* Texto chico de la opción */
 .evento-estado-opcion small { color: var(--gray-600); font-size: 0.78rem; }
+/* Opción elegida: borde y fondo verde */
 .btn-check:checked + .evento-estado-opcion { border-color: var(--brand-bright); background: var(--brand-glow); }
+/* Etiqueta de opción en flexbox */
 #app label.evento-estado-opcion { display: flex; }
+/* Etiqueta No obligatorio en azul */
 .evento-tag.is-optativo { background: rgba(47, 94, 158, 0.13); color: #2F5E9E; }
+/* Oscuro automático: azul más claro */
 @media (prefers-color-scheme: dark) { html:not([data-theme]) .evento-tag.is-optativo { color: #93B4E6; } }
+/* Oscuro manual: azul más claro */
 html[data-theme="dark"] .evento-tag.is-optativo { color: #93B4E6; }
+/* En celulares chicos: una columna */
 @media (max-width: 575px) { .evento-estado-opciones { grid-template-columns: 1fr; } }
 
 /* ===== Cupo anual de faltas (pestaña Asistencias) ===== */
+/* Contador de faltas del año */
 .asis-cupo { display: inline-block; min-width: 44px; text-align: center; font-weight: 700; font-size: 0.78rem; padding: 3px 8px; border-radius: var(--radius-pill); }
+/* Cupo bien: gris */
 .asis-cupo-ok { background: var(--gray-100); color: var(--gray-600); }
+/* Cupo cerca del límite: ámbar */
 .asis-cupo-aviso { background: rgba(201, 138, 11, 0.18); color: #8A5E00; }
+/* Cupo en el límite: naranja */
 .asis-cupo-limite { background: rgba(234, 88, 12, 0.18); color: #B4530B; }
+/* Cupo superado (descuento): rojo */
 .asis-cupo-descuento { background: #C62828; color: #FFFFFF; }
+/* Chip de aviso en ámbar */
 .asis-chip.asis-cupo-aviso { background: rgba(201, 138, 11, 0.18); color: #8A5E00; }
+/* Chip de descuento en rojo */
 .asis-chip.asis-cupo-descuento { background: #C62828; color: #FFFFFF; }
+/* Insignia de descuento */
 .asis-badge.asis-descuento { background: #C62828; color: #FFFFFF; margin-left: 4px; }
+/* Fila con descuento: fondo rojizo */
 #app .asis-tabla tr.asis-fila-descuento td { background: rgba(198, 40, 40, 0.09); }
+/* Primera celda con marca roja a la izquierda */
 #app .asis-tabla tr.asis-fila-descuento td:first-child { box-shadow: inset 4px 0 0 #C62828; }
+/* Columna de aviso sin cortar línea */
 .asis-aviso-col { white-space: nowrap; }
+/* Botón redondo de aviso */
 .asis-aviso-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; text-decoration: none; font-size: 1rem; transition: transform var(--transition-base), filter var(--transition-base); }
+/* Al pasar el mouse: más grande */
 .asis-aviso-btn:hover { transform: scale(1.08); filter: brightness(1.05); }
+/* Aviso por WhatsApp en verde */
 .asis-aviso-btn.is-wa { background: rgba(37, 211, 102, 0.16); color: #1DA851; }
+/* Aviso por mail en azul */
 .asis-aviso-btn.is-mail { background: rgba(36, 71, 201, 0.12); color: #2447C9; }
+/* Indicador de falta en rojo */
 .asis-aviso-falta { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: rgba(198, 40, 40, 0.1); color: #C62828; cursor: help; }
+/* Oscuro: aviso en ámbar claro */
 html[data-theme="dark"] .asis-cupo-aviso, html[data-theme="dark"] .asis-chip.asis-cupo-aviso { color: #F2C14E; }
+/* Oscuro: límite en naranja claro */
 html[data-theme="dark"] .asis-cupo-limite { color: #FB923C; }
+/* Oscuro: botón de mail en azul claro */
 html[data-theme="dark"] .asis-aviso-btn.is-mail { color: #8FA8FF; background: rgba(143, 168, 255, 0.14); }
+/* Oscuro: fila con descuento rojiza */
 html[data-theme="dark"] #app .asis-tabla tr.asis-fila-descuento td { background: rgba(239, 68, 68, 0.14); }
+
+/* Certificados de licencias (ver CERTIFICADOS DE LICENCIAS en script.js) */
+/* Lista de archivos adjuntos */
+.cert-lista { list-style: none; padding: 0; margin: 4px 0 0; display: grid; gap: 6px; }
+/* Cada archivo */
+.cert-item { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 10px; background: var(--gray-100); }
+/* Ícono del tipo de archivo */
+.cert-item > i { font-size: 1.2rem; color: var(--brand-bright); }
+/* Nombre y datos del archivo */
+.cert-info { flex-grow: 1; min-width: 0; }
+/* Nombre clickeable */
+.cert-nombre { text-align: left; font-weight: 600; word-break: break-all; }
+/* Bloque de cada licencia en el panel del docente */
+.cert-licencia { padding: 10px 0; border-bottom: 1px solid var(--gray-border); }
+.cert-licencia:last-of-type { border-bottom: 0; margin-bottom: 6px; }

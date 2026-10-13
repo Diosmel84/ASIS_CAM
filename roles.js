@@ -83,10 +83,18 @@ const MATRIZ_PERMISOS = {
     ver_reportes: [ROLES.RECTOR],
     exportar_reportes: [ROLES.RECTOR],
     // Solo Rector y Programador pueden borrar (docentes, licencias,
-    // eventos) y tocar el punto geográfico (geocerca de la escuela o
-    // de un evento especial).
+    // eventos) y tocar el punto geográfico de la escuela.
     borrar: [ROLES.RECTOR, ROLES.PROGRAMADOR],
     editar_geo: [ROLES.RECTOR, ROLES.PROGRAMADOR],
+    // Geocerca de un evento especial: Secretaría también puede
+    // activarla y marcar el punto (la del colegio sigue en editar_geo).
+    editar_geo_evento: [ROLES.SECRETARIA, ROLES.RECTOR, ROLES.PROGRAMADOR],
+    // Certificados de licencias (JPG/PNG/PDF): Docente (solo a sus
+    // propias licencias), Secretaría y Rector. Borrar: el docente solo
+    // los que subió él mismo; Secretaría y Rector cualquiera (ver
+    // CERTIFICADOS DE LICENCIAS en script.js).
+    adjuntar_certificado_licencia: [ROLES.DOCENTE, ROLES.SECRETARIA, ROLES.RECTOR],
+    borrar_certificado_licencia: [ROLES.SECRETARIA, ROLES.RECTOR],
     // Exclusivo Rector: umbrales del semáforo de puntualidad (Inicio).
     editar_criterios_puntualidad: [ROLES.RECTOR],
     // Exclusivo Programador.

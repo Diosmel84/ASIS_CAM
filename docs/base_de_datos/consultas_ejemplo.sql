@@ -220,6 +220,7 @@ select * from (values
     ('exportar_reportes',            array['rector']),
     ('borrar',                       array['rector','programador']),
     ('editar_geo',                   array['rector','programador']),
+    ('editar_geo_evento',            array['secretaria','rector','programador']),
     ('editar_criterios_puntualidad', array['rector']),
     ('ver_claves',                   array['programador']),
     ('ver_auditoria',                array['rector','programador']),
