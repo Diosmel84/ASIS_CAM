@@ -17,6 +17,11 @@
 // ============================================================
 window.ASISCAM_I18N = window.ASISCAM_I18N || {};
 window.ASISCAM_I18N.es = {
+    footer: {
+        tagline: 'Control de Asistencia Docente',
+        contact: 'Contacto',
+        rights: 'Todos los derechos reservados.',
+    },
     common: {
         cancel: 'Cancelar',
         save: 'Guardar',

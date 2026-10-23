@@ -8,6 +8,11 @@
 // ============================================================
 window.ASISCAM_I18N = window.ASISCAM_I18N || {};
 window.ASISCAM_I18N.pt = {
+    footer: {
+        tagline: 'Controle de Presença Docente',
+        contact: 'Contato',
+        rights: 'Todos os direitos reservados.',
+    },
     common: {
         cancel: 'Cancelar',
         save: 'Salvar',

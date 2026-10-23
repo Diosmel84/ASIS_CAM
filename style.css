@@ -4154,3 +4154,59 @@ html[data-theme="dark"] #app .asis-tabla tr.asis-fila-descuento td { background:
 /* Bloque de cada licencia en el panel del docente */
 .cert-licencia { padding: 10px 0; border-bottom: 1px solid var(--gray-border); }
 .cert-licencia:last-of-type { border-bottom: 0; margin-bottom: 6px; }
+
+/* ============================================================
+   FOOTER: pie común a login y dashboard. El contenedor pasa a
+   columna flex para que el pie quede siempre abajo, aunque la
+   pantalla tenga poco contenido.
+============================================================ */
+/* Contenedor en columna para empujar el pie al fondo */
+.main-container { display: flex; flex-direction: column; }
+/* Las pantallas ocupan el espacio libre; el login ya no fuerza 100vh propio */
+#loginScreen, #dashboardScreen { flex: 1 0 auto; }
+/* El login comparte la altura con el pie */
+#loginScreen { min-height: 0; }
+
+/* Pie de página */
+.app-footer {
+    /* Queda pegado al fondo */
+    margin-top: auto;
+    /* Línea fina arriba */
+    border-top: 1px solid var(--gray-border);
+    /* Fondo igual al de la página */
+    background: var(--page-bg);
+    /* Texto apagado */
+    color: var(--gray-600);
+    /* Letra chica */
+    font-size: 0.85rem;
+/* Cierra .app-footer */
+}
+/* Contenido del pie */
+.app-footer-inner {
+    /* Fila que se acomoda en varias líneas */
+    display: flex;
+    flex-wrap: wrap;
+    /* Centrado vertical */
+    align-items: center;
+    /* Separa marca, enlaces y derechos */
+    justify-content: space-between;
+    /* Espacio entre bloques */
+    gap: 8px 24px;
+    /* Relleno */
+    padding: 16px 20px;
+/* Cierra .app-footer-inner */
+}
+/* Marca del pie */
+.app-footer-brand { display: flex; align-items: center; gap: 8px; color: var(--ink); }
+/* Logo del pie */
+.app-footer-logo { width: 22px; height: 22px; object-fit: contain; }
+/* Enlaces del pie */
+.app-footer-links a { color: var(--brand-bright); text-decoration: none; font-weight: 500; }
+/* Subrayado al pasar el mouse */
+.app-footer-links a:hover { text-decoration: underline; }
+/* Texto de derechos */
+.app-footer-copy { margin: 0; }
+/* En celular: todo centrado y apilado */
+@media (max-width: 576px) {
+    .app-footer-inner { flex-direction: column; text-align: center; padding: 14px 16px; }
+}

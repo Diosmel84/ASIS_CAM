@@ -2131,6 +2131,32 @@
             </div>
         <!-- Cierra la pantalla del dashboard -->
         </div>
+
+        <!-- ===== FOOTER ===== -->
+        <!-- Pie de página común a login y dashboard -->
+        <footer class="app-footer">
+            <!-- Contenido del pie -->
+            <div class="app-footer-inner">
+                <!-- Marca: logo y nombre -->
+                <div class="app-footer-brand">
+                    <!-- Logo chico -->
+                    <img src="/logo.png" alt="" class="app-footer-logo">
+                    <!-- Nombre y descripción -->
+                    <span><strong>ASISCAM PRO</strong> · <span data-i18n="footer.tagline">Control de Asistencia Docente</span></span>
+                <!-- Cierra la marca -->
+                </div>
+                <!-- Enlaces del pie -->
+                <nav class="app-footer-links" aria-label="Pie de página">
+                    <!-- Enlace a la página de contacto -->
+                    <a href="contacto.html"><i class="bi bi-envelope"></i> <span data-i18n="footer.contact">Contacto</span></a>
+                <!-- Cierra los enlaces -->
+                </nav>
+                <!-- Derechos; el año lo completa el script de abajo -->
+                <p class="app-footer-copy">&copy; <span id="footerYear">2026</span> ASISCAM PRO. <span data-i18n="footer.rights">Todos los derechos reservados.</span></p>
+            <!-- Cierra el contenido del pie -->
+            </div>
+        <!-- Cierra el footer -->
+        </footer>
     <!-- Cierra el contenedor principal de la app -->
     </div>
 
@@ -2872,6 +2898,8 @@
     <script src="liveness.js"></script>
     <!-- Verificación de suscripción -->
     <script src="src/utils/checkSuscripcion.js"></script>
+    <!-- Año actual en el footer -->
+    <script>document.getElementById('footerYear').textContent = new Date().getFullYear();</script>
 <!-- Cierra el cuerpo de la página -->
 </body>
 <!-- Cierra el documento HTML -->

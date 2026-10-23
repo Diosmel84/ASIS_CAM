@@ -7,6 +7,11 @@
 // ============================================================
 window.ASISCAM_I18N = window.ASISCAM_I18N || {};
 window.ASISCAM_I18N.en = {
+    footer: {
+        tagline: 'Teacher Attendance Control',
+        contact: 'Contact',
+        rights: 'All rights reserved.',
+    },
     common: {
         cancel: 'Cancel',
         save: 'Save',
